@@ -12,9 +12,22 @@ public static class GmailFilterParser
     [
         "from", "to", "cc", "bcc", "subject", "list", "filename",
         "deliveredto", "delivered-to", "delivered_to", "rfc822msgid", "msgid",
-        "header", "label",
+        "header", "label", "has", "is",
+        "is_starred", "starred",
         "after", "before", "older", "newer",
-        "older_than", "newer_than", "older-than", "newer-than"
+        "older_than", "newer_than", "older-than", "newer-than",
+        "has_yellow_star", "yellow_star", "yellow-star",
+        "has_orange_star", "orange_star", "orange-star",
+        "has_red_star", "red_star", "red-star",
+        "has_purple_star", "purple_star", "purple-star",
+        "has_blue_star", "blue_star", "blue-star",
+        "has_green_star", "green_star", "green-star",
+        "has_red_bang", "red_bang", "red-bang",
+        "has_yellow_bang", "yellow_bang", "yellow-bang",
+        "has_orange_guillemet", "orange_guillemet", "orange-guillemet", "orange_guillemets", "orange-guillemets",
+        "has_green_check", "green_check", "green-check",
+        "has_blue_info", "blue_info", "blue-info",
+        "has_purple_question", "purple_question", "purple-question"
     ];
 
     public static GmailRule ParseRule(LuaTable table, string? customDateFormat = null)
@@ -89,6 +102,22 @@ public static class GmailFilterParser
             string field = table.TryGetValue("field", out var fVal) ? fVal.ToString() : string.Empty;
             string val = table.TryGetValue("value", out var vVal) ? vVal.ToString() : string.Empty;
             return CreateConditionForField(field, val, customDateFormat);
+        }
+
+        // 5. Explicit DSL Has / Star: { type = "has", value = "..." }
+        if (table.TryGetValue("type", out var hTypeVal) && hTypeVal.Type == LuaValueType.String &&
+            hTypeVal.Read<string>() == "has")
+        {
+            string val = table.TryGetValue("value", out var vVal) ? vVal.ToString() : string.Empty;
+            return new HasCondition(val);
+        }
+
+        // 6. Explicit DSL Is: { type = "is", value = "..." }
+        if (table.TryGetValue("type", out var isTypeVal) && isTypeVal.Type == LuaValueType.String &&
+            isTypeVal.Read<string>() == "is")
+        {
+            string val = table.TryGetValue("value", out var vVal) ? vVal.ToString() : string.Empty;
+            return new IsCondition(val);
         }
 
         // 5. Keyed operators: ["or"], ["any_of"], ["any"]
@@ -228,6 +257,22 @@ public static class GmailFilterParser
                 {
                     conditions.Add(CreateConditionForField(field, val.Read<string>(), customDateFormat));
                 }
+                else if (val.Type == LuaValueType.Boolean && val.Read<bool>() && IsStarKey(field))
+                {
+                    conditions.Add(new HasCondition(ExtractStarTargetFromKey(field)));
+                }
+                else if (val.Type == LuaValueType.Boolean && val.Read<bool>() && (field is "is_starred" or "starred"))
+                {
+                    conditions.Add(new IsCondition("starred"));
+                }
+                else if (val.Type == LuaValueType.Table && field == "has" && val.TryRead<LuaTable>(out var hasTable))
+                {
+                    conditions.Add(ParseCondition(hasTable, customDateFormat));
+                }
+                else if (val.Type == LuaValueType.Table && field == "is" && val.TryRead<LuaTable>(out var isTable))
+                {
+                    conditions.Add(ParseCondition(isTable, customDateFormat));
+                }
                 else if (val.Type == LuaValueType.Table && field == "header" && val.TryRead<LuaTable>(out var hTable))
                 {
                     string name = hTable.TryGetValue("name", out var n) ? n.ToString() : string.Empty;
@@ -244,6 +289,26 @@ public static class GmailFilterParser
     {
         string normField = field.Trim().ToLowerInvariant();
 
+        if (normField == "has")
+        {
+            return new HasCondition(value);
+        }
+
+        if (normField == "is")
+        {
+            return new IsCondition(value);
+        }
+
+        if (normField is "is_starred" or "starred")
+        {
+            return new IsCondition("starred");
+        }
+
+        if (IsStarKey(normField))
+        {
+            return new HasCondition(ExtractStarTargetFromKey(normField));
+        }
+
         if (normField is "after" or "before" or "older" or "newer")
         {
             DateTime dt = FilterValidator.ValidateAndParseDate(normField, value, customDateFormat);
@@ -258,6 +323,30 @@ public static class GmailFilterParser
         }
 
         return new FieldCondition(normField, value);
+    }
+
+    private static bool IsStarKey(string key)
+    {
+        string norm = key.Trim().ToLowerInvariant();
+        if (norm.StartsWith("has_") || norm.StartsWith("has-"))
+        {
+            norm = norm[4..];
+        }
+        norm = norm.Replace('_', '-');
+        if (norm.EndsWith("guillemets")) norm = norm[..^1];
+        return FilterValidator.CanonicalStarsAndIcons.Contains(norm);
+    }
+
+    private static string ExtractStarTargetFromKey(string key)
+    {
+        string norm = key.Trim().ToLowerInvariant();
+        if (norm.StartsWith("has_") || norm.StartsWith("has-"))
+        {
+            norm = norm[4..];
+        }
+        norm = norm.Replace('_', '-');
+        if (norm.EndsWith("guillemets")) norm = norm[..^1];
+        return FilterValidator.ValidateAndNormalizeStar("has", norm);
     }
 
     private static bool IsDirectField(string key)

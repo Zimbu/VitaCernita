@@ -122,6 +122,61 @@ public static class FilterValidator
         return $"{count}{unit}";
     }
 
+    public static readonly HashSet<string> CanonicalStarsAndIcons = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "yellow-star",
+        "orange-star",
+        "red-star",
+        "purple-star",
+        "blue-star",
+        "green-star",
+        "red-bang",
+        "yellow-bang",
+        "orange-guillemet",
+        "green-check",
+        "blue-info",
+        "purple-question"
+    };
+
+    public static string ValidateAndNormalizeStar(string op, string rawValue)
+    {
+        ValidateNonEmpty(op, rawValue);
+
+        string normalized = rawValue.Trim().ToLowerInvariant().Replace('_', '-').Replace(" ", "-");
+        if (normalized.EndsWith("guillemets"))
+        {
+            normalized = normalized[..^1];
+        }
+
+        if (CanonicalStarsAndIcons.Contains(normalized))
+        {
+            return normalized;
+        }
+
+        throw new FilterValidationException(
+            $"Invalid star or icon '{rawValue}' for operator '{op}'. " +
+            $"Supported star operators are: {string.Join(", ", CanonicalStarsAndIcons.OrderBy(s => s))}.");
+    }
+
+    public static readonly HashSet<string> CanonicalIsTargets = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "starred"
+    };
+
+    public static string ValidateAndNormalizeIsTarget(string op, string rawValue)
+    {
+        ValidateNonEmpty(op, rawValue);
+        string normalized = rawValue.Trim().ToLowerInvariant();
+        if (CanonicalIsTargets.Contains(normalized))
+        {
+            return normalized;
+        }
+
+        throw new FilterValidationException(
+            $"Invalid target '{rawValue}' for operator '{op}'. " +
+            $"Supported targets are: {string.Join(", ", CanonicalIsTargets.OrderBy(s => s))}.");
+    }
+
     public static string NormalizeDateFormat(string format)
     {
         return format

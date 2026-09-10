@@ -27,9 +27,38 @@ All standard Google Gmail API string search operators are supported with consist
 | `Label(...)` | `label:` | User or system label | `Label("finance")` |
 | `match("phrase")` | `" "` | Exact word or phrase (double-quoted) | `match("confidential audit")` |
 
-*Note: Special enumerated operators like `has:`, `is:`, and `in:` will be introduced in future commits with dedicated enumerated DSL constructs.*
+*Note: Special enumerated operators `in:` and additional `is:` options will be introduced in future commits with dedicated enumerated DSL constructs.*
 
 ---
+
+### Star & Icon Operators (`has:`, `is:starred`)
+
+All 12 Gmail star and status icons plus the general `is:starred` operator are supported with multiple intuitive syntax forms. Per official Google Gmail search documentation, individual stars emit official hyphenated Gmail search operators (`has:<star-or-icon>`) and the general starred filter emits `is:starred`:
+
+| DSL Operator / Identifier | Gmail Operator | Icon Type | Description |
+| :--- | :--- | :--- | :--- |
+| `is_starred` / `is_starred()` | `is:starred` | Any Star | Matches all starred messages across all 12 star and icon options |
+| `has_yellow_star` / `has_yellow_star()` | `has:yellow-star` | Star | Standard yellow star |
+| `has_orange_star` / `has_orange_star()` | `has:orange-star` | Star | Orange star |
+| `has_red_star` / `has_red_star()` | `has:red-star` | Star | Red star |
+| `has_purple_star` / `has_purple_star()` | `has:purple-star` | Star | Purple star |
+| `has_blue_star` / `has_blue_star()` | `has:blue-star` | Star | Blue star |
+| `has_green_star` / `has_green_star()` | `has:green-star` | Star | Green star |
+| `has_red_bang` / `has_red_bang()` | `has:red-bang` | Bang | Red exclamation mark |
+| `has_yellow_bang` / `has_yellow_bang()` | `has:yellow-bang` | Bang | Yellow exclamation mark |
+| `has_orange_guillemet` / `has_orange_guillemet()` | `has:orange-guillemet` | Guillemet | Orange double right arrow (`>>`) |
+| `has_green_check` / `has_green_check()` | `has:green-check` | Check | Green checkmark |
+| `has_blue_info` / `has_blue_info()` | `has:blue-info` | Info | Blue information mark (`i`) |
+| `has_purple_question` / `has_purple_question()` | `has:purple-question` | Question | Purple question mark (`?`) |
+
+#### Flexible Expression Styles
+- **All Starred Messages**: `is_starred`, `is_starred()`, `IsStarred`, or `is("starred")` emits `is:starred`.
+- **Function Call or Identifier**: `has_red_bang()` or `has_red_bang` (without parentheses).
+- **PascalCase**: `HasYellowStar`, `HasRedBang`, `HasOrangeGuillemet`, `IsStarred`, etc.
+- **Generic Operator**: `has("yellow_star")` or `has("yellow-star")` (normalizes underscores and hyphens), and `is("starred")`.
+- **FilterBuilder**: `filter():has_yellow_star():is_starred():from("boss@company.com")`.
+- **Table Syntax**: `{ is_starred = true }`, `{ has_yellow_star = true }`, or `{ has = "red_bang" }`.
+- **Strict Enumerated Validation**: Reject unsupported star or icon names with descriptive validation exceptions.
 
 ### Date & Duration Operators
 

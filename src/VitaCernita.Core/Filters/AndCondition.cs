@@ -22,12 +22,14 @@ public sealed class AndCondition : IFilterCondition
         { "header", 9 },
         { "rfc822msgid", 10 },
         { "label", 11 },
-        { "after", 12 },
-        { "before", 13 },
-        { "older", 14 },
-        { "newer", 15 },
-        { "older_than", 16 },
-        { "newer_than", 17 }
+        { "has", 12 },
+        { "is", 13 },
+        { "after", 14 },
+        { "before", 15 },
+        { "older", 16 },
+        { "newer", 17 },
+        { "older_than", 18 },
+        { "newer_than", 19 }
     };
 
     public IReadOnlyList<IFilterCondition> Conditions { get; }
@@ -61,6 +63,16 @@ public sealed class AndCondition : IFilterCondition
             int priority = FieldOrdering.TryGetValue(fc.Field, out int p) ? p : 20;
             return (priority, fc.Field, fc.Value);
         }
+        if (cond is HasCondition hc)
+        {
+            int priority = FieldOrdering.TryGetValue("has", out int p) ? p : 12;
+            return (priority, "has", hc.Target);
+        }
+        if (cond is IsCondition ic)
+        {
+            int priority = FieldOrdering.TryGetValue("is", out int p) ? p : 13;
+            return (priority, "is", ic.Target);
+        }
         if (cond is DateCondition dc)
         {
             int priority = FieldOrdering.TryGetValue(dc.Operator, out int p) ? p : 20;
@@ -73,7 +85,7 @@ public sealed class AndCondition : IFilterCondition
         }
         if (cond is ExactMatchCondition emc)
         {
-            return (18, "match", emc.Phrase);
+            return (19, "match", emc.Phrase);
         }
         if (cond is OrCondition orCond)
         {

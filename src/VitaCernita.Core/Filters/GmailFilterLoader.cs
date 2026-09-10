@@ -84,6 +84,59 @@ function newer_than(val) return { type = 'field', field = 'newer_than', value = 
 NewerThan = newer_than
 newerThan = newer_than
 
+-- Star and icon operators (callable or usable as constant value)
+local function make_star(name)
+    local tbl = { type = 'has', value = name }
+    return setmetatable(tbl, {
+        __call = function() return { type = 'has', value = name } end
+    })
+end
+
+has_yellow_star = make_star('yellow-star')
+HasYellowStar = has_yellow_star
+has_orange_star = make_star('orange-star')
+HasOrangeStar = has_orange_star
+has_red_star = make_star('red-star')
+HasRedStar = has_red_star
+has_purple_star = make_star('purple-star')
+HasPurpleStar = has_purple_star
+has_blue_star = make_star('blue-star')
+HasBlueStar = has_blue_star
+has_green_star = make_star('green-star')
+HasGreenStar = has_green_star
+
+has_red_bang = make_star('red-bang')
+HasRedBang = has_red_bang
+has_yellow_bang = make_star('yellow-bang')
+HasYellowBang = has_yellow_bang
+has_orange_guillemet = make_star('orange-guillemet')
+HasOrangeGuillemet = has_orange_guillemet
+has_green_check = make_star('green-check')
+HasGreenCheck = has_green_check
+has_blue_info = make_star('blue-info')
+HasBlueInfo = has_blue_info
+has_purple_question = make_star('purple-question')
+HasPurpleQuestion = has_purple_question
+
+-- Generic has operator
+function has(val) return { type = 'has', value = tostring(val) } end
+Has = has
+
+-- Is operator & is_starred
+local function make_is(name)
+    local tbl = { type = 'is', value = name }
+    return setmetatable(tbl, {
+        __call = function() return { type = 'is', value = name } end
+    })
+end
+
+is_starred = make_is('starred')
+IsStarred = is_starred
+starred = is_starred
+
+function is(val) return { type = 'is', value = tostring(val) } end
+Is = is
+
 -- Logical operators
 function And(...)
     local args = { ... }
@@ -166,6 +219,41 @@ FilterBuilder.OlderThan = FilterBuilder.older_than
 
 function FilterBuilder:newer_than(val) table.insert(self.conditions, newer_than(val)); return self end
 FilterBuilder.NewerThan = FilterBuilder.newer_than
+
+function FilterBuilder:has(val) table.insert(self.conditions, has(val)); return self end
+FilterBuilder.Has = FilterBuilder.has
+
+function FilterBuilder:has_yellow_star() table.insert(self.conditions, has_yellow_star()); return self end
+FilterBuilder.HasYellowStar = FilterBuilder.has_yellow_star
+function FilterBuilder:has_orange_star() table.insert(self.conditions, has_orange_star()); return self end
+FilterBuilder.HasOrangeStar = FilterBuilder.has_orange_star
+function FilterBuilder:has_red_star() table.insert(self.conditions, has_red_star()); return self end
+FilterBuilder.HasRedStar = FilterBuilder.has_red_star
+function FilterBuilder:has_purple_star() table.insert(self.conditions, has_purple_star()); return self end
+FilterBuilder.HasPurpleStar = FilterBuilder.has_purple_star
+function FilterBuilder:has_blue_star() table.insert(self.conditions, has_blue_star()); return self end
+FilterBuilder.HasBlueStar = FilterBuilder.has_blue_star
+function FilterBuilder:has_green_star() table.insert(self.conditions, has_green_star()); return self end
+FilterBuilder.HasGreenStar = FilterBuilder.has_green_star
+function FilterBuilder:has_red_bang() table.insert(self.conditions, has_red_bang()); return self end
+FilterBuilder.HasRedBang = FilterBuilder.has_red_bang
+function FilterBuilder:has_yellow_bang() table.insert(self.conditions, has_yellow_bang()); return self end
+FilterBuilder.HasYellowBang = FilterBuilder.has_yellow_bang
+function FilterBuilder:has_orange_guillemet() table.insert(self.conditions, has_orange_guillemet()); return self end
+FilterBuilder.HasOrangeGuillemet = FilterBuilder.has_orange_guillemet
+function FilterBuilder:has_green_check() table.insert(self.conditions, has_green_check()); return self end
+FilterBuilder.HasGreenCheck = FilterBuilder.has_green_check
+function FilterBuilder:has_blue_info() table.insert(self.conditions, has_blue_info()); return self end
+FilterBuilder.HasBlueInfo = FilterBuilder.has_blue_info
+function FilterBuilder:has_purple_question() table.insert(self.conditions, has_purple_question()); return self end
+FilterBuilder.HasPurpleQuestion = FilterBuilder.has_purple_question
+
+function FilterBuilder:is(val) table.insert(self.conditions, is(val)); return self end
+FilterBuilder.Is = FilterBuilder.is
+
+function FilterBuilder:is_starred() table.insert(self.conditions, is_starred()); return self end
+FilterBuilder.IsStarred = FilterBuilder.is_starred
+FilterBuilder.starred = FilterBuilder.is_starred
 
 function FilterBuilder:build()
     return { type = 'operator', op = 'and', conditions = self.conditions }
@@ -309,7 +397,7 @@ Filter = filter
         if (root.TryGetValue("type", out var typeVal))
         {
             string t = typeVal.ToString();
-            if (t == "operator" || t == "exact" || t == "field" || t == "builder")
+            if (t == "operator" || t == "exact" || t == "field" || t == "builder" || t == "has" || t == "is")
             {
                 rules.Add(GmailFilterParser.ParseRule(root, customDateFormat));
                 return rules;

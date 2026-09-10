@@ -68,6 +68,34 @@ return {
                 From("@vendor-services.org"),
                 older("07-01-2026")
             )
+        },
+
+        -- Rule 6: Critical Action Items (Red Bang or Yellow Bang)
+        rule {
+            name = "Critical Action Items with Star Operators",
+            match = And(
+                From("director@company.com"),
+                Or(has_red_bang, has_yellow_bang),
+                newer_than("7d")
+            )
+        },
+
+        -- Rule 7: Follow-ups with Guillemets and Star Icons
+        rule {
+            name = "Important Inquiries & Follow-ups",
+            match = And(
+                Label("action-needed"),
+                Or(has_orange_guillemet, has_purple_question, has_green_check)
+            )
+        },
+
+        -- Rule 8: All Starred Messages from Leadership (matches any star color/icon)
+        rule {
+            name = "Leadership Starred Highlights",
+            match = And(
+                From("exec-team@company.com"),
+                is_starred
+            )
         }
     }
 }
