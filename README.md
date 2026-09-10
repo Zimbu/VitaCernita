@@ -27,8 +27,6 @@ All standard Google Gmail API string search operators are supported with consist
 | `Label(...)` | `label:` | User or system label | `Label("finance")` |
 | `match("phrase")` | `" "` | Exact word or phrase (double-quoted) | `match("confidential audit")` |
 
-*Note: Special enumerated operators `in:` and additional `is:` options will be introduced in future commits with dedicated enumerated DSL constructs.*
-
 ---
 
 ### Star & Icon Operators (`has:`, `is:starred`)
@@ -51,14 +49,86 @@ All 12 Gmail star and status icons plus the general `is:starred` operator are su
 | `has_blue_info` / `has_blue_info()` | `has:blue-info` | Info | Blue information mark (`i`) |
 | `has_purple_question` / `has_purple_question()` | `has:purple-question` | Question | Purple question mark (`?`) |
 
-#### Flexible Expression Styles
-- **All Starred Messages**: `is_starred`, `is_starred()`, `IsStarred`, or `is("starred")` emits `is:starred`.
-- **Function Call or Identifier**: `has_red_bang()` or `has_red_bang` (without parentheses).
-- **PascalCase**: `HasYellowStar`, `HasRedBang`, `HasOrangeGuillemet`, `IsStarred`, etc.
-- **Generic Operator**: `has("yellow_star")` or `has("yellow-star")` (normalizes underscores and hyphens), and `is("starred")`.
-- **FilterBuilder**: `filter():has_yellow_star():is_starred():from("boss@company.com")`.
-- **Table Syntax**: `{ is_starred = true }`, `{ has_yellow_star = true }`, or `{ has = "red_bang" }`.
-- **Strict Enumerated Validation**: Reject unsupported star or icon names with descriptive validation exceptions.
+---
+
+### Media, Document & Label Metadata (`has:`)
+
+| DSL Operator / Identifier | Gmail Operator | Description |
+| :--- | :--- | :--- |
+| `has_attachment` / `has_attachment()` / `attachment` | `has:attachment` | Messages with file attachments |
+| `has_drive` / `has_drive()` / `drive` | `has:drive` | Messages with Google Drive links or attachments |
+| `has_document` / `has_document()` / `document` | `has:document` | Messages with Google Docs |
+| `has_spreadsheet` / `has_spreadsheet()` / `spreadsheet` | `has:spreadsheet` | Messages with Google Sheets |
+| `has_presentation` / `has_presentation()` / `presentation` | `has:presentation` | Messages with Google Slides |
+| `has_youtube` / `has_youtube()` / `youtube` | `has:youtube` | Messages containing YouTube videos |
+| `has_userlabels` / `has_userlabels()` | `has:userlabels` | Messages with user-defined labels |
+| `has_nouserlabels` / `has_nouserlabels()` | `has:nouserlabels` | Messages without any user-defined labels |
+
+---
+
+### Status & State Operators (`is:`)
+
+| DSL Operator / Identifier | Gmail Operator | Description |
+| :--- | :--- | :--- |
+| `is_unread` / `is_unread()` / `unread` | `is:unread` | Unread messages |
+| `is_read` / `is_read()` / `read` | `is:read` | Read messages |
+| `is_important` / `is_important()` / `important` | `is:important` | Messages marked as important |
+| `is_starred` / `is_starred()` / `starred` | `is:starred` | Starred messages |
+| `is_muted` / `is_muted()` / `muted` | `is:muted` | Muted conversations |
+| `is_snoozed` / `is_snoozed()` / `snoozed` | `is:snoozed` | Snoozed conversations |
+| `is_chat` / `is_chat()` / `chat` | `is:chat` | Google Chat messages |
+| `is_draft` / `is_draft()` / `draft` | `is:draft` | Draft messages |
+| `is_sent` / `is_sent()` / `sent` | `is:sent` | Sent messages |
+| `is_trash` / `is_trash()` / `trash` | `is:trash` | Messages in Trash |
+| `is_spam` / `is_spam()` / `spam` | `is:spam` | Messages in Spam |
+
+---
+
+### Location & Folder Operators (`in:`)
+
+| DSL Operator / Identifier | Gmail Operator | Description |
+| :--- | :--- | :--- |
+| `in_anywhere` / `anywhere` | `in:anywhere` | Searches everywhere across Gmail (including Trash & Spam) |
+| `in_archive` / `archive` | `in:archive` | Archived messages (outside Inbox) |
+| `in_snoozed` | `in:snoozed` | Snoozed messages |
+| `in_inbox` / `inbox` | `in:inbox` | Messages located in the Inbox |
+| `in_sent` | `in:sent` | Messages in Sent Mail |
+| `in_drafts` / `drafts` | `in:drafts` | Messages in Drafts |
+| `in_trash` / `trash` | `in:trash` | Messages in Trash / Bin |
+| `in_spam` / `spam` | `in:spam` | Messages in Spam |
+| `in_chats` / `chats` | `in:chats` | Chat messages |
+
+---
+
+### Category Operators (`category:`)
+
+| DSL Operator / Identifier | Gmail Operator | Description |
+| :--- | :--- | :--- |
+| `category_primary` / `category('primary')` | `category:primary` | Messages in Primary inbox tab |
+| `category_social` / `category('social')` | `category:social` | Messages from social networks |
+| `category_promotions` / `category('promotions')` | `category:promotions` | Promotional offers and marketing |
+| `category_updates` / `category('updates')` | `category:updates` | Automated confirmations and updates |
+| `category_forums` / `category('forums')` | `category:forums` | Messages from discussion forums / groups |
+| `category_reservations` / `category('reservations')` | `category:reservations` | Flight, hotel, and dining reservations |
+| `category_purchases` / `category('purchases')` | `category:purchases` | Order confirmations, tracking, and receipts |
+
+---
+
+### Message Size Operators (`size:`, `larger:`, `smaller:`)
+
+Filter messages based on message size in bytes or formatted units (`K`, `M`, `G`):
+
+| DSL Operator | Gmail Operator | Description | Example |
+| :--- | :--- | :--- | :--- |
+| `size(val)` | `size:` | Messages larger than specified size | `size("10M")`, `size(1000000)` |
+| `larger(val)` / `larger_than(val)` | `larger:` | Messages larger than specified size | `larger("5M")`, `larger_than("500K")` |
+| `smaller(val)` / `smaller_than(val)` | `smaller:` | Messages smaller than specified size | `smaller("2M")`, `smaller_than("100K")` |
+
+- **Unit Normalization**: Automatically converts units (`10mb` -> `10M`, `500kb` -> `500K`, `1gb` -> `1G`).
+- **Raw Bytes**: Direct numeric arguments or byte strings (e.g. `1000000` or `"1000B"` -> `1000000`).
+- **Strict Validation**: Rejects invalid units, negative values, decimals, zero, and empty strings.
+
+---
 
 ### Date & Duration Operators
 

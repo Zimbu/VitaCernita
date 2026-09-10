@@ -4,9 +4,15 @@
 -- Demonstrating composite rules with:
 -- - String matching fields: from, to, cc, bcc, subject, list, filename, delivered-to,
 --   rfc822msgid, header, label, exact match("phrase").
--- - Email fragments and display names.
+-- - Star & Icon operators: has_yellow_star, has_red_bang, is_starred, etc.
+-- - Media, Document & Label metadata: has_attachment, has_drive, has_document, has_userlabels, etc.
+-- - Status & State operators: is_unread, is_read, is_important, is_muted, is_snoozed, etc.
+-- - Location & Folder operators: in_inbox, in_archive, in_trash, in_spam, in_anywhere, etc.
+-- - Category operators: category_promotions, category_updates, category_social, category_primary, etc.
+-- - Size operators: size, larger, smaller, larger_than, smaller_than (e.g. 5M, 500K, 1000000).
 -- - Date operators: after, before, older, newer.
 -- - Duration operators: older_than, newer_than (e.g. 7d, 3m, 1y).
+-- - Negation: not(), negate(), invert().
 -- - Global custom date format: date_format = "MM-dd-YYYY".
 
 return {
@@ -105,6 +111,36 @@ return {
                 From("exec-team@company.com"),
                 not({ is_starred = true }),
                 not(Or(Subject("automated"), Subject("newsletter")))
+            )
+        },
+
+        -- Rule 10: Unread Important Communications in Inbox
+        rule {
+            name = "Unread Critical Inbox Items",
+            match = And(
+                in_inbox,
+                is_unread,
+                is_important
+            )
+        },
+
+        -- Rule 11: Drive and Workspace Document Attachments
+        rule {
+            name = "Project Collateral with Cloud Documents",
+            match = And(
+                From("pm@company.com"),
+                has_drive,
+                Or(has_document, has_spreadsheet)
+            )
+        },
+
+        -- Rule 12: Promotional Emails & File Size Boundary Filtering
+        rule {
+            name = "Large Media and Promotional Collateral",
+            match = And(
+                category_promotions,
+                larger("5M"),
+                smaller("25M")
             )
         }
     }
