@@ -3,7 +3,7 @@ using System;
 namespace VitaCernita.Core.Filters;
 
 /// <summary>
-/// Condition matching a specific email field (e.g. 'from', 'subject').
+/// Condition matching a specific email field (e.g. 'from', 'to', 'cc', 'bcc', 'subject', 'list', 'filename', etc.).
 /// </summary>
 public sealed class FieldCondition : IFilterCondition
 {
@@ -12,14 +12,57 @@ public sealed class FieldCondition : IFilterCondition
 
     public FieldCondition(string field, string value)
     {
-        Field = field?.Trim().ToLowerInvariant() ?? throw new ArgumentNullException(nameof(field));
+        if (field == null) throw new ArgumentNullException(nameof(field));
+        Field = NormalizeField(field);
         Value = value?.Trim() ?? string.Empty;
+    }
+
+    public static string NormalizeField(string field)
+    {
+        string f = field.Trim().ToLowerInvariant();
+        return f switch
+        {
+            "delivered-to" or "delivered_to" => "deliveredto",
+            "rfc-822-msg-id" or "msgid" => "rfc822msgid",
+            "in_folder" => "in",
+            _ => f
+        };
     }
 
     public string ToGmailQuery(bool explicitAnd = false)
     {
+        if (Field == "header")
+        {
+            return FormatHeaderQuery(Value);
+        }
+
         string formattedValue = FormatValue(Value);
         return $"{Field}:{formattedValue}";
+    }
+
+    private static string FormatHeaderQuery(string headerVal)
+    {
+        int colonIdx = headerVal.IndexOf(':');
+        if (colonIdx > 0)
+        {
+            string headerName = headerVal[..colonIdx].Trim();
+            string rawValue = headerVal[(colonIdx + 1)..].Trim();
+
+            // Strip enclosing quotes if present
+            if (rawValue.Length >= 2 && rawValue.StartsWith('"') && rawValue.EndsWith('"'))
+            {
+                rawValue = rawValue[1..^1];
+            }
+
+            if (rawValue.Contains(' ') || rawValue.Contains('\t') || rawValue.Contains('"'))
+            {
+                string escaped = rawValue.Replace("\"", "\\\"");
+                return $"header:{headerName}:\"{escaped}\"";
+            }
+            return $"header:{headerName}:{rawValue}";
+        }
+
+        return $"header:{FormatValue(headerVal)}";
     }
 
     private static string FormatValue(string val)
@@ -35,7 +78,7 @@ public sealed class FieldCondition : IFilterCondition
             val = val[1..^1];
         }
 
-        // Quote if value contains whitespace, quotes, or punctuation
+        // Quote if value contains whitespace or quotes
         if (val.Contains(' ') || val.Contains('\t') || val.Contains('"'))
         {
             string escaped = val.Replace("\"", "\\\"");

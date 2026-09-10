@@ -13,7 +13,19 @@ public sealed class AndCondition : IFilterCondition
     {
         { "from", 1 },
         { "to", 2 },
-        { "subject", 3 }
+        { "cc", 3 },
+        { "bcc", 4 },
+        { "deliveredto", 5 },
+        { "subject", 6 },
+        { "list", 7 },
+        { "filename", 8 },
+        { "header", 9 },
+        { "rfc822msgid", 10 },
+        { "label", 11 },
+        { "category", 12 },
+        { "has", 13 },
+        { "is", 14 },
+        { "in", 15 }
     };
 
     public IReadOnlyList<IFilterCondition> Conditions { get; }
@@ -44,12 +56,16 @@ public sealed class AndCondition : IFilterCondition
     {
         if (cond is FieldCondition fc)
         {
-            int priority = FieldOrdering.TryGetValue(fc.Field, out int p) ? p : 10;
+            int priority = FieldOrdering.TryGetValue(fc.Field, out int p) ? p : 20;
             return (priority, fc.Field, fc.Value);
+        }
+        if (cond is ExactMatchCondition emc)
+        {
+            return (16, "match", emc.Phrase);
         }
         if (cond is OrCondition orCond)
         {
-            return (20, "or", orCond.ToGmailQuery(false));
+            return (30, "or", orCond.ToGmailQuery(false));
         }
         return (99, string.Empty, cond.ToGmailQuery(false));
     }

@@ -1,45 +1,52 @@
 -- =======================================================================
 -- VitaCernita Gmail Filter Configuration
 -- =======================================================================
--- This configuration showcases composite Gmail filter rules combining
--- AND and OR operators with arbitrary nesting depths.
+-- Demonstrating composite rules with all supported Gmail API fields:
+-- from, to, cc, bcc, subject, list, filename, delivered-to, rfc822msgid, header,
+-- exact phrase matches (match("...")), and operators (label, has, is, category, in).
 
 return {
     rules = {
-        -- Rule 1: OR containing three different matches of AND operations
-        -- (Matching three distinct combinations of from and subject)
+        -- Rule 1: High Priority Audit Alerts with Exact Phrase Match
         rule {
-            name = "Tri-Team Incident Dispatcher (OR of three ANDs)",
-            match = Or(
-                And(From("secops@company.com"), Subject("Security Breach")),
-                And(From("devops@company.com"), Subject("Cluster Outage")),
-                And(From("netops@company.com"), Subject("BGP Route Leak"))
-            )
-        },
-
-        -- Rule 2: AND containing nested OR
-        -- (Matching a specific sender with any of several priority subjects)
-        rule {
-            name = "Executive Escalations (AND containing OR)",
+            name = "Security Incident - Confidential Audit Alert",
             match = And(
-                From("ceo@company.com"),
-                Or(
-                    Subject("Immediate Action Required"),
-                    Subject("Board Resolution"),
-                    Subject("Urgent")
-                )
+                From("secops@company.com"),
+                To("compliance@company.com"),
+                Cc("ciso@company.com"),
+                Subject("Security Audit"),
+                Header("X-Severity", "CRITICAL"),
+                match("unauthorized privilege escalation")
             )
         },
 
-        -- Rule 3: Declarative table style (OR containing ANDs)
+        -- Rule 2: Invoices & Receipts with Attachment Filename Match
         rule {
-            name = "Declarative On-Call Routing",
-            match = {
-                ["or"] = {
-                    { from = "pagerduty.com", subject = "Sev-1" },
-                    { from = "datadog.com", subject = "Monitor Triggered" }
-                }
-            }
+            name = "Invoices and Monthly Billing",
+            match = And(
+                Or(From("billing@aws.com"), From("invoicing@google.com")),
+                Or(Filename("invoice.pdf"), Filename("receipt.pdf")),
+                Has("attachment")
+            )
+        },
+
+        -- Rule 3: Mailing List & Delivered-To Filter
+        rule {
+            name = "Internal Engineering Announcements",
+            match = And(
+                List("dev-announce@lists.company.com"),
+                delivered_to("oncall-alias@company.com"),
+                Is("unread")
+            )
+        },
+
+        -- Rule 4: Header & Message-ID Exact Thread Lookup
+        rule {
+            name = "Calendar Escalations via Header",
+            match = And(
+                Header("X-Google-Calendar-Notification:rsvpWithNote"),
+                rfc822msgid("meeting-alert-2026@google.com")
+            )
         }
     }
 }

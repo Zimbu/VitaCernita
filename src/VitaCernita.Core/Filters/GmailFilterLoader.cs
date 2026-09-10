@@ -21,11 +21,91 @@ function from(val)
 end
 From = from
 
+function to(val)
+    return { type = 'field', field = 'to', value = tostring(val) }
+end
+To = to
+
+function cc(val)
+    return { type = 'field', field = 'cc', value = tostring(val) }
+end
+Cc = cc
+
+function bcc(val)
+    return { type = 'field', field = 'bcc', value = tostring(val) }
+end
+Bcc = bcc
+
 function subject(val)
     return { type = 'field', field = 'subject', value = tostring(val) }
 end
 Subject = subject
 
+function list(val)
+    return { type = 'field', field = 'list', value = tostring(val) }
+end
+List = list
+
+function filename(val)
+    return { type = 'field', field = 'filename', value = tostring(val) }
+end
+Filename = filename
+
+function delivered_to(val)
+    return { type = 'field', field = 'deliveredto', value = tostring(val) }
+end
+deliveredto = delivered_to
+DeliveredTo = delivered_to
+
+function rfc822msgid(val)
+    return { type = 'field', field = 'rfc822msgid', value = tostring(val) }
+end
+Rfc822MsgId = rfc822msgid
+msgid = rfc822msgid
+
+function header(name_or_pair, maybe_val)
+    if maybe_val ~= nil then
+        return { type = 'field', field = 'header', value = tostring(name_or_pair) .. ':' .. tostring(maybe_val) }
+    else
+        return { type = 'field', field = 'header', value = tostring(name_or_pair) }
+    end
+end
+Header = header
+
+-- Exact word or phrase match: double-quoted search term
+function match(phrase)
+    return { type = 'exact', value = tostring(phrase) }
+end
+Match = match
+exact = match
+
+-- Additional string matching operators from official Gmail documentation
+function label(val)
+    return { type = 'field', field = 'label', value = tostring(val) }
+end
+Label = label
+
+function category(val)
+    return { type = 'field', field = 'category', value = tostring(val) }
+end
+Category = category
+
+function has(val)
+    return { type = 'field', field = 'has', value = tostring(val) }
+end
+Has = has
+
+function is(val)
+    return { type = 'field', field = 'is', value = tostring(val) }
+end
+Is = is
+
+function in_folder(val)
+    return { type = 'field', field = 'in', value = tostring(val) }
+end
+InFolder = in_folder
+
+-- Logical operators
 function And(...)
     local args = { ... }
     return { type = 'operator', op = 'and', conditions = args }
@@ -54,17 +134,53 @@ Rule = rule
 local FilterBuilder = {}
 FilterBuilder.__index = FilterBuilder
 
-function FilterBuilder:from(val)
-    table.insert(self.conditions, from(val))
-    return self
-end
+function FilterBuilder:from(val) table.insert(self.conditions, from(val)); return self end
 FilterBuilder.From = FilterBuilder.from
 
-function FilterBuilder:subject(val)
-    table.insert(self.conditions, subject(val))
-    return self
-end
+function FilterBuilder:to(val) table.insert(self.conditions, to(val)); return self end
+FilterBuilder.To = FilterBuilder.to
+
+function FilterBuilder:cc(val) table.insert(self.conditions, cc(val)); return self end
+FilterBuilder.Cc = FilterBuilder.cc
+
+function FilterBuilder:bcc(val) table.insert(self.conditions, bcc(val)); return self end
+FilterBuilder.Bcc = FilterBuilder.bcc
+
+function FilterBuilder:subject(val) table.insert(self.conditions, subject(val)); return self end
 FilterBuilder.Subject = FilterBuilder.subject
+
+function FilterBuilder:list(val) table.insert(self.conditions, list(val)); return self end
+FilterBuilder.List = FilterBuilder.list
+
+function FilterBuilder:filename(val) table.insert(self.conditions, filename(val)); return self end
+FilterBuilder.Filename = FilterBuilder.filename
+
+function FilterBuilder:delivered_to(val) table.insert(self.conditions, delivered_to(val)); return self end
+FilterBuilder.DeliveredTo = FilterBuilder.delivered_to
+
+function FilterBuilder:rfc822msgid(val) table.insert(self.conditions, rfc822msgid(val)); return self end
+FilterBuilder.Rfc822MsgId = FilterBuilder.rfc822msgid
+
+function FilterBuilder:header(name_or_pair, maybe_val) table.insert(self.conditions, header(name_or_pair, maybe_val)); return self end
+FilterBuilder.Header = FilterBuilder.header
+
+function FilterBuilder:match(phrase) table.insert(self.conditions, match(phrase)); return self end
+FilterBuilder.Match = FilterBuilder.match
+
+function FilterBuilder:label(val) table.insert(self.conditions, label(val)); return self end
+FilterBuilder.Label = FilterBuilder.label
+
+function FilterBuilder:category(val) table.insert(self.conditions, category(val)); return self end
+FilterBuilder.Category = FilterBuilder.category
+
+function FilterBuilder:has(val) table.insert(self.conditions, has(val)); return self end
+FilterBuilder.Has = FilterBuilder.has
+
+function FilterBuilder:is(val) table.insert(self.conditions, is(val)); return self end
+FilterBuilder.Is = FilterBuilder.is
+
+function FilterBuilder:in_folder(val) table.insert(self.conditions, in_folder(val)); return self end
+FilterBuilder.InFolder = FilterBuilder.in_folder
 
 function FilterBuilder:build()
     return { type = 'operator', op = 'and', conditions = self.conditions }
@@ -180,11 +296,15 @@ Filter = filter
             if (rules.Count > 0) return rules;
         }
 
-        // Check if root is an operator (e.g. Or / And)
-        if (root.TryGetValue("type", out var typeVal) && typeVal.ToString() == "operator")
+        // Check if root is an operator (e.g. Or / And) or exact match
+        if (root.TryGetValue("type", out var typeVal))
         {
-            rules.Add(GmailFilterParser.ParseRule(root));
-            return rules;
+            string t = typeVal.ToString();
+            if (t == "operator" || t == "exact" || t == "field" || t == "builder")
+            {
+                rules.Add(GmailFilterParser.ParseRule(root));
+                return rules;
+            }
         }
 
         // Check if root is an array of rules: { rule1, rule2 }

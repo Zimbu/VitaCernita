@@ -8,36 +8,47 @@ VitaCernita pairs modern .NET performance with the flexibility of a declarative 
 
 ## Gmail Filter Configuration
 
-VitaCernita supports boolean logic (`AND`, `OR`), field matches (`from`, `subject`), and arbitrary levels of composite nesting.
+### Supported Fields & Operators
 
-### Supported Operators & Syntax
+All standard Google Gmail API search operators are supported with consistent match syntax:
 
-#### 1. Simple `AND` Condition
-Combines field criteria with an `AND` relation (emitted as canonical space-separated Gmail query syntax):
+| DSL Operator | Gmail Operator | Description | Example |
+| :--- | :--- | :--- | :--- |
+| `From(...)` | `from:` | Sender email or display name | `From("alice@example.com")` |
+| `To(...)` | `to:` | Primary recipient email | `To("devs@company.com")` |
+| `Cc(...)` | `cc:` | Carbon copy recipient | `Cc("audit@company.com")` |
+| `Bcc(...)` | `bcc:` | Blind carbon copy recipient | `Bcc("archive@company.com")` |
+| `Subject(...)` | `subject:` | Subject line text | `Subject("High CPU Alert")` |
+| `List(...)` | `list:` | Mailing list ID or address | `List("dev-announce@lists.com")` |
+| `Filename(...)` | `filename:` | Attachment filename or extension | `Filename("invoice.pdf")` |
+| `DeliveredTo(...)` | `deliveredto:` | Delivered-to header address (aliases) | `delivered_to("ops-alias@company.com")` |
+| `Rfc822MsgId(...)` | `rfc822msgid:` | Message-ID header value | `rfc822msgid("msg-01@example.com")` |
+| `Header(name, val)` | `header:` | Custom MIME header match | `Header("X-Severity", "CRITICAL")` |
+| `match("phrase")` | `" "` | Exact word or phrase (double-quoted) | `match("confidential audit")` |
+| `Label(...)` | `label:` | User or system label | `Label("finance")` |
+| `Category(...)` | `category:` | Inbox category (promotions, updates...) | `Category("updates")` |
+| `Has(...)` | `has:` | Email feature (attachment, drive...) | `Has("attachment")` |
+| `Is(...)` | `is:` | Email state (unread, starred, muted...) | `Is("unread")` |
+| `InFolder(...)` | `in:` | Search location (archive, trash, spam...) | `in_folder("archive")` |
+
+---
+
+### Logic & Nesting
+
+#### 1. Exact Word or Phrase Match (`match`)
+Per Google Gmail search documentation, exact phrase searches are double-quoted search terms:
 ```lua
 return rule {
     match = And(
-        From("alerts@monitoring.com"),
-        Subject("High CPU")
+        From("secops@company.com"),
+        match("unauthorized privilege escalation")
     )
 }
--- Result: from:alerts@monitoring.com subject:"High CPU"
+-- Emits: from:secops@company.com "unauthorized privilege escalation"
 ```
 
-#### 2. Simple `OR` Condition
-Matches any of multiple criteria using the uppercase `OR` operator:
-```lua
-return rule {
-    match = Or(
-        From("alice@example.com"),
-        Subject("Urgent")
-    )
-}
--- Result: from:alice@example.com OR subject:Urgent
-```
-
-#### 3. `OR` Containing Matches of `AND`
-Combines multiple distinct combinations of `from` and `subject`:
+#### 2. Composite Nested Rules
+Combine boolean operators (`And`, `Or`) at arbitrary depths:
 ```lua
 return rule {
     name = "Tri-Team Incident Dispatcher",
@@ -47,35 +58,21 @@ return rule {
         And(From("netops@company.com"), Subject("BGP Route Leak"))
     )
 }
--- Result: (from:devops@company.com subject:"Cluster Outage") OR (from:netops@company.com subject:"BGP Route Leak") OR (from:secops@company.com subject:"Security Breach")
+-- Emits: (from:devops@company.com subject:"Cluster Outage") OR (from:netops@company.com subject:"BGP Route Leak") OR (from:secops@company.com subject:"Security Breach")
 ```
 
-#### 4. `AND` Containing `OR`
-Combines a sender match with an alternative set of subjects:
-```lua
-return rule {
-    name = "Executive Escalations",
-    match = And(
-        From("ceo@company.com"),
-        Or(
-            Subject("Immediate Action Required"),
-            Subject("Board Resolution"),
-            Subject("Urgent")
-        )
-    )
-}
--- Result: from:ceo@company.com (subject:"Board Resolution" OR subject:"Immediate Action Required" OR subject:Urgent)
-```
-
-#### 5. Declarative Table Syntax
-Equivalent logic can also be declared using pure tables:
+#### 3. Declarative Table Syntax
+Any rule can also be written in pure Lua table syntax:
 ```lua
 return {
     rules = {
         {
+            from = "cfo@company.com",
+            ["delivered-to"] = "finance@company.com",
+            match = "Quarterly Dividend",
             ["or"] = {
-                { from = "devops@company.com", subject = "Outage" },
-                { from = "secops@company.com", subject = "Breach" }
+                { filename = "dividend.pdf" },
+                { filename = "sheet.xlsx" }
             }
         }
     }
@@ -92,7 +89,7 @@ return {
 # Build solution
 dotnet build
 
-# Run unit tests (including Boundary Value Analysis suite)
+# Run unit tests
 dotnet test
 
 # Run and print the precise Gmail filter text
