@@ -44,7 +44,17 @@ public static class GmailFilterParser
         "is_draft", "draft",
         "is_sent", "sent",
         "is_trash", "trash",
-        "is_spam", "spam"
+        "is_spam", "spam",
+        "in",
+        "in_anywhere", "anywhere",
+        "in_archive", "archive",
+        "in_snoozed",
+        "in_inbox", "inbox",
+        "in_sent",
+        "in_drafts", "drafts",
+        "in_trash",
+        "in_spam",
+        "in_chats", "chats"
     ];
 
     public static GmailRule ParseRule(LuaTable table, string? customDateFormat = null)
@@ -166,6 +176,14 @@ public static class GmailFilterParser
         {
             string val = table.TryGetValue("value", out var vVal) ? vVal.ToString() : string.Empty;
             return new IsCondition(val);
+        }
+
+        // 7. Explicit DSL In: { type = "in", value = "..." }
+        if (table.TryGetValue("type", out var inTypeVal) && inTypeVal.Type == LuaValueType.String &&
+            inTypeVal.Read<string>() == "in")
+        {
+            string val = table.TryGetValue("value", out var vVal) ? vVal.ToString() : string.Empty;
+            return new InCondition(val);
         }
 
         // 5. Keyed operators: ["or"], ["any_of"], ["any"]
@@ -345,6 +363,26 @@ public static class GmailFilterParser
                         conditions.Add(ParseCondition(isTable, customDateFormat));
                     }
                 }
+                else if (val.Type == LuaValueType.Boolean && val.Read<bool>() && IsInKey(field))
+                {
+                    conditions.Add(new InCondition(ExtractInTargetFromKey(field)));
+                }
+                else if (val.Type == LuaValueType.Table && field == "in" && val.TryRead<LuaTable>(out var inTable))
+                {
+                    bool hasDirectStrings = false;
+                    for (int i = 1; i <= inTable.ArrayLength; i++)
+                    {
+                        if (inTable[i].Type == LuaValueType.String)
+                        {
+                            conditions.Add(new InCondition(inTable[i].Read<string>()));
+                            hasDirectStrings = true;
+                        }
+                    }
+                    if (!hasDirectStrings)
+                    {
+                        conditions.Add(ParseCondition(inTable, customDateFormat));
+                    }
+                }
                 else if (val.Type == LuaValueType.Table && field == "header" && val.TryRead<LuaTable>(out var hTable))
                 {
                     string name = hTable.TryGetValue("name", out var n) ? n.ToString() : string.Empty;
@@ -411,6 +449,16 @@ public static class GmailFilterParser
             return new IsCondition(ExtractIsTargetFromKey(normField));
         }
 
+        if (normField == "in")
+        {
+            return new InCondition(value);
+        }
+
+        if (IsInKey(normField))
+        {
+            return new InCondition(ExtractInTargetFromKey(normField));
+        }
+
         if (IsHasKey(normField))
         {
             return new HasCondition(ExtractHasTargetFromKey(normField));
@@ -452,6 +500,30 @@ public static class GmailFilterParser
         }
         norm = norm.Replace('_', '-');
         return FilterValidator.ValidateAndNormalizeIsTarget("is", norm);
+    }
+
+    private static bool IsInKey(string key)
+    {
+        string norm = key.Trim().ToLowerInvariant();
+        if (norm.StartsWith("in_") || norm.StartsWith("in-"))
+        {
+            norm = norm[3..];
+        }
+        norm = norm.Replace('_', '-');
+        if (norm == "draft") norm = "drafts";
+        if (norm == "chat") norm = "chats";
+        return FilterValidator.CanonicalInTargets.Contains(norm);
+    }
+
+    private static string ExtractInTargetFromKey(string key)
+    {
+        string norm = key.Trim().ToLowerInvariant();
+        if (norm.StartsWith("in_") || norm.StartsWith("in-"))
+        {
+            norm = norm[3..];
+        }
+        norm = norm.Replace('_', '-');
+        return FilterValidator.ValidateAndNormalizeInTarget("in", norm);
     }
 
     private static bool IsHasKey(string key)

@@ -233,6 +233,36 @@ public static class FilterValidator
             $"Supported targets are: {string.Join(", ", CanonicalIsTargets.OrderBy(s => s))}.");
     }
 
+    public static readonly HashSet<string> CanonicalInTargets = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "anywhere",
+        "archive",
+        "snoozed",
+        "inbox",
+        "sent",
+        "drafts",
+        "trash",
+        "spam",
+        "chats"
+    };
+
+    public static string ValidateAndNormalizeInTarget(string op, string rawValue)
+    {
+        ValidateNonEmpty(op, rawValue);
+        string normalized = rawValue.Trim().ToLowerInvariant().Replace('_', '-').Replace(" ", "-");
+        if (normalized == "draft") normalized = "drafts";
+        if (normalized == "chat") normalized = "chats";
+
+        if (CanonicalInTargets.Contains(normalized))
+        {
+            return normalized;
+        }
+
+        throw new FilterValidationException(
+            $"Invalid target '{rawValue}' for operator '{op}'. " +
+            $"Supported targets are: {string.Join(", ", CanonicalInTargets.OrderBy(s => s))}.");
+    }
+
     public static string NormalizeDateFormat(string format)
     {
         return format

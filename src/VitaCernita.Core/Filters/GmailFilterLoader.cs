@@ -209,6 +209,55 @@ IsSpam = is_spam
 function is(val) return { type = 'is', value = tostring(val) } end
 Is = is
 
+-- In operator & location/folder helpers
+local function make_in(name)
+    local tbl = { type = 'in', value = name }
+    return setmetatable(tbl, {
+        __call = function() return { type = 'in', value = name } end
+    })
+end
+
+function In(target) return { type = 'in', value = tostring(target) } end
+in_folder = In
+in_location = In
+in_box = In
+
+in_anywhere = make_in('anywhere')
+InAnywhere = in_anywhere
+anywhere = in_anywhere
+
+in_archive = make_in('archive')
+InArchive = in_archive
+archive = in_archive
+
+in_snoozed = make_in('snoozed')
+InSnoozed = in_snoozed
+
+in_inbox = make_in('inbox')
+InInbox = in_inbox
+inbox = in_inbox
+
+in_sent = make_in('sent')
+InSent = in_sent
+
+in_drafts = make_in('drafts')
+InDrafts = in_drafts
+in_draft = in_drafts
+drafts = in_drafts
+
+in_trash = make_in('trash')
+InTrash = in_trash
+trash = in_trash
+
+in_spam = make_in('spam')
+InSpam = in_spam
+spam = in_spam
+
+in_chats = make_in('chats')
+InChats = in_chats
+in_chat = in_chats
+chats = in_chats
+
 -- Negation (NOT) operator
 function Not(...)
     local args = { ... }
@@ -394,6 +443,30 @@ FilterBuilder.IsTrash = FilterBuilder.is_trash
 function FilterBuilder:is_spam() table.insert(self.conditions, is_spam()); return self end
 FilterBuilder.IsSpam = FilterBuilder.is_spam
 
+function FilterBuilder:In(target) table.insert(self.conditions, In(target)); return self end
+FilterBuilder['in'] = FilterBuilder.In
+FilterBuilder.in_folder = FilterBuilder.In
+FilterBuilder.in_location = FilterBuilder.In
+
+function FilterBuilder:in_anywhere() table.insert(self.conditions, in_anywhere()); return self end
+FilterBuilder.InAnywhere = FilterBuilder.in_anywhere
+function FilterBuilder:in_archive() table.insert(self.conditions, in_archive()); return self end
+FilterBuilder.InArchive = FilterBuilder.in_archive
+function FilterBuilder:in_snoozed() table.insert(self.conditions, in_snoozed()); return self end
+FilterBuilder.InSnoozed = FilterBuilder.in_snoozed
+function FilterBuilder:in_inbox() table.insert(self.conditions, in_inbox()); return self end
+FilterBuilder.InInbox = FilterBuilder.in_inbox
+function FilterBuilder:in_sent() table.insert(self.conditions, in_sent()); return self end
+FilterBuilder.InSent = FilterBuilder.in_sent
+function FilterBuilder:in_drafts() table.insert(self.conditions, in_drafts()); return self end
+FilterBuilder.InDrafts = FilterBuilder.in_drafts
+function FilterBuilder:in_trash() table.insert(self.conditions, in_trash()); return self end
+FilterBuilder.InTrash = FilterBuilder.in_trash
+function FilterBuilder:in_spam() table.insert(self.conditions, in_spam()); return self end
+FilterBuilder.InSpam = FilterBuilder.in_spam
+function FilterBuilder:in_chats() table.insert(self.conditions, in_chats()); return self end
+FilterBuilder.InChats = FilterBuilder.in_chats
+
 function FilterBuilder:Not(...) table.insert(self.conditions, Not(...)); return self end
 FilterBuilder['not'] = FilterBuilder.Not
 FilterBuilder.not_op = FilterBuilder.Not
@@ -410,14 +483,19 @@ end
 Filter = filter
 ";
 
-    private static readonly Regex NotRewriteRegex = new(
-        @"(""(\\.|[^""\\])*""|'(\\.|[^'\\])*'|\[\[.*?\]\]|--\[\[.*?\]\]|--[^\r\n]*)|\bnot\s*\(",
-        RegexOptions.Compiled | RegexOptions.Singleline);
+    private static readonly Regex KeywordRewriteRegex = new(
+        @"(""(\\.|[^""\\])*""|'(\\.|[^'\\])*'|\[\[.*?\]\]|--\[\[.*?\]\]|--[^\r\n]*)|\b(?<kw>not|in)\s*\(",
+        RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.IgnoreCase);
 
     public static string PreprocessScript(string script)
     {
         if (string.IsNullOrEmpty(script)) return script;
-        return NotRewriteRegex.Replace(script, m => m.Groups[1].Success ? m.Groups[1].Value : "Not(");
+        return KeywordRewriteRegex.Replace(script, m =>
+        {
+            if (m.Groups[1].Success) return m.Groups[1].Value;
+            string kw = m.Groups["kw"].Value.ToLowerInvariant();
+            return kw == "in" ? "In(" : "Not(";
+        });
     }
 
     public async Task<List<GmailRule>> LoadRulesFromFileAsync(string filePath, LuaState? externalState = null)
