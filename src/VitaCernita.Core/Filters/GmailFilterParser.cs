@@ -54,7 +54,15 @@ public static class GmailFilterParser
         "in_drafts", "drafts",
         "in_trash",
         "in_spam",
-        "in_chats", "chats"
+        "in_chats", "chats",
+        "category",
+        "category_primary", "category-primary",
+        "category_social", "category-social",
+        "category_promotions", "category-promotions", "category_promotion", "category-promotion",
+        "category_updates", "category-updates", "category_update", "category-update",
+        "category_forums", "category-forums", "category_forum", "category-forum",
+        "category_reservations", "category-reservations", "category_reservation", "category-reservation",
+        "category_purchases", "category-purchases", "category_purchase", "category-purchase"
     ];
 
     public static GmailRule ParseRule(LuaTable table, string? customDateFormat = null)
@@ -184,6 +192,14 @@ public static class GmailFilterParser
         {
             string val = table.TryGetValue("value", out var vVal) ? vVal.ToString() : string.Empty;
             return new InCondition(val);
+        }
+
+        // 8. Explicit DSL Category: { type = "category", value = "..." }
+        if (table.TryGetValue("type", out var catTypeVal) && catTypeVal.Type == LuaValueType.String &&
+            catTypeVal.Read<string>() == "category")
+        {
+            string val = table.TryGetValue("value", out var vVal) ? vVal.ToString() : string.Empty;
+            return new CategoryCondition(val);
         }
 
         // 5. Keyed operators: ["or"], ["any_of"], ["any"]
@@ -383,6 +399,26 @@ public static class GmailFilterParser
                         conditions.Add(ParseCondition(inTable, customDateFormat));
                     }
                 }
+                else if (val.Type == LuaValueType.Boolean && val.Read<bool>() && IsCategoryKey(field))
+                {
+                    conditions.Add(new CategoryCondition(ExtractCategoryTargetFromKey(field)));
+                }
+                else if (val.Type == LuaValueType.Table && field == "category" && val.TryRead<LuaTable>(out var catTable))
+                {
+                    bool hasDirectStrings = false;
+                    for (int i = 1; i <= catTable.ArrayLength; i++)
+                    {
+                        if (catTable[i].Type == LuaValueType.String)
+                        {
+                            conditions.Add(new CategoryCondition(catTable[i].Read<string>()));
+                            hasDirectStrings = true;
+                        }
+                    }
+                    if (!hasDirectStrings)
+                    {
+                        conditions.Add(ParseCondition(catTable, customDateFormat));
+                    }
+                }
                 else if (val.Type == LuaValueType.Table && field == "header" && val.TryRead<LuaTable>(out var hTable))
                 {
                     string name = hTable.TryGetValue("name", out var n) ? n.ToString() : string.Empty;
@@ -459,6 +495,16 @@ public static class GmailFilterParser
             return new InCondition(ExtractInTargetFromKey(normField));
         }
 
+        if (normField == "category")
+        {
+            return new CategoryCondition(value);
+        }
+
+        if (IsCategoryKey(normField))
+        {
+            return new CategoryCondition(ExtractCategoryTargetFromKey(normField));
+        }
+
         if (IsHasKey(normField))
         {
             return new HasCondition(ExtractHasTargetFromKey(normField));
@@ -524,6 +570,33 @@ public static class GmailFilterParser
         }
         norm = norm.Replace('_', '-');
         return FilterValidator.ValidateAndNormalizeInTarget("in", norm);
+    }
+
+    private static bool IsCategoryKey(string key)
+    {
+        string norm = key.Trim().ToLowerInvariant();
+        if (norm.StartsWith("category_") || norm.StartsWith("category-"))
+        {
+            norm = norm[9..];
+        }
+        norm = norm.Replace('_', '-');
+        if (norm == "promotion") norm = "promotions";
+        if (norm == "update") norm = "updates";
+        if (norm == "forum") norm = "forums";
+        if (norm == "reservation") norm = "reservations";
+        if (norm == "purchase") norm = "purchases";
+        return FilterValidator.CanonicalCategoryTargets.Contains(norm);
+    }
+
+    private static string ExtractCategoryTargetFromKey(string key)
+    {
+        string norm = key.Trim().ToLowerInvariant();
+        if (norm.StartsWith("category_") || norm.StartsWith("category-"))
+        {
+            norm = norm[9..];
+        }
+        norm = norm.Replace('_', '-');
+        return FilterValidator.ValidateAndNormalizeCategoryTarget("category", norm);
     }
 
     private static bool IsHasKey(string key)

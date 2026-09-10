@@ -258,6 +258,43 @@ InChats = in_chats
 in_chat = in_chats
 chats = in_chats
 
+-- Category operator & helpers
+local function make_category(name)
+    local tbl = { type = 'category', value = name }
+    return setmetatable(tbl, {
+        __call = function() return { type = 'category', value = name } end
+    })
+end
+
+function category(target) return { type = 'category', value = tostring(target) } end
+Category = category
+
+category_primary = make_category('primary')
+CategoryPrimary = category_primary
+
+category_social = make_category('social')
+CategorySocial = category_social
+
+category_promotions = make_category('promotions')
+CategoryPromotions = category_promotions
+category_promotion = category_promotions
+
+category_updates = make_category('updates')
+CategoryUpdates = category_updates
+category_update = category_updates
+
+category_forums = make_category('forums')
+CategoryForums = category_forums
+category_forum = category_forums
+
+category_reservations = make_category('reservations')
+CategoryReservations = category_reservations
+category_reservation = category_reservations
+
+category_purchases = make_category('purchases')
+CategoryPurchases = category_purchases
+category_purchase = category_purchases
+
 -- Negation (NOT) operator
 function Not(...)
     local args = { ... }
@@ -466,6 +503,23 @@ function FilterBuilder:in_spam() table.insert(self.conditions, in_spam()); retur
 FilterBuilder.InSpam = FilterBuilder.in_spam
 function FilterBuilder:in_chats() table.insert(self.conditions, in_chats()); return self end
 FilterBuilder.InChats = FilterBuilder.in_chats
+
+function FilterBuilder:category(target) table.insert(self.conditions, category(target)); return self end
+FilterBuilder.Category = FilterBuilder.category
+function FilterBuilder:category_primary() table.insert(self.conditions, category_primary()); return self end
+FilterBuilder.CategoryPrimary = FilterBuilder.category_primary
+function FilterBuilder:category_social() table.insert(self.conditions, category_social()); return self end
+FilterBuilder.CategorySocial = FilterBuilder.category_social
+function FilterBuilder:category_promotions() table.insert(self.conditions, category_promotions()); return self end
+FilterBuilder.CategoryPromotions = FilterBuilder.category_promotions
+function FilterBuilder:category_updates() table.insert(self.conditions, category_updates()); return self end
+FilterBuilder.CategoryUpdates = FilterBuilder.category_updates
+function FilterBuilder:category_forums() table.insert(self.conditions, category_forums()); return self end
+FilterBuilder.CategoryForums = FilterBuilder.category_forums
+function FilterBuilder:category_reservations() table.insert(self.conditions, category_reservations()); return self end
+FilterBuilder.CategoryReservations = FilterBuilder.category_reservations
+function FilterBuilder:category_purchases() table.insert(self.conditions, category_purchases()); return self end
+FilterBuilder.CategoryPurchases = FilterBuilder.category_purchases
 
 function FilterBuilder:Not(...) table.insert(self.conditions, Not(...)); return self end
 FilterBuilder['not'] = FilterBuilder.Not

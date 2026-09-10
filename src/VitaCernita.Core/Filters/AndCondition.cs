@@ -25,12 +25,13 @@ public sealed class AndCondition : IFilterCondition
         { "has", 12 },
         { "is", 13 },
         { "in", 14 },
-        { "after", 15 },
-        { "before", 16 },
-        { "older", 17 },
-        { "newer", 18 },
-        { "older_than", 19 },
-        { "newer_than", 20 }
+        { "category", 15 },
+        { "after", 16 },
+        { "before", 17 },
+        { "older", 18 },
+        { "newer", 19 },
+        { "older_than", 20 },
+        { "newer_than", 21 }
     };
 
     public IReadOnlyList<IFilterCondition> Conditions { get; }
@@ -78,6 +79,11 @@ public sealed class AndCondition : IFilterCondition
         {
             int priority = FieldOrdering.TryGetValue("in", out int p) ? p : 14;
             return (priority, "in", inc.Target);
+        }
+        if (cond is CategoryCondition catc)
+        {
+            int priority = FieldOrdering.TryGetValue("category", out int p) ? p : 15;
+            return (priority, "category", catc.Target);
         }
         if (cond is DateCondition dc)
         {
