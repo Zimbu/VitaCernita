@@ -139,11 +139,15 @@ function is(val) return { type = 'is', value = tostring(val) } end
 Is = is
 
 -- Negation (NOT) operator
-function Not(cond)
-    if cond == nil then
+function Not(...)
+    local args = { ... }
+    if #args == 0 then
         return { type = 'operator', op = 'not' }
+    elseif #args == 1 then
+        return { type = 'operator', op = 'not', condition = args[1] }
+    else
+        return { type = 'operator', op = 'not', condition = And(...) }
     end
-    return { type = 'operator', op = 'not', condition = cond }
 end
 not_op = Not
 negate = Not
@@ -267,7 +271,8 @@ function FilterBuilder:is_starred() table.insert(self.conditions, is_starred());
 FilterBuilder.IsStarred = FilterBuilder.is_starred
 FilterBuilder.starred = FilterBuilder.is_starred
 
-function FilterBuilder:Not(cond) table.insert(self.conditions, Not(cond)); return self end
+function FilterBuilder:Not(...) table.insert(self.conditions, Not(...)); return self end
+FilterBuilder['not'] = FilterBuilder.Not
 FilterBuilder.not_op = FilterBuilder.Not
 FilterBuilder.negate = FilterBuilder.Not
 FilterBuilder.invert = FilterBuilder.Not
