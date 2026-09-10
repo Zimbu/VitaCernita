@@ -1,117 +1,88 @@
 # VitaCernita
 
-> Cross-platform Core C# (.NET 9) triage and decision engine paired with dynamic Lua configuration.
+> Cross-platform Core C# (.NET 9) Gmail filter management engine configured via Lua DSL.
 
-VitaCernita pairs modern .NET performance with the flexibility of Lua scripting. Configuration is written in pure Lua, allowing dynamic settings, runtime hooks, scoring algorithms, and screening rules without recompilation.
-
----
-
-## Architecture & Technologies
-
-- **Main Program**: C# (.NET 9 Core), cross-platform (Linux, macOS, Windows).
-- **Lua Interpreter**: [Lua-CSharp](https://github.com/nuskey8/Lua-CSharp) — A high-performance, pure C# Lua 5.3 interpreter with async/await support, zero native binary dependencies, and Native AOT compatibility.
-- **CLI & Formatting**: [Spectre.Console](https://spectreconsole.net/) for terminal UI.
-- **Testing**: xUnit test suite.
-- **Version Control**: Managed with [Jujutsu (`jj`)](https://github.com/jj-vcs/jj) with a colocated Git repository.
+VitaCernita pairs modern .NET performance with the flexibility of a declarative and functional Lua DSL for managing Gmail search filters.
 
 ---
 
-## Project Structure
+## Gmail Filter Configuration
+
+VitaCernita allows defining Gmail filters using multiple expressive Lua styles. All of the following forms define a rule matching both `from` and `subject` with an `and` operator, and all compile into the precise canonical Gmail search filter text:
 
 ```
-VitaCernita/
-├── .gitignore
-├── .mise.toml
-├── README.md
-├── VitaCernita.sln
-├── config/
-│   ├── config.lua               # Active configuration
-│   └── config.example.lua       # Annotated example configuration
-├── src/
-│   ├── VitaCernita/             # CLI application entry point
-│   └── VitaCernita.Core/        # Configuration loader, Lua interpreter, domain logic
-└── tests/
-    └── VitaCernita.Tests/       # Unit tests
+from:alerts@monitoring.com subject:"High CPU"
+```
+
+### Supported Lua Syntaxes
+
+#### 1. Functional DSL (Recommended)
+```lua
+return rule {
+    name = "Production Incident Alert Filter",
+    match = And(
+        From("alerts@monitoring.com"),
+        Subject("High CPU")
+    )
+}
+```
+*Note: Argument order does not matter; canonical ordering guarantees identical output regardless of whether `Subject` or `From` is specified first.*
+
+#### 2. Declarative Table with Explicit `and` Map
+```lua
+return {
+    ["and"] = {
+        from = "alerts@monitoring.com",
+        subject = "High CPU"
+    }
+}
+```
+
+#### 3. Declarative Table with Explicit `and` Array
+```lua
+return {
+    ["and"] = {
+        { from = "alerts@monitoring.com" },
+        { subject = "High CPU" }
+    }
+}
+```
+
+#### 4. Method-Chaining / Fluent Builder
+```lua
+return filter():from("alerts@monitoring.com"):subject("High CPU")
+```
+
+#### 5. Declarative Table with Direct Properties (Implicit AND)
+```lua
+return {
+    from = "alerts@monitoring.com",
+    subject = "High CPU"
+}
 ```
 
 ---
 
 ## Getting Started
 
-### Prerequisites
-
-- [.NET 9 SDK](https://dotnet.microsoft.com/) (managed via `mise` or system package manager)
-
-### Build & Test
+### Build & Run
 
 ```bash
-# Build the solution
+# Build solution
 dotnet build
 
 # Run unit tests
 dotnet test
-```
 
-### Running the Application
-
-```bash
-# Run with default config (config/config.lua)
+# Run and print the precise Gmail filter text
 dotnet run --project src/VitaCernita
 
-# Validate configuration file
-dotnet run --project src/VitaCernita -- validate -c config/config.lua
+# Load a custom filter configuration
+dotnet run --project src/VitaCernita -- -c path/to/filter.lua
 
-# Evaluate an arbitrary Lua expression
-dotnet run --project src/VitaCernita -- eval "return 40 + 2"
+# Render with explicit 'AND' keyword
+dotnet run --project src/VitaCernita -- --explicit-and
 ```
-
----
-
-## Lua Configuration
-
-Configurations are standard Lua scripts that return a table (or declare a global `config = { ... }`).
-
-```lua
-return {
-    project = {
-        name = "VitaCernita",
-        version = "0.1.0",
-        description = "Core C# with Lua Configuration",
-        author = "Phillip Dressen",
-    },
-
-    settings = {
-        log_level = env("VITACERNITA_LOG_LEVEL", "Information"),
-        max_concurrency = 8,
-        output_dir = "./output",
-        dry_run = false,
-        timeout_seconds = 30,
-    },
-
-    rules = {
-        {
-            id = "rule-critical",
-            priority = 500,
-            enabled = true,
-            category = "Critical",
-        },
-    },
-
-    custom = {
-        host_os = platform(), -- returns "Linux", "macOS", or "Windows"
-    },
-
-    -- Dynamic hook: executed in C# via the embedded Lua interpreter
-    calculate_score = function(urgency, effort)
-        return (urgency * 2.5) - (effort * 0.8)
-    end,
-}
-```
-
-### Built-in Lua Helpers
-
-- `env(name, default)`: Retrieves environment variables with fallback.
-- `platform()`: Returns host OS name (`Linux`, `macOS`, `Windows`).
 
 ---
 

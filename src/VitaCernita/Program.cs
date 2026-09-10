@@ -1,12 +1,8 @@
 using System;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
-using Lua;
 using Spectre.Console;
-using VitaCernita.Core.Configuration;
-using VitaCernita.Core.Models;
-using VitaCernita.Core.Services;
+using VitaCernita.Core.Filters;
 
 namespace VitaCernita.Cli;
 
@@ -14,10 +10,8 @@ public static class Program
 {
     public static async Task<int> Main(string[] args)
     {
-        // Parse basic CLI arguments
-        string configPath = "config/config.lua";
-        string command = "run";
-        string? evalCode = null;
+        string configPath = "config/gmail_filter.lua";
+        bool explicitAnd = false;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -27,6 +21,9 @@ public static class Program
                 case "--config":
                     if (i + 1 < args.Length) configPath = args[++i];
                     break;
+                case "--explicit-and":
+                    explicitAnd = true;
+                    break;
                 case "-v":
                 case "--version":
                     AnsiConsole.MarkupLine("[bold green]VitaCernita[/] version [cyan]0.1.0[/]");
@@ -35,38 +32,23 @@ public static class Program
                 case "--help":
                     PrintHelp();
                     return 0;
-                case "validate":
-                    command = "validate";
-                    break;
-                case "run":
-                    command = "run";
-                    break;
-                case "eval":
-                    command = "eval";
-                    if (i + 1 < args.Length) evalCode = args[++i];
-                    break;
             }
         }
 
-        // Handle "eval" command
-        if (command == "eval")
-        {
-            return await ExecuteEvalAsync(evalCode);
-        }
-
-        // Render header banner
+        // Header banner
         AnsiConsole.Write(
             new FigletText("VitaCernita")
                 .LeftJustified()
                 .Color(Color.Cyan1));
 
-        AnsiConsole.MarkupLine("[bold]Cross-Platform Core C# (.NET 9) with Lua Configuration[/]\n");
+        AnsiConsole.MarkupLine("[bold]Gmail Filter Configuration Engine (Lua DSL & C# Core)[/]\n");
 
-        // Locate config file
+        // Fallback search for default config
         if (!File.Exists(configPath))
         {
-            if (File.Exists("config.lua")) configPath = "config.lua";
-            else if (File.Exists("config/config.example.lua")) configPath = "config/config.example.lua";
+            if (File.Exists("config/gmail_filter.lua")) configPath = "config/gmail_filter.lua";
+            else if (File.Exists("gmail_filter.lua")) configPath = "gmail_filter.lua";
+            else if (File.Exists("config/config.lua")) configPath = "config/config.lua";
             else
             {
                 AnsiConsole.MarkupLine($"[bold red]Error:[/] Configuration file '[yellow]{configPath}[/]' not found.");
@@ -74,131 +56,63 @@ public static class Program
             }
         }
 
-        var loader = new LuaConfigLoader();
-        var luaState = LuaState.Create();
-        AppConfig config;
+        AnsiConsole.MarkupLine($"Loading configuration from: [cyan]{Markup.Escape(configPath)}[/]\n");
 
+        var loader = new GmailFilterLoader();
         try
         {
-            config = await loader.LoadFromFileAsync(configPath, luaState);
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.MarkupLine($"[bold red]Configuration Error:[/] {Markup.Escape(ex.Message)}");
-            return 1;
-        }
-
-        // Print loaded configuration table
-        RenderConfigTable(configPath, config);
-
-        if (command == "validate")
-        {
-            AnsiConsole.MarkupLine("\n[bold green]✓ Configuration validated successfully![/]");
-            return 0;
-        }
-
-        // Execute Triage Engine
-        AnsiConsole.MarkupLine("\n[bold yellow]Executing Triage Engine...[/]");
-        var engine = new TriageEngine(config, luaState);
-
-        var sampleItems = new[]
-        {
-            new TriageItem { Title = "Critical production incident response", Urgency = 10, Effort = 4 },
-            new TriageItem { Title = "Update dependency versions", Urgency = 4, Effort = 2 },
-            new TriageItem { Title = "Refactor legacy telemetry parser", Urgency = 6, Effort = 8 },
-            new TriageItem { Title = "Clean up quarterly build artifacts", Urgency = 2, Effort = 1 }
-        };
-
-        var resultsTable = new Table()
-            .Border(TableBorder.Rounded)
-            .Title("[bold]Triage Processing Results (Scored by Lua)[/]")
-            .AddColumn("[bold]ID[/]")
-            .AddColumn("[bold]Item Title[/]")
-            .AddColumn("[bold]Urgency[/]", c => c.RightAligned())
-            .AddColumn("[bold]Effort[/]", c => c.RightAligned())
-            .AddColumn("[bold]Score (Lua Hook)[/]", c => c.RightAligned())
-            .AddColumn("[bold]Assigned Category[/]");
-
-        foreach (var item in sampleItems)
-        {
-            var processed = await engine.ProcessItemAsync(item);
-            string scoreColor = processed.Score > 15 ? "red" : processed.Score > 5 ? "yellow" : "green";
-
-            resultsTable.AddRow(
-                $"[dim]{processed.Id}[/]",
-                Markup.Escape(processed.Title),
-                processed.Urgency.ToString(),
-                processed.Effort.ToString(),
-                $"[{scoreColor}]{processed.Score:F1}[/]",
-                $"[blue]{processed.Category}[/]"
-            );
-        }
-
-        AnsiConsole.Write(resultsTable);
-        AnsiConsole.MarkupLine("\n[bold green]✓ VitaCernita completed successfully.[/]");
-        return 0;
-    }
-
-    private static void RenderConfigTable(string configPath, AppConfig config)
-    {
-        var metaTable = new Table()
-            .Border(TableBorder.Simple)
-            .AddColumn("[bold]Property[/]")
-            .AddColumn("[bold]Value[/]");
-
-        metaTable.AddRow("Config Path", $"[cyan]{Markup.Escape(configPath)}[/]");
-        metaTable.AddRow("Project Name", config.Project.Name);
-        metaTable.AddRow("Version", config.Project.Version);
-        metaTable.AddRow("Author", config.Project.Author);
-        metaTable.AddRow("Log Level", config.Settings.LogLevel);
-        metaTable.AddRow("Max Concurrency", config.Settings.MaxConcurrency.ToString());
-        metaTable.AddRow("Output Dir", config.Settings.OutputDirectory);
-        metaTable.AddRow("Loaded Rules Count", config.Rules.Count.ToString());
-
-        foreach (var custom in config.CustomProperties)
-        {
-            metaTable.AddRow($"Custom: {custom.Key}", custom.Value);
-        }
-
-        AnsiConsole.Write(metaTable);
-    }
-
-    private static async Task<int> ExecuteEvalAsync(string? code)
-    {
-        if (string.IsNullOrWhiteSpace(code))
-        {
-            AnsiConsole.MarkupLine("[bold red]Error:[/] No Lua code provided to evaluate.");
-            return 1;
-        }
-
-        try
-        {
-            var state = LuaState.Create();
-            var results = await state.DoStringAsync(code);
-            AnsiConsole.MarkupLine("[bold green]Lua Evaluation Result:[/]");
-            for (int i = 0; i < results.Length; i++)
+            var rules = await loader.LoadRulesFromFileAsync(configPath);
+            if (rules.Count == 0)
             {
-                AnsiConsole.MarkupLine($"  [{i}]: [cyan]{Markup.Escape(results[i].ToString())}[/]");
+                AnsiConsole.MarkupLine("[bold yellow]No filter rules found in configuration.[/]");
+                return 0;
             }
+
+            for (int index = 0; index < rules.Count; index++)
+            {
+                var rule = rules[index];
+                string title = !string.IsNullOrWhiteSpace(rule.Name) 
+                    ? rule.Name 
+                    : $"Rule #{index + 1}";
+
+                string canonicalQuery = rule.ToGmailQuery(explicitAnd: false);
+                string explicitAndQuery = rule.ToGmailQuery(explicitAnd: true);
+
+                var panel = new Panel(
+                    new Markup(
+                        $"[bold white]Gmail Search Query:[/] [bold green]{Markup.Escape(explicitAnd ? explicitAndQuery : canonicalQuery)}[/]\n\n" +
+                        $"[dim]Canonical (Space-AND):[/] [yellow]{Markup.Escape(canonicalQuery)}[/]\n" +
+                        $"[dim]Explicit AND Keyword :[/] [yellow]{Markup.Escape(explicitAndQuery)}[/]"
+                    ))
+                {
+                    Header = new PanelHeader($"[bold cyan]{Markup.Escape(title)}[/]"),
+                    Border = BoxBorder.Rounded,
+                    Padding = new Padding(2, 1)
+                };
+
+                AnsiConsole.Write(panel);
+                AnsiConsole.WriteLine();
+
+                // Directly output the exact search text for easy copying/piping
+                AnsiConsole.MarkupLine("[bold]Precise Gmail Filter Text:[/] [green]" + Markup.Escape(canonicalQuery) + "[/]");
+            }
+
             return 0;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[bold red]Lua Error:[/] {Markup.Escape(ex.Message)}");
+            AnsiConsole.MarkupLine($"[bold red]Error loading filter configuration:[/] {Markup.Escape(ex.Message)}");
             return 1;
         }
     }
 
     private static void PrintHelp()
     {
-        AnsiConsole.MarkupLine("[bold]VitaCernita CLI[/]");
-        AnsiConsole.MarkupLine("Usage: dotnet run --project src/VitaCernita [COMMAND] [OPTIONS]\n");
-        AnsiConsole.MarkupLine("[bold]Commands:[/]");
-        AnsiConsole.MarkupLine("  run                     Execute the triage engine with Lua config (default)");
-        AnsiConsole.MarkupLine("  validate                Validate the specified Lua config file");
-        AnsiConsole.MarkupLine("  eval <code>             Execute an arbitrary Lua snippet\n");
+        AnsiConsole.MarkupLine("[bold]VitaCernita CLI - Gmail Filter Manager[/]");
+        AnsiConsole.MarkupLine("Usage: dotnet run --project src/VitaCernita -- [OPTIONS]\n");
         AnsiConsole.MarkupLine("[bold]Options:[/]");
-        AnsiConsole.MarkupLine("  -c, --config <path>     Path to the Lua configuration file");
+        AnsiConsole.MarkupLine("  -c, --config <path>     Path to the Lua filter configuration file (default: config/gmail_filter.lua)");
+        AnsiConsole.MarkupLine("      --explicit-and      Render queries using the explicit 'AND' keyword");
         AnsiConsole.MarkupLine("  -v, --version           Display application version");
         AnsiConsole.MarkupLine("  -h, --help              Show this help message");
     }
