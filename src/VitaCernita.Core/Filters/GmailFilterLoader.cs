@@ -169,6 +169,43 @@ is_starred = make_is('starred')
 IsStarred = is_starred
 starred = is_starred
 
+is_unread = make_is('unread')
+IsUnread = is_unread
+unread = is_unread
+
+is_read = make_is('read')
+IsRead = is_read
+read = is_read
+
+is_important = make_is('important')
+IsImportant = is_important
+important = is_important
+
+is_muted = make_is('muted')
+IsMuted = is_muted
+muted = is_muted
+
+is_snoozed = make_is('snoozed')
+IsSnoozed = is_snoozed
+snoozed = is_snoozed
+
+is_chat = make_is('chat')
+IsChat = is_chat
+chat = is_chat
+
+is_draft = make_is('draft')
+IsDraft = is_draft
+draft = is_draft
+
+is_sent = make_is('sent')
+IsSent = is_sent
+
+is_trash = make_is('trash')
+IsTrash = is_trash
+
+is_spam = make_is('spam')
+IsSpam = is_spam
+
 function is(val) return { type = 'is', value = tostring(val) } end
 Is = is
 
@@ -321,6 +358,41 @@ FilterBuilder.Is = FilterBuilder.is
 function FilterBuilder:is_starred() table.insert(self.conditions, is_starred()); return self end
 FilterBuilder.IsStarred = FilterBuilder.is_starred
 FilterBuilder.starred = FilterBuilder.is_starred
+
+function FilterBuilder:is_unread() table.insert(self.conditions, is_unread()); return self end
+FilterBuilder.IsUnread = FilterBuilder.is_unread
+FilterBuilder.unread = FilterBuilder.is_unread
+
+function FilterBuilder:is_read() table.insert(self.conditions, is_read()); return self end
+FilterBuilder.IsRead = FilterBuilder.is_read
+FilterBuilder.read = FilterBuilder.is_read
+
+function FilterBuilder:is_important() table.insert(self.conditions, is_important()); return self end
+FilterBuilder.IsImportant = FilterBuilder.is_important
+FilterBuilder.important = FilterBuilder.is_important
+
+function FilterBuilder:is_muted() table.insert(self.conditions, is_muted()); return self end
+FilterBuilder.IsMuted = FilterBuilder.is_muted
+FilterBuilder.muted = FilterBuilder.is_muted
+
+function FilterBuilder:is_snoozed() table.insert(self.conditions, is_snoozed()); return self end
+FilterBuilder.IsSnoozed = FilterBuilder.is_snoozed
+FilterBuilder.snoozed = FilterBuilder.is_snoozed
+
+function FilterBuilder:is_chat() table.insert(self.conditions, is_chat()); return self end
+FilterBuilder.IsChat = FilterBuilder.is_chat
+
+function FilterBuilder:is_draft() table.insert(self.conditions, is_draft()); return self end
+FilterBuilder.IsDraft = FilterBuilder.is_draft
+
+function FilterBuilder:is_sent() table.insert(self.conditions, is_sent()); return self end
+FilterBuilder.IsSent = FilterBuilder.is_sent
+
+function FilterBuilder:is_trash() table.insert(self.conditions, is_trash()); return self end
+FilterBuilder.IsTrash = FilterBuilder.is_trash
+
+function FilterBuilder:is_spam() table.insert(self.conditions, is_spam()); return self end
+FilterBuilder.IsSpam = FilterBuilder.is_spam
 
 function FilterBuilder:Not(...) table.insert(self.conditions, Not(...)); return self end
 FilterBuilder['not'] = FilterBuilder.Not

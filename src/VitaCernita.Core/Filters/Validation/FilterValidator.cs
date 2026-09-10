@@ -206,13 +206,23 @@ public static class FilterValidator
 
     public static readonly HashSet<string> CanonicalIsTargets = new(StringComparer.OrdinalIgnoreCase)
     {
-        "starred"
+        "starred",
+        "unread",
+        "read",
+        "important",
+        "muted",
+        "snoozed",
+        "chat",
+        "draft",
+        "sent",
+        "trash",
+        "spam"
     };
 
     public static string ValidateAndNormalizeIsTarget(string op, string rawValue)
     {
         ValidateNonEmpty(op, rawValue);
-        string normalized = rawValue.Trim().ToLowerInvariant();
+        string normalized = rawValue.Trim().ToLowerInvariant().Replace('_', '-').Replace(" ", "-");
         if (CanonicalIsTargets.Contains(normalized))
         {
             return normalized;

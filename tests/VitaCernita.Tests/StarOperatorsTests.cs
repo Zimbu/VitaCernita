@@ -297,8 +297,8 @@ return {
     }
 
     [Theory]
-    [InlineData("important")] // not yet enabled in this commit
-    [InlineData("unread")]
+    [InlineData("unsupported")]
+    [InlineData("unknown")]
     [InlineData("invalid")]
     [InlineData("")]
     [InlineData("   ")]

@@ -34,8 +34,17 @@ public static class GmailFilterParser
         "has_spreadsheet", "spreadsheet",
         "has_presentation", "presentation",
         "has_youtube", "has_you_tube", "youtube", "you_tube",
-        "has_userlabels", "has_user_labels", "userlabels", "user_labels",
-        "has_nouserlabels", "has_no_user_labels", "nouserlabels", "no_user_labels"
+        "has_nouserlabels", "has_no_user_labels", "nouserlabels", "no_user_labels",
+        "is_unread", "unread",
+        "is_read", "read",
+        "is_important", "important",
+        "is_muted", "muted",
+        "is_snoozed", "snoozed",
+        "is_chat", "chat",
+        "is_draft", "draft",
+        "is_sent", "sent",
+        "is_trash", "trash",
+        "is_spam", "spam"
     ];
 
     public static GmailRule ParseRule(LuaTable table, string? customDateFormat = null)
@@ -300,9 +309,9 @@ public static class GmailFilterParser
                 {
                     conditions.Add(new HasCondition(ExtractHasTargetFromKey(field)));
                 }
-                else if (val.Type == LuaValueType.Boolean && val.Read<bool>() && (field is "is_starred" or "starred"))
+                else if (val.Type == LuaValueType.Boolean && val.Read<bool>() && IsIsKey(field))
                 {
-                    conditions.Add(new IsCondition("starred"));
+                    conditions.Add(new IsCondition(ExtractIsTargetFromKey(field)));
                 }
                 else if (val.Type == LuaValueType.Table && field == "has" && val.TryRead<LuaTable>(out var hasTable))
                 {
@@ -322,7 +331,19 @@ public static class GmailFilterParser
                 }
                 else if (val.Type == LuaValueType.Table && field == "is" && val.TryRead<LuaTable>(out var isTable))
                 {
-                    conditions.Add(ParseCondition(isTable, customDateFormat));
+                    bool hasDirectStrings = false;
+                    for (int i = 1; i <= isTable.ArrayLength; i++)
+                    {
+                        if (isTable[i].Type == LuaValueType.String)
+                        {
+                            conditions.Add(new IsCondition(isTable[i].Read<string>()));
+                            hasDirectStrings = true;
+                        }
+                    }
+                    if (!hasDirectStrings)
+                    {
+                        conditions.Add(ParseCondition(isTable, customDateFormat));
+                    }
                 }
                 else if (val.Type == LuaValueType.Table && field == "header" && val.TryRead<LuaTable>(out var hTable))
                 {
@@ -385,9 +406,9 @@ public static class GmailFilterParser
             return new IsCondition(value);
         }
 
-        if (normField is "is_starred" or "starred")
+        if (IsIsKey(normField))
         {
-            return new IsCondition("starred");
+            return new IsCondition(ExtractIsTargetFromKey(normField));
         }
 
         if (IsHasKey(normField))
@@ -409,6 +430,28 @@ public static class GmailFilterParser
         }
 
         return new FieldCondition(normField, value);
+    }
+
+    private static bool IsIsKey(string key)
+    {
+        string norm = key.Trim().ToLowerInvariant();
+        if (norm.StartsWith("is_") || norm.StartsWith("is-"))
+        {
+            norm = norm[3..];
+        }
+        norm = norm.Replace('_', '-');
+        return FilterValidator.CanonicalIsTargets.Contains(norm);
+    }
+
+    private static string ExtractIsTargetFromKey(string key)
+    {
+        string norm = key.Trim().ToLowerInvariant();
+        if (norm.StartsWith("is_") || norm.StartsWith("is-"))
+        {
+            norm = norm[3..];
+        }
+        norm = norm.Replace('_', '-');
+        return FilterValidator.ValidateAndNormalizeIsTarget("is", norm);
     }
 
     private static bool IsHasKey(string key)
