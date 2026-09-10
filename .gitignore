@@ -8,3 +8,16 @@ Thumbs.db
 *~
 .vscode/
 .idea/
+.vs/
+
+# .NET Build & Packaging
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+TestResults/
+
