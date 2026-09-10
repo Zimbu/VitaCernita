@@ -33,6 +33,14 @@ end
 all_of = And
 All = And
 
+function Or(...)
+    local args = { ... }
+    return { type = 'operator', op = 'or', conditions = args }
+end
+any_of = Or
+Any = Or
+either = Or
+
 function rule(tbl)
     if type(tbl) == 'table' then
         return setmetatable({ type = 'rule', rule = tbl }, {
@@ -172,17 +180,16 @@ Filter = filter
             if (rules.Count > 0) return rules;
         }
 
+        // Check if root is an operator (e.g. Or / And)
+        if (root.TryGetValue("type", out var typeVal) && typeVal.ToString() == "operator")
+        {
+            rules.Add(GmailFilterParser.ParseRule(root));
+            return rules;
+        }
+
         // Check if root is an array of rules: { rule1, rule2 }
         if (root.ArrayLength > 0 && root[1].Type == LuaValueType.Table)
         {
-            // Check if root[1] looks like a rule or condition
-            if (root.TryGetValue("type", out var typeVal) && typeVal.ToString() == "operator")
-            {
-                // This is an operator table, parse as single rule
-                rules.Add(GmailFilterParser.ParseRule(root));
-                return rules;
-            }
-
             for (int i = 1; i <= root.ArrayLength; i++)
             {
                 if (root[i].TryRead<LuaTable>(out var rTable))

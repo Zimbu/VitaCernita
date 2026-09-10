@@ -47,7 +47,11 @@ public sealed class AndCondition : IFilterCondition
             int priority = FieldOrdering.TryGetValue(fc.Field, out int p) ? p : 10;
             return (priority, fc.Field, fc.Value);
         }
-        return (99, string.Empty, string.Empty);
+        if (cond is OrCondition orCond)
+        {
+            return (20, "or", orCond.ToGmailQuery(false));
+        }
+        return (99, string.Empty, cond.ToGmailQuery(false));
     }
 
     public string ToGmailQuery(bool explicitAnd = false)
@@ -56,7 +60,18 @@ public sealed class AndCondition : IFilterCondition
         if (Conditions.Count == 1) return Conditions[0].ToGmailQuery(explicitAnd);
 
         string separator = explicitAnd ? " AND " : " ";
-        return string.Join(separator, Conditions.Select(c => c.ToGmailQuery(explicitAnd)));
+        return string.Join(separator, Conditions.Select(c => FormatChild(c, explicitAnd)));
+    }
+
+    private static string FormatChild(IFilterCondition cond, bool explicitAnd)
+    {
+        string query = cond.ToGmailQuery(explicitAnd);
+        // OrCondition with multiple elements needs parentheses when inside an AND
+        if (cond is OrCondition orCond && orCond.Conditions.Count > 1)
+        {
+            return $"({query})";
+        }
+        return query;
     }
 
     public override string ToString() => ToGmailQuery();

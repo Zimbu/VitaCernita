@@ -1,41 +1,45 @@
 -- =======================================================================
 -- VitaCernita Gmail Filter Configuration
 -- =======================================================================
--- This configuration defines a Gmail search filter rule combining
--- 'from' and 'subject' matches with an 'and' operator.
+-- This configuration showcases composite Gmail filter rules combining
+-- AND and OR operators with arbitrary nesting depths.
 
--- Option A: Using the functional DSL:
-return rule {
-    name = "Production Incident Alert Filter",
-    match = And(
-        From("alerts@monitoring.com"),
-        Subject("High CPU")
-    )
+return {
+    rules = {
+        -- Rule 1: OR containing three different matches of AND operations
+        -- (Matching three distinct combinations of from and subject)
+        rule {
+            name = "Tri-Team Incident Dispatcher (OR of three ANDs)",
+            match = Or(
+                And(From("secops@company.com"), Subject("Security Breach")),
+                And(From("devops@company.com"), Subject("Cluster Outage")),
+                And(From("netops@company.com"), Subject("BGP Route Leak"))
+            )
+        },
+
+        -- Rule 2: AND containing nested OR
+        -- (Matching a specific sender with any of several priority subjects)
+        rule {
+            name = "Executive Escalations (AND containing OR)",
+            match = And(
+                From("ceo@company.com"),
+                Or(
+                    Subject("Immediate Action Required"),
+                    Subject("Board Resolution"),
+                    Subject("Urgent")
+                )
+            )
+        },
+
+        -- Rule 3: Declarative table style (OR containing ANDs)
+        rule {
+            name = "Declarative On-Call Routing",
+            match = {
+                ["or"] = {
+                    { from = "pagerduty.com", subject = "Sev-1" },
+                    { from = "datadog.com", subject = "Monitor Triggered" }
+                }
+            }
+        }
+    }
 }
-
--- Other supported equivalent expressions:
---
--- Option B: Declarative table with explicit 'and' map:
--- return {
---     ["and"] = {
---         from = "alerts@monitoring.com",
---         subject = "High CPU"
---     }
--- }
---
--- Option C: Declarative table with explicit 'and' array:
--- return {
---     ["and"] = {
---         { from = "alerts@monitoring.com" },
---         { subject = "High CPU" }
---     }
--- }
---
--- Option D: Fluent builder syntax:
--- return filter():from("alerts@monitoring.com"):subject("High CPU")
---
--- Option E: Direct properties table (implicit AND):
--- return {
---     from = "alerts@monitoring.com",
---     subject = "High CPU"
--- }

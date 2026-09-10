@@ -37,22 +37,28 @@ public static class GmailFilterParser
             typeVal.Read<string>() == "builder" &&
             table.TryGetValue("conditions", out var builderConds) && builderConds.TryRead<LuaTable>(out var bCondsTable))
         {
-            return ParseConditionsList(bCondsTable);
+            return ParseConditionsList(bCondsTable, isOr: false);
         }
 
-        // 2. Explicit DSL Operator: { type = "operator", op = "and", conditions = { ... } }
-        if (table.TryGetValue("op", out var opVal) && opVal.Type == LuaValueType.String &&
-            opVal.Read<string>().Equals("and", StringComparison.OrdinalIgnoreCase))
+        // 2. Explicit DSL Operator: { type = "operator", op = "and"|"or", conditions = { ... } }
+        if (table.TryGetValue("op", out var opVal) && opVal.Type == LuaValueType.String)
         {
-            if (table.TryGetValue("conditions", out var condsVal) && condsVal.TryRead<LuaTable>(out var cTable))
+            string op = opVal.Read<string>();
+            bool isOr = op.Equals("or", StringComparison.OrdinalIgnoreCase);
+            bool isAnd = op.Equals("and", StringComparison.OrdinalIgnoreCase);
+
+            if (isOr || isAnd)
             {
-                return ParseConditionsList(cTable);
-            }
-            // Or op = "and" with direct fields on the table
-            var directConds = ExtractDirectFields(table);
-            if (directConds.Count > 0)
-            {
-                return directConds.Count == 1 ? directConds[0] : new AndCondition(directConds);
+                if (table.TryGetValue("conditions", out var condsVal) && condsVal.TryRead<LuaTable>(out var cTable))
+                {
+                    return ParseConditionsList(cTable, isOr);
+                }
+                var directConds = ExtractDirectFields(table);
+                if (directConds.Count > 0)
+                {
+                    if (directConds.Count == 1) return directConds[0];
+                    return isOr ? new OrCondition(directConds) : new AndCondition(directConds);
+                }
             }
         }
 
@@ -65,60 +71,96 @@ public static class GmailFilterParser
             return new FieldCondition(field, val);
         }
 
-        // 4. Keyed ["and"] / ["all_of"] / ["all"]:
-        // e.g. { ["and"] = { from = "...", subject = "..." } }
-        // or   { ["and"] = { { from = "..." }, { subject = "..." } } }
+        // 4. Keyed operators: ["or"], ["any_of"], ["any"]
+        foreach (string orKey in new[] { "or", "any_of", "any" })
+        {
+            if (table.TryGetValue(orKey, out var orVal) && orVal.TryRead<LuaTable>(out var orTable))
+            {
+                var orCond = ParseOperatorBlock(orTable, isOr: true);
+                var parentDirect = ExtractDirectFields(table);
+                if (parentDirect.Count > 0)
+                {
+                    parentDirect.Add(orCond);
+                    return new AndCondition(parentDirect);
+                }
+                return orCond;
+            }
+        }
+
+        // 5. Keyed operators: ["and"], ["all_of"], ["all"]
         foreach (string andKey in new[] { "and", "all_of", "all" })
         {
             if (table.TryGetValue(andKey, out var andVal) && andVal.TryRead<LuaTable>(out var andTable))
             {
-                return ParseAndBlock(andTable);
+                var andCond = ParseOperatorBlock(andTable, isOr: false);
+                var parentDirect = ExtractDirectFields(table);
+                if (parentDirect.Count > 0)
+                {
+                    parentDirect.Add(andCond);
+                    return new AndCondition(parentDirect);
+                }
+                return andCond;
             }
         }
 
-        // 5. Direct fields on the table: e.g. { from = "...", subject = "..." }
+        // 6. Direct fields on the table: e.g. { from = "...", subject = "..." }
         var direct = ExtractDirectFields(table);
         if (direct.Count > 0)
         {
             return direct.Count == 1 ? direct[0] : new AndCondition(direct);
         }
 
-        // 6. Array of conditions: { condition1, condition2 }
+        // 7. Array of conditions: { condition1, condition2 }
         if (table.ArrayLength > 0)
         {
-            return ParseConditionsList(table);
+            return ParseConditionsList(table, isOr: false);
         }
 
         throw new LuaConfigException("Unable to parse Gmail filter condition from Lua table: no recognized fields or operators found.");
     }
 
-    private static AndCondition ParseAndBlock(LuaTable andTable)
+    private static IFilterCondition ParseOperatorBlock(LuaTable blockTable, bool isOr)
     {
         var conditions = new List<IFilterCondition>();
 
-        // Check if andTable has direct field properties (from = "...", subject = "...")
-        var direct = ExtractDirectFields(andTable);
+        // Check if blockTable has direct field properties (from = "...", subject = "...")
+        var direct = ExtractDirectFields(blockTable);
         conditions.AddRange(direct);
 
-        // Check if andTable has array entries: { { from = "..." }, { subject = "..." } }
-        for (int i = 1; i <= andTable.ArrayLength; i++)
+        // Check if blockTable has array entries: { { from = "..." }, { subject = "..." } }
+        for (int i = 1; i <= blockTable.ArrayLength; i++)
         {
-            var item = andTable[i];
+            var item = blockTable[i];
             if (item.TryRead<LuaTable>(out var childTable))
             {
                 conditions.Add(ParseCondition(childTable));
             }
         }
 
-        if (conditions.Count == 0)
+        // Also check any named keys that are tables (e.g. nested ["and"] = { ... } inside ["or"])
+        foreach (var pair in blockTable)
         {
-            throw new LuaConfigException("Empty 'and' condition block in Lua configuration.");
+            if (pair.Key.Type != LuaValueType.Number && pair.Value.TryRead<LuaTable>(out var childTable))
+            {
+                // Only parse if it's not one of the direct primitive fields
+                string keyStr = pair.Key.ToString();
+                if (keyStr != "from" && keyStr != "subject" && keyStr != "to" && keyStr != "cc" && keyStr != "bcc" && keyStr != "has")
+                {
+                    conditions.Add(ParseCondition(childTable));
+                }
+            }
         }
 
-        return new AndCondition(conditions);
+        if (conditions.Count == 0)
+        {
+            throw new LuaConfigException($"Empty '{(isOr ? "or" : "and")}' condition block in Lua configuration.");
+        }
+
+        if (conditions.Count == 1) return conditions[0];
+        return isOr ? new OrCondition(conditions) : new AndCondition(conditions);
     }
 
-    private static AndCondition ParseConditionsList(LuaTable listTable)
+    private static IFilterCondition ParseConditionsList(LuaTable listTable, bool isOr)
     {
         var conditions = new List<IFilterCondition>();
 
@@ -132,7 +174,7 @@ public static class GmailFilterParser
             }
         }
 
-        // Also check if any key-value pairs exist
+        // Also check if any non-numeric key-value pairs exist
         foreach (var pair in listTable)
         {
             if (pair.Key.Type != LuaValueType.Number && pair.Value.TryRead<LuaTable>(out var childTable))
@@ -141,7 +183,13 @@ public static class GmailFilterParser
             }
         }
 
-        return new AndCondition(conditions);
+        if (conditions.Count == 0)
+        {
+            throw new LuaConfigException("Condition list cannot be empty.");
+        }
+
+        if (conditions.Count == 1) return conditions[0];
+        return isOr ? new OrCondition(conditions) : new AndCondition(conditions);
     }
 
     private static List<IFilterCondition> ExtractDirectFields(LuaTable table)
