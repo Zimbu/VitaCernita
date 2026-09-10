@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Lua;
 using VitaCernita.Core.Configuration;
+using VitaCernita.Core.Filters.Validation;
 
 namespace VitaCernita.Core.Filters;
 
@@ -11,10 +12,12 @@ public static class GmailFilterParser
     [
         "from", "to", "cc", "bcc", "subject", "list", "filename",
         "deliveredto", "delivered-to", "delivered_to", "rfc822msgid", "msgid",
-        "header", "label"
+        "header", "label",
+        "after", "before", "older", "newer",
+        "older_than", "newer_than", "older-than", "newer-than"
     ];
 
-    public static GmailRule ParseRule(LuaTable table)
+    public static GmailRule ParseRule(LuaTable table, string? customDateFormat = null)
     {
         string? ruleName = null;
         if (table.TryGetValue("name", out var nameVal) && nameVal.Type == LuaValueType.String)
@@ -25,29 +28,28 @@ public static class GmailFilterParser
         // Check if wrapped in `rule = ...`
         if (table.TryGetValue("rule", out var innerRule) && innerRule.TryRead<LuaTable>(out var innerTable))
         {
-            return ParseRule(innerTable);
+            return ParseRule(innerTable, customDateFormat);
         }
 
         // Check if wrapped in `match = ...` where match is a table (composite condition)
         if (table.TryGetValue("match", out var matchVal) && matchVal.TryRead<LuaTable>(out var matchTable))
         {
-            // If the table is an exact match node { type = "exact", value = "..." }, parse as condition
-            var cond = ParseCondition(matchTable);
+            var cond = ParseCondition(matchTable, customDateFormat);
             return new GmailRule(cond, ruleName);
         }
 
-        var condition = ParseCondition(table);
+        var condition = ParseCondition(table, customDateFormat);
         return new GmailRule(condition, ruleName);
     }
 
-    public static IFilterCondition ParseCondition(LuaTable table)
+    public static IFilterCondition ParseCondition(LuaTable table, string? customDateFormat = null)
     {
         // 1. Fluent Builder pattern: { type = "builder", conditions = { ... } }
         if (table.TryGetValue("type", out var typeVal) && typeVal.Type == LuaValueType.String &&
             typeVal.Read<string>() == "builder" &&
             table.TryGetValue("conditions", out var builderConds) && builderConds.TryRead<LuaTable>(out var bCondsTable))
         {
-            return ParseConditionsList(bCondsTable, isOr: false);
+            return ParseConditionsList(bCondsTable, isOr: false, customDateFormat);
         }
 
         // 2. Exact word / phrase match node: { type = "exact", value = "..." }
@@ -69,9 +71,9 @@ public static class GmailFilterParser
             {
                 if (table.TryGetValue("conditions", out var condsVal) && condsVal.TryRead<LuaTable>(out var cTable))
                 {
-                    return ParseConditionsList(cTable, isOr);
+                    return ParseConditionsList(cTable, isOr, customDateFormat);
                 }
-                var directConds = ExtractDirectConditions(table);
+                var directConds = ExtractDirectConditions(table, customDateFormat);
                 if (directConds.Count > 0)
                 {
                     if (directConds.Count == 1) return directConds[0];
@@ -86,7 +88,7 @@ public static class GmailFilterParser
         {
             string field = table.TryGetValue("field", out var fVal) ? fVal.ToString() : string.Empty;
             string val = table.TryGetValue("value", out var vVal) ? vVal.ToString() : string.Empty;
-            return new FieldCondition(field, val);
+            return CreateConditionForField(field, val, customDateFormat);
         }
 
         // 5. Keyed operators: ["or"], ["any_of"], ["any"]
@@ -94,8 +96,8 @@ public static class GmailFilterParser
         {
             if (table.TryGetValue(orKey, out var orVal) && orVal.TryRead<LuaTable>(out var orTable))
             {
-                var orCond = ParseOperatorBlock(orTable, isOr: true);
-                var parentDirect = ExtractDirectConditions(table);
+                var orCond = ParseOperatorBlock(orTable, isOr: true, customDateFormat);
+                var parentDirect = ExtractDirectConditions(table, customDateFormat);
                 if (parentDirect.Count > 0)
                 {
                     parentDirect.Add(orCond);
@@ -110,8 +112,8 @@ public static class GmailFilterParser
         {
             if (table.TryGetValue(andKey, out var andVal) && andVal.TryRead<LuaTable>(out var andTable))
             {
-                var andCond = ParseOperatorBlock(andTable, isOr: false);
-                var parentDirect = ExtractDirectConditions(table);
+                var andCond = ParseOperatorBlock(andTable, isOr: false, customDateFormat);
+                var parentDirect = ExtractDirectConditions(table, customDateFormat);
                 if (parentDirect.Count > 0)
                 {
                     parentDirect.Add(andCond);
@@ -122,7 +124,7 @@ public static class GmailFilterParser
         }
 
         // 7. Direct fields or string matches on the table
-        var direct = ExtractDirectConditions(table);
+        var direct = ExtractDirectConditions(table, customDateFormat);
         if (direct.Count > 0)
         {
             return direct.Count == 1 ? direct[0] : new AndCondition(direct);
@@ -131,18 +133,18 @@ public static class GmailFilterParser
         // 8. Array of conditions: { condition1, condition2 }
         if (table.ArrayLength > 0)
         {
-            return ParseConditionsList(table, isOr: false);
+            return ParseConditionsList(table, isOr: false, customDateFormat);
         }
 
         throw new LuaConfigException("Unable to parse Gmail filter condition from Lua table: no recognized fields or operators found.");
     }
 
-    private static IFilterCondition ParseOperatorBlock(LuaTable blockTable, bool isOr)
+    private static IFilterCondition ParseOperatorBlock(LuaTable blockTable, bool isOr, string? customDateFormat)
     {
         var conditions = new List<IFilterCondition>();
 
         // Extract direct field conditions or exact string matches
-        var direct = ExtractDirectConditions(blockTable);
+        var direct = ExtractDirectConditions(blockTable, customDateFormat);
         conditions.AddRange(direct);
 
         // Check if blockTable has array entries: { { from = "..." }, { to = "..." } }
@@ -151,7 +153,7 @@ public static class GmailFilterParser
             var item = blockTable[i];
             if (item.TryRead<LuaTable>(out var childTable))
             {
-                conditions.Add(ParseCondition(childTable));
+                conditions.Add(ParseCondition(childTable, customDateFormat));
             }
         }
 
@@ -163,7 +165,7 @@ public static class GmailFilterParser
                 string keyStr = pair.Key.ToString();
                 if (!IsDirectField(keyStr))
                 {
-                    conditions.Add(ParseCondition(childTable));
+                    conditions.Add(ParseCondition(childTable, customDateFormat));
                 }
             }
         }
@@ -177,26 +179,24 @@ public static class GmailFilterParser
         return isOr ? new OrCondition(conditions) : new AndCondition(conditions);
     }
 
-    private static IFilterCondition ParseConditionsList(LuaTable listTable, bool isOr)
+    private static IFilterCondition ParseConditionsList(LuaTable listTable, bool isOr, string? customDateFormat)
     {
         var conditions = new List<IFilterCondition>();
 
-        // Iterate through 1-indexed array elements
         for (int i = 1; i <= listTable.ArrayLength; i++)
         {
             var item = listTable[i];
             if (item.TryRead<LuaTable>(out var childTable))
             {
-                conditions.Add(ParseCondition(childTable));
+                conditions.Add(ParseCondition(childTable, customDateFormat));
             }
         }
 
-        // Also check any non-numeric key-value pairs
         foreach (var pair in listTable)
         {
             if (pair.Key.Type != LuaValueType.Number && pair.Value.TryRead<LuaTable>(out var childTable))
             {
-                conditions.Add(ParseCondition(childTable));
+                conditions.Add(ParseCondition(childTable, customDateFormat));
             }
         }
 
@@ -209,7 +209,7 @@ public static class GmailFilterParser
         return isOr ? new OrCondition(conditions) : new AndCondition(conditions);
     }
 
-    private static List<IFilterCondition> ExtractDirectConditions(LuaTable table)
+    private static List<IFilterCondition> ExtractDirectConditions(LuaTable table, string? customDateFormat)
     {
         var conditions = new List<IFilterCondition>();
 
@@ -226,11 +226,10 @@ public static class GmailFilterParser
             {
                 if (val.Type == LuaValueType.String)
                 {
-                    conditions.Add(new FieldCondition(field, val.Read<string>()));
+                    conditions.Add(CreateConditionForField(field, val.Read<string>(), customDateFormat));
                 }
                 else if (val.Type == LuaValueType.Table && field == "header" && val.TryRead<LuaTable>(out var hTable))
                 {
-                    // header = { name = "X-Foo", value = "bar" }
                     string name = hTable.TryGetValue("name", out var n) ? n.ToString() : string.Empty;
                     string v = hTable.TryGetValue("value", out var vVal) ? vVal.ToString() : string.Empty;
                     conditions.Add(new FieldCondition("header", $"{name}:{v}"));
@@ -239,6 +238,26 @@ public static class GmailFilterParser
         }
 
         return conditions;
+    }
+
+    private static IFilterCondition CreateConditionForField(string field, string value, string? customDateFormat)
+    {
+        string normField = field.Trim().ToLowerInvariant();
+
+        if (normField is "after" or "before" or "older" or "newer")
+        {
+            DateTime dt = FilterValidator.ValidateAndParseDate(normField, value, customDateFormat);
+            return new DateCondition(normField, dt);
+        }
+
+        if (normField is "older_than" or "newer_than" or "older-than" or "newer-than")
+        {
+            string op = normField.Replace("-", "_");
+            string dur = FilterValidator.ValidateAndNormalizeDuration(op, value);
+            return new DurationCondition(op, dur);
+        }
+
+        return new FieldCondition(normField, value);
     }
 
     private static bool IsDirectField(string key)

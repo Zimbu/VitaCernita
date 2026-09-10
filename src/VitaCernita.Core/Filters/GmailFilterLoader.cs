@@ -16,50 +16,32 @@ public sealed class GmailFilterLoader
 -- VitaCernita Gmail Filter DSL Prelude
 -- =======================================================================
 
-function from(val)
-    return { type = 'field', field = 'from', value = tostring(val) }
-end
+function from(val) return { type = 'field', field = 'from', value = tostring(val) } end
 From = from
 
-function to(val)
-    return { type = 'field', field = 'to', value = tostring(val) }
-end
+function to(val) return { type = 'field', field = 'to', value = tostring(val) } end
 To = to
 
-function cc(val)
-    return { type = 'field', field = 'cc', value = tostring(val) }
-end
+function cc(val) return { type = 'field', field = 'cc', value = tostring(val) } end
 Cc = cc
 
-function bcc(val)
-    return { type = 'field', field = 'bcc', value = tostring(val) }
-end
+function bcc(val) return { type = 'field', field = 'bcc', value = tostring(val) } end
 Bcc = bcc
 
-function subject(val)
-    return { type = 'field', field = 'subject', value = tostring(val) }
-end
+function subject(val) return { type = 'field', field = 'subject', value = tostring(val) } end
 Subject = subject
 
-function list(val)
-    return { type = 'field', field = 'list', value = tostring(val) }
-end
+function list(val) return { type = 'field', field = 'list', value = tostring(val) } end
 List = list
 
-function filename(val)
-    return { type = 'field', field = 'filename', value = tostring(val) }
-end
+function filename(val) return { type = 'field', field = 'filename', value = tostring(val) } end
 Filename = filename
 
-function delivered_to(val)
-    return { type = 'field', field = 'deliveredto', value = tostring(val) }
-end
+function delivered_to(val) return { type = 'field', field = 'deliveredto', value = tostring(val) } end
 deliveredto = delivered_to
 DeliveredTo = delivered_to
 
-function rfc822msgid(val)
-    return { type = 'field', field = 'rfc822msgid', value = tostring(val) }
-end
+function rfc822msgid(val) return { type = 'field', field = 'rfc822msgid', value = tostring(val) } end
 Rfc822MsgId = rfc822msgid
 msgid = rfc822msgid
 
@@ -72,17 +54,35 @@ function header(name_or_pair, maybe_val)
 end
 Header = header
 
-function label(val)
-    return { type = 'field', field = 'label', value = tostring(val) }
-end
+function label(val) return { type = 'field', field = 'label', value = tostring(val) } end
 Label = label
 
 -- Exact word or phrase match: double-quoted search term
-function match(phrase)
-    return { type = 'exact', value = tostring(phrase) }
-end
+function match(phrase) return { type = 'exact', value = tostring(phrase) } end
 Match = match
 exact = match
+
+-- Date operators
+function after(val) return { type = 'field', field = 'after', value = tostring(val) } end
+After = after
+
+function before(val) return { type = 'field', field = 'before', value = tostring(val) } end
+Before = before
+
+function older(val) return { type = 'field', field = 'older', value = tostring(val) } end
+Older = older
+
+function newer(val) return { type = 'field', field = 'newer', value = tostring(val) } end
+Newer = newer
+
+-- Duration operators
+function older_than(val) return { type = 'field', field = 'older_than', value = tostring(val) } end
+OlderThan = older_than
+olderThan = older_than
+
+function newer_than(val) return { type = 'field', field = 'newer_than', value = tostring(val) } end
+NewerThan = newer_than
+newerThan = newer_than
 
 -- Logical operators
 function And(...)
@@ -148,6 +148,24 @@ FilterBuilder.Label = FilterBuilder.label
 
 function FilterBuilder:match(phrase) table.insert(self.conditions, match(phrase)); return self end
 FilterBuilder.Match = FilterBuilder.match
+
+function FilterBuilder:after(val) table.insert(self.conditions, after(val)); return self end
+FilterBuilder.After = FilterBuilder.after
+
+function FilterBuilder:before(val) table.insert(self.conditions, before(val)); return self end
+FilterBuilder.Before = FilterBuilder.before
+
+function FilterBuilder:older(val) table.insert(self.conditions, older(val)); return self end
+FilterBuilder.Older = FilterBuilder.older
+
+function FilterBuilder:newer(val) table.insert(self.conditions, newer(val)); return self end
+FilterBuilder.Newer = FilterBuilder.newer
+
+function FilterBuilder:older_than(val) table.insert(self.conditions, older_than(val)); return self end
+FilterBuilder.OlderThan = FilterBuilder.older_than
+
+function FilterBuilder:newer_than(val) table.insert(self.conditions, newer_than(val)); return self end
+FilterBuilder.NewerThan = FilterBuilder.newer_than
 
 function FilterBuilder:build()
     return { type = 'operator', op = 'and', conditions = self.conditions }
@@ -216,7 +234,31 @@ Filter = filter
             throw new LuaConfigException("Lua filter script must return a rule table or define a global 'rule' or 'config' table.");
         }
 
-        return ParseRulesFromRoot(rootTable);
+        string? customDateFormat = ExtractDateFormat(rootTable, state);
+
+        return ParseRulesFromRoot(rootTable, customDateFormat);
+    }
+
+    private static string? ExtractDateFormat(LuaTable root, LuaState state)
+    {
+        if (root.TryGetValue("date_format", out var dfVal) && dfVal.Type == LuaValueType.String)
+        {
+            return dfVal.Read<string>();
+        }
+        if (root.TryGetValue("DateFormat", out var dfValUpper) && dfValUpper.Type == LuaValueType.String)
+        {
+            return dfValUpper.Read<string>();
+        }
+        if (root.TryGetValue("settings", out var sVal) && sVal.TryRead<LuaTable>(out var sTable) &&
+            sTable.TryGetValue("date_format", out var sdfVal) && sdfVal.Type == LuaValueType.String)
+        {
+            return sdfVal.Read<string>();
+        }
+        if (state.Environment.TryGetValue("date_format", out var envDf) && envDf.Type == LuaValueType.String)
+        {
+            return envDf.Read<string>();
+        }
+        return null;
     }
 
     private static void RegisterHelpers(LuaState state)
@@ -239,7 +281,7 @@ Filter = filter
         });
     }
 
-    private static List<GmailRule> ParseRulesFromRoot(LuaTable root)
+    private static List<GmailRule> ParseRulesFromRoot(LuaTable root, string? customDateFormat)
     {
         var rules = new List<GmailRule>();
 
@@ -250,26 +292,26 @@ Filter = filter
             {
                 if (rulesTable[i].TryRead<LuaTable>(out var rTable))
                 {
-                    rules.Add(GmailFilterParser.ParseRule(rTable));
+                    rules.Add(GmailFilterParser.ParseRule(rTable, customDateFormat));
                 }
             }
             foreach (var pair in rulesTable)
             {
                 if (pair.Key.Type != LuaValueType.Number && pair.Value.TryRead<LuaTable>(out var rTable))
                 {
-                    rules.Add(GmailFilterParser.ParseRule(rTable));
+                    rules.Add(GmailFilterParser.ParseRule(rTable, customDateFormat));
                 }
             }
             if (rules.Count > 0) return rules;
         }
 
-        // Check if root is an operator (e.g. Or / And) or exact match
+        // Check if root is an operator or exact match
         if (root.TryGetValue("type", out var typeVal))
         {
             string t = typeVal.ToString();
             if (t == "operator" || t == "exact" || t == "field" || t == "builder")
             {
-                rules.Add(GmailFilterParser.ParseRule(root));
+                rules.Add(GmailFilterParser.ParseRule(root, customDateFormat));
                 return rules;
             }
         }
@@ -281,14 +323,14 @@ Filter = filter
             {
                 if (root[i].TryRead<LuaTable>(out var rTable))
                 {
-                    rules.Add(GmailFilterParser.ParseRule(rTable));
+                    rules.Add(GmailFilterParser.ParseRule(rTable, customDateFormat));
                 }
             }
             if (rules.Count > 0) return rules;
         }
 
         // Single rule
-        rules.Add(GmailFilterParser.ParseRule(root));
+        rules.Add(GmailFilterParser.ParseRule(root, customDateFormat));
         return rules;
     }
 }

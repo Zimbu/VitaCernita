@@ -1,4 +1,5 @@
 using System;
+using VitaCernita.Core.Filters.Validation;
 
 namespace VitaCernita.Core.Filters;
 
@@ -14,8 +15,21 @@ public sealed class FieldCondition : IFilterCondition
     {
         if (field == null) throw new ArgumentNullException(nameof(field));
         Field = NormalizeField(field);
-        Value = value?.Trim() ?? string.Empty;
+
+        if (IsEmailField(Field))
+        {
+            FilterValidator.ValidateEmailAddressOrFragment(Field, value);
+        }
+        else
+        {
+            FilterValidator.ValidateNonEmpty(Field, value);
+        }
+
+        Value = value.Trim();
     }
+
+    private static bool IsEmailField(string field) =>
+        field is "from" or "to" or "cc" or "bcc" or "deliveredto";
 
     public static string NormalizeField(string field)
     {

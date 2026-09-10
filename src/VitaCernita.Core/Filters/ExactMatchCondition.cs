@@ -1,4 +1,5 @@
 using System;
+using VitaCernita.Core.Filters.Validation;
 
 namespace VitaCernita.Core.Filters;
 
@@ -11,7 +12,8 @@ public sealed class ExactMatchCondition : IFilterCondition
 
     public ExactMatchCondition(string phrase)
     {
-        Phrase = phrase?.Trim() ?? string.Empty;
+        FilterValidator.ValidateNonEmpty("match", phrase);
+        Phrase = phrase.Trim();
     }
 
     public string ToGmailQuery(bool explicitAnd = false)

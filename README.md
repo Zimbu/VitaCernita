@@ -31,6 +31,35 @@ All standard Google Gmail API string search operators are supported with consist
 
 ---
 
+### Date & Duration Operators
+
+| DSL Operator | Gmail Operator | Output Format | Description | Example |
+| :--- | :--- | :--- | :--- | :--- |
+| `After(...)` | `after:` | `yyyy/MM/dd` | Messages sent after specified date | `After("2026/01/15")` |
+| `Before(...)` | `before:` | `yyyy/MM/dd` | Messages sent before specified date | `Before("2026/12/31")` |
+| `Older(...)` | `older:` | `yyyy/MM/dd` | Alias for `before:` | `Older("2026/07/01")` |
+| `Newer(...)` | `newer:` | `yyyy/MM/dd` | Alias for `after:` | `Newer("2026/03/01")` |
+| `OlderThan(...)` | `older_than:` | `Nd` / `Nm` / `Ny` | Relative age older than duration | `older_than("90d")` |
+| `NewerThan(...)` | `newer_than:` | `Nd` / `Nm` / `Ny` | Relative age newer than duration | `newer_than("14d")` |
+
+#### Date Syntax & Global Configuration
+- **Default Accepted Input Formats**: `MM/dd/yyyy` and `yyyy/MM/dd` (with `/`, `-`, or `.` delimiters). Times are strictly forbidden.
+- **Custom Global Format**: Define `date_format = "MM-dd-YYYY"` at the root or within `settings` of the Lua configuration. When set, all dates throughout the entire configuration must match this exact format.
+- **Gmail Canonical Output**: Regardless of how dates are provided in Lua, generated Gmail filter strings always use Gmail's required `yyyy/MM/dd` standard (4-digit year / 2-digit month / 2-digit day).
+- **Durations**: Positive integer count paired with `d` (days), `m` (months), or `y` (years). Units are normalized to lowercase.
+
+---
+
+### Input Validation
+VitaCernita performs rigorous input validation before building filters:
+- **Non-Empty Strings**: Rejects empty strings or whitespace-only values across all fields.
+- **Email Addresses & Fragments**: Validates sender/recipient fields (`from`, `to`, `cc`, `bcc`, `deliveredto`). Accepts full emails, display name brackets (`"Alice <alice@example.com>"`), or search fragments (e.g. `"@company.com"` or `"dev-team"`). Enforces at most one `@` symbol, character whitelist (`[a-zA-Z0-9._+%@-]`), and rejects consecutive dots (`..`).
+- **Date Calendar Validity**: Enforces real calendar dates (rejects invalid dates such as `02/30/2026`).
+- **Duration Unit Validation**: Rejects invalid units (e.g., `s`, `w`, `h`) or non-positive numbers (`0d`, `-5m`).
+
+
+---
+
 ### Logic & Nesting
 
 #### 1. Exact Word or Phrase Match (`match`)
