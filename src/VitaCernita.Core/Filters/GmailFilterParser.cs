@@ -73,12 +73,43 @@ public static class GmailFilterParser
             return new ExactMatchCondition(phrase);
         }
 
-        // 3. Explicit DSL Operator: { type = "operator", op = "and"|"or", conditions = { ... } }
+        // 3. Explicit DSL Operator: { type = "operator", op = "and"|"or"|"not", conditions/condition = ... }
         if (table.TryGetValue("op", out var opVal) && opVal.Type == LuaValueType.String)
         {
             string op = opVal.Read<string>();
             bool isOr = op.Equals("or", StringComparison.OrdinalIgnoreCase);
             bool isAnd = op.Equals("and", StringComparison.OrdinalIgnoreCase);
+            bool isNot = op.Equals("not", StringComparison.OrdinalIgnoreCase);
+
+            if (isNot)
+            {
+                if (!table.TryGetValue("condition", out var condVal) || condVal.Type == LuaValueType.Nil)
+                {
+                    throw new FilterValidationException("A 'not' condition cannot be empty; it must negate a valid expression.");
+                }
+
+                if (condVal.Type == LuaValueType.String)
+                {
+                    string strVal = condVal.Read<string>();
+                    if (string.IsNullOrWhiteSpace(strVal))
+                    {
+                        throw new FilterValidationException("A 'not' condition cannot be empty; it must negate a valid expression.");
+                    }
+                    return new NotCondition(new ExactMatchCondition(strVal));
+                }
+
+                if (condVal.TryRead<LuaTable>(out var condTable))
+                {
+                    if (condTable.ArrayLength == 0 && !HasAnyNonEmptyKey(condTable))
+                    {
+                        throw new FilterValidationException("A 'not' condition cannot be empty; it must negate a valid expression.");
+                    }
+                    var inner = ParseCondition(condTable, customDateFormat);
+                    return new NotCondition(inner);
+                }
+
+                throw new FilterValidationException("A 'not' condition cannot be empty; it must negate a valid expression.");
+            }
 
             if (isOr || isAnd)
             {
@@ -282,6 +313,41 @@ public static class GmailFilterParser
             }
         }
 
+        // Check for negation operator via ["not"], ["negate"], ["invert"]
+        foreach (string notKey in new[] { "not", "negate", "invert" })
+        {
+            if (table.TryGetValue(notKey, out var notVal))
+            {
+                if (notVal.Type == LuaValueType.Nil)
+                {
+                    throw new FilterValidationException("A 'not' condition cannot be empty; it must negate a valid expression.");
+                }
+
+                if (notVal.Type == LuaValueType.String)
+                {
+                    string strVal = notVal.Read<string>();
+                    if (string.IsNullOrWhiteSpace(strVal))
+                    {
+                        throw new FilterValidationException("A 'not' condition cannot be empty; it must negate a valid expression.");
+                    }
+                    conditions.Add(new NotCondition(new ExactMatchCondition(strVal)));
+                }
+                else if (notVal.TryRead<LuaTable>(out var notTable))
+                {
+                    if (notTable.ArrayLength == 0 && !HasAnyNonEmptyKey(notTable))
+                    {
+                        throw new FilterValidationException("A 'not' condition cannot be empty; it must negate a valid expression.");
+                    }
+                    var inner = ParseCondition(notTable, customDateFormat);
+                    conditions.Add(new NotCondition(inner));
+                }
+                else
+                {
+                    throw new FilterValidationException("A 'not' condition cannot be empty; it must negate a valid expression.");
+                }
+            }
+        }
+
         return conditions;
     }
 
@@ -349,9 +415,24 @@ public static class GmailFilterParser
         return FilterValidator.ValidateAndNormalizeStar("has", norm);
     }
 
+    private static bool HasAnyNonEmptyKey(LuaTable table)
+    {
+        foreach (var pair in table)
+        {
+            if (pair.Value.Type != LuaValueType.Nil)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static bool IsDirectField(string key)
     {
         if (key.Equals("match", StringComparison.OrdinalIgnoreCase)) return true;
+        if (key.Equals("not", StringComparison.OrdinalIgnoreCase) ||
+            key.Equals("negate", StringComparison.OrdinalIgnoreCase) ||
+            key.Equals("invert", StringComparison.OrdinalIgnoreCase)) return true;
         foreach (var field in SupportedFieldNames)
         {
             if (field.Equals(key, StringComparison.OrdinalIgnoreCase)) return true;

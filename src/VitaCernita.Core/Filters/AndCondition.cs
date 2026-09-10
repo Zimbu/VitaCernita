@@ -87,6 +87,10 @@ public sealed class AndCondition : IFilterCondition
         {
             return (19, "match", emc.Phrase);
         }
+        if (cond is NotCondition notCond)
+        {
+            return (25, "not", notCond.ToGmailQuery(false));
+        }
         if (cond is OrCondition orCond)
         {
             return (30, "or", orCond.ToGmailQuery(false));

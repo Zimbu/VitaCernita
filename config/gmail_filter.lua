@@ -96,6 +96,16 @@ return {
                 From("exec-team@company.com"),
                 is_starred
             )
+        },
+
+        -- Rule 9: Negate specific terms and negated logical OR expressions
+        rule {
+            name = "Direct Executive Traffic Excluding Automated Noise",
+            match = And(
+                From("exec-team@company.com"),
+                not({ is_starred = true }),
+                not(Or(Subject("automated"), Subject("newsletter")))
+            )
         }
     }
 }

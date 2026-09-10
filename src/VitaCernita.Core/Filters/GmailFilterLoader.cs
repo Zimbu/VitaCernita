@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Lua;
 using Lua.Standard;
@@ -137,6 +138,17 @@ starred = is_starred
 function is(val) return { type = 'is', value = tostring(val) } end
 Is = is
 
+-- Negation (NOT) operator
+function Not(cond)
+    if cond == nil then
+        return { type = 'operator', op = 'not' }
+    end
+    return { type = 'operator', op = 'not', condition = cond }
+end
+not_op = Not
+negate = Not
+invert = Not
+
 -- Logical operators
 function And(...)
     local args = { ... }
@@ -255,6 +267,11 @@ function FilterBuilder:is_starred() table.insert(self.conditions, is_starred());
 FilterBuilder.IsStarred = FilterBuilder.is_starred
 FilterBuilder.starred = FilterBuilder.is_starred
 
+function FilterBuilder:Not(cond) table.insert(self.conditions, Not(cond)); return self end
+FilterBuilder.not_op = FilterBuilder.Not
+FilterBuilder.negate = FilterBuilder.Not
+FilterBuilder.invert = FilterBuilder.Not
+
 function FilterBuilder:build()
     return { type = 'operator', op = 'and', conditions = self.conditions }
 end
@@ -264,6 +281,16 @@ function filter()
 end
 Filter = filter
 ";
+
+    private static readonly Regex NotRewriteRegex = new(
+        @"(""(\\.|[^""\\])*""|'(\\.|[^'\\])*'|\[\[.*?\]\]|--\[\[.*?\]\]|--[^\r\n]*)|\bnot\s*\(",
+        RegexOptions.Compiled | RegexOptions.Singleline);
+
+    public static string PreprocessScript(string script)
+    {
+        if (string.IsNullOrEmpty(script)) return script;
+        return NotRewriteRegex.Replace(script, m => m.Groups[1].Success ? m.Groups[1].Value : "Not(");
+    }
 
     public async Task<List<GmailRule>> LoadRulesFromFileAsync(string filePath, LuaState? externalState = null)
     {
@@ -294,10 +321,12 @@ Filter = filter
 
         await state.DoStringAsync(DslPrelude);
 
+        string preprocessed = PreprocessScript(script);
+
         LuaValue[] results;
         try
         {
-            results = await state.DoStringAsync(script);
+            results = await state.DoStringAsync(preprocessed);
         }
         catch (Exception ex)
         {

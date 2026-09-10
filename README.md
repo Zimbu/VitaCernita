@@ -104,8 +104,26 @@ return rule {
 -- Emits: from:secops@company.com label:security-alerts "unauthorized privilege escalation"
 ```
 
-#### 2. Composite Nested Rules
-Combine boolean operators (`And`, `Or`) at arbitrary depths:
+#### 2. Negation Operator (`not` / `-`)
+Negate single fields, exact phrases, star operators, or composite logical expressions using `-`:
+```lua
+return rule {
+    name = "Exclude Executive Noise",
+    match = And(
+        From("exec-team@company.com"),
+        not({ is_starred = true }),
+        not(Or(Subject("automated"), Subject("newsletter")))
+    )
+}
+-- Emits: from:exec-team@company.com -(subject:automated OR subject:newsletter) -is:starred
+```
+- **Single Fields & Operators**: `not(From("a@b.com"))` -> `-from:a@b.com`, `not(is_starred)` -> `-is:starred`
+- **Negating `And` / `Or`**: `not(Or(To("a"), To("b")))` -> `-(to:a OR to:b)`
+- **Double Negation**: `not(not(From("a")))` -> `-(-from:a)`
+- **Validation**: Empty `not()`, `not({})`, or `not("")` is strictly rejected.
+
+#### 3. Composite Nested Rules
+Combine boolean operators (`And`, `Or`, `not`) at arbitrary depths:
 ```lua
 return rule {
     name = "Tri-Team Incident Dispatcher",
@@ -118,16 +136,14 @@ return rule {
 -- Emits: (from:devops@company.com subject:"Cluster Outage") OR (from:netops@company.com subject:"BGP Route Leak") OR (from:secops@company.com subject:"Security Breach")
 ```
 
-#### 3. Declarative Table Syntax
+#### 4. Declarative Table Syntax
 Any rule can also be written in pure Lua table syntax:
 ```lua
 return {
     rules = {
         {
             from = "cfo@company.com",
-            ["delivered-to"] = "finance@company.com",
-            label = "executive",
-            match = "Quarterly Dividend",
+            ["not"] = { is_starred = true },
             ["or"] = {
                 { filename = "dividend.pdf" },
                 { filename = "sheet.xlsx" }
@@ -136,6 +152,7 @@ return {
     }
 }
 ```
+
 
 ---
 
