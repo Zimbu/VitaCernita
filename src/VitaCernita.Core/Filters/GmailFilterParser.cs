@@ -27,7 +27,15 @@ public static class GmailFilterParser
         "has_orange_guillemet", "orange_guillemet", "orange-guillemet", "orange_guillemets", "orange-guillemets",
         "has_green_check", "green_check", "green-check",
         "has_blue_info", "blue_info", "blue-info",
-        "has_purple_question", "purple_question", "purple-question"
+        "has_purple_question", "purple_question", "purple-question",
+        "has_attachment", "attachment",
+        "has_drive", "drive",
+        "has_document", "document",
+        "has_spreadsheet", "spreadsheet",
+        "has_presentation", "presentation",
+        "has_youtube", "has_you_tube", "youtube", "you_tube",
+        "has_userlabels", "has_user_labels", "userlabels", "user_labels",
+        "has_nouserlabels", "has_no_user_labels", "nouserlabels", "no_user_labels"
     ];
 
     public static GmailRule ParseRule(LuaTable table, string? customDateFormat = null)
@@ -288,9 +296,9 @@ public static class GmailFilterParser
                 {
                     conditions.Add(CreateConditionForField(field, val.Read<string>(), customDateFormat));
                 }
-                else if (val.Type == LuaValueType.Boolean && val.Read<bool>() && IsStarKey(field))
+                else if (val.Type == LuaValueType.Boolean && val.Read<bool>() && IsHasKey(field))
                 {
-                    conditions.Add(new HasCondition(ExtractStarTargetFromKey(field)));
+                    conditions.Add(new HasCondition(ExtractHasTargetFromKey(field)));
                 }
                 else if (val.Type == LuaValueType.Boolean && val.Read<bool>() && (field is "is_starred" or "starred"))
                 {
@@ -298,7 +306,19 @@ public static class GmailFilterParser
                 }
                 else if (val.Type == LuaValueType.Table && field == "has" && val.TryRead<LuaTable>(out var hasTable))
                 {
-                    conditions.Add(ParseCondition(hasTable, customDateFormat));
+                    bool hasDirectStrings = false;
+                    for (int i = 1; i <= hasTable.ArrayLength; i++)
+                    {
+                        if (hasTable[i].Type == LuaValueType.String)
+                        {
+                            conditions.Add(new HasCondition(hasTable[i].Read<string>()));
+                            hasDirectStrings = true;
+                        }
+                    }
+                    if (!hasDirectStrings)
+                    {
+                        conditions.Add(ParseCondition(hasTable, customDateFormat));
+                    }
                 }
                 else if (val.Type == LuaValueType.Table && field == "is" && val.TryRead<LuaTable>(out var isTable))
                 {
@@ -370,9 +390,9 @@ public static class GmailFilterParser
             return new IsCondition("starred");
         }
 
-        if (IsStarKey(normField))
+        if (IsHasKey(normField))
         {
-            return new HasCondition(ExtractStarTargetFromKey(normField));
+            return new HasCondition(ExtractHasTargetFromKey(normField));
         }
 
         if (normField is "after" or "before" or "older" or "newer")
@@ -391,7 +411,7 @@ public static class GmailFilterParser
         return new FieldCondition(normField, value);
     }
 
-    private static bool IsStarKey(string key)
+    private static bool IsHasKey(string key)
     {
         string norm = key.Trim().ToLowerInvariant();
         if (norm.StartsWith("has_") || norm.StartsWith("has-"))
@@ -400,10 +420,13 @@ public static class GmailFilterParser
         }
         norm = norm.Replace('_', '-');
         if (norm.EndsWith("guillemets")) norm = norm[..^1];
-        return FilterValidator.CanonicalStarsAndIcons.Contains(norm);
+        if (norm is "user-labels") norm = "userlabels";
+        if (norm is "no-user-labels" or "no-userlabels" or "nouser-labels") norm = "nouserlabels";
+        if (norm is "you-tube") norm = "youtube";
+        return FilterValidator.CanonicalHasTargets.Contains(norm);
     }
 
-    private static string ExtractStarTargetFromKey(string key)
+    private static string ExtractHasTargetFromKey(string key)
     {
         string norm = key.Trim().ToLowerInvariant();
         if (norm.StartsWith("has_") || norm.StartsWith("has-"))
@@ -412,7 +435,7 @@ public static class GmailFilterParser
         }
         norm = norm.Replace('_', '-');
         if (norm.EndsWith("guillemets")) norm = norm[..^1];
-        return FilterValidator.ValidateAndNormalizeStar("has", norm);
+        return FilterValidator.ValidateAndNormalizeHasTarget("has", norm);
     }
 
     private static bool HasAnyNonEmptyKey(LuaTable table)

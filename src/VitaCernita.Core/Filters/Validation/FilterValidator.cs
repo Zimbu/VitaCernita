@@ -138,7 +138,36 @@ public static class FilterValidator
         "purple-question"
     };
 
-    public static string ValidateAndNormalizeStar(string op, string rawValue)
+    public static readonly HashSet<string> CanonicalHasTargets = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // Stars and icons
+        "yellow-star",
+        "orange-star",
+        "red-star",
+        "purple-star",
+        "blue-star",
+        "green-star",
+        "red-bang",
+        "yellow-bang",
+        "orange-guillemet",
+        "green-check",
+        "blue-info",
+        "purple-question",
+
+        // Media and Workspace attachments
+        "attachment",
+        "drive",
+        "document",
+        "spreadsheet",
+        "presentation",
+        "youtube",
+
+        // Label metadata
+        "userlabels",
+        "nouserlabels"
+    };
+
+    public static string ValidateAndNormalizeHasTarget(string op, string rawValue)
     {
         ValidateNonEmpty(op, rawValue);
 
@@ -147,15 +176,32 @@ public static class FilterValidator
         {
             normalized = normalized[..^1];
         }
+        else if (normalized is "user-labels" or "user_labels")
+        {
+            normalized = "userlabels";
+        }
+        else if (normalized is "no-user-labels" or "no-userlabels" or "nouser-labels" or "no_user_labels")
+        {
+            normalized = "nouserlabels";
+        }
+        else if (normalized is "you-tube" or "you_tube")
+        {
+            normalized = "youtube";
+        }
 
-        if (CanonicalStarsAndIcons.Contains(normalized))
+        if (CanonicalHasTargets.Contains(normalized))
         {
             return normalized;
         }
 
         throw new FilterValidationException(
-            $"Invalid star or icon '{rawValue}' for operator '{op}'. " +
-            $"Supported star operators are: {string.Join(", ", CanonicalStarsAndIcons.OrderBy(s => s))}.");
+            $"Invalid target '{rawValue}' for operator '{op}'. " +
+            $"Supported targets are: {string.Join(", ", CanonicalHasTargets.OrderBy(s => s))}.");
+    }
+
+    public static string ValidateAndNormalizeStar(string op, string rawValue)
+    {
+        return ValidateAndNormalizeHasTarget(op, rawValue);
     }
 
     public static readonly HashSet<string> CanonicalIsTargets = new(StringComparer.OrdinalIgnoreCase)

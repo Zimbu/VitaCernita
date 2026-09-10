@@ -4,8 +4,8 @@ using VitaCernita.Core.Filters.Validation;
 namespace VitaCernita.Core.Filters;
 
 /// <summary>
-/// Represents a Gmail 'has:' operator condition for stars and icons
-/// (e.g. has:yellow-star, has:red-bang, has:orange-guillemet).
+/// Represents a Gmail 'has:' operator condition for stars, media, Workspace documents, and label metadata
+/// (e.g. has:yellow-star, has:attachment, has:drive, has:userlabels).
 /// </summary>
 public sealed class HasCondition : IFilterCondition, IEquatable<HasCondition>
 {
@@ -13,7 +13,7 @@ public sealed class HasCondition : IFilterCondition, IEquatable<HasCondition>
 
     public HasCondition(string target)
     {
-        Target = FilterValidator.ValidateAndNormalizeStar("has", target);
+        Target = FilterValidator.ValidateAndNormalizeHasTarget("has", target);
     }
 
     public string ToGmailQuery(bool explicitAnd = false)

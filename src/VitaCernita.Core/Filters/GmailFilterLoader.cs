@@ -123,6 +123,40 @@ HasPurpleQuestion = has_purple_question
 function has(val) return { type = 'has', value = tostring(val) } end
 Has = has
 
+-- Media, Workspace documents, and label metadata has operators
+has_attachment = make_star('attachment')
+HasAttachment = has_attachment
+attachment = has_attachment
+
+has_drive = make_star('drive')
+HasDrive = has_drive
+drive = has_drive
+
+has_document = make_star('document')
+HasDocument = has_document
+document = has_document
+
+has_spreadsheet = make_star('spreadsheet')
+HasSpreadsheet = has_spreadsheet
+spreadsheet = has_spreadsheet
+
+has_presentation = make_star('presentation')
+HasPresentation = has_presentation
+presentation = has_presentation
+
+has_youtube = make_star('youtube')
+HasYoutube = has_youtube
+has_you_tube = has_youtube
+youtube = has_youtube
+
+has_userlabels = make_star('userlabels')
+HasUserLabels = has_userlabels
+has_user_labels = has_userlabels
+
+has_nouserlabels = make_star('nouserlabels')
+HasNoUserLabels = has_nouserlabels
+has_no_user_labels = has_nouserlabels
+
 -- Is operator & is_starred
 local function make_is(name)
     local tbl = { type = 'is', value = name }
@@ -263,6 +297,23 @@ function FilterBuilder:has_blue_info() table.insert(self.conditions, has_blue_in
 FilterBuilder.HasBlueInfo = FilterBuilder.has_blue_info
 function FilterBuilder:has_purple_question() table.insert(self.conditions, has_purple_question()); return self end
 FilterBuilder.HasPurpleQuestion = FilterBuilder.has_purple_question
+
+function FilterBuilder:has_attachment() table.insert(self.conditions, has_attachment()); return self end
+FilterBuilder.HasAttachment = FilterBuilder.has_attachment
+function FilterBuilder:has_drive() table.insert(self.conditions, has_drive()); return self end
+FilterBuilder.HasDrive = FilterBuilder.has_drive
+function FilterBuilder:has_document() table.insert(self.conditions, has_document()); return self end
+FilterBuilder.HasDocument = FilterBuilder.has_document
+function FilterBuilder:has_spreadsheet() table.insert(self.conditions, has_spreadsheet()); return self end
+FilterBuilder.HasSpreadsheet = FilterBuilder.has_spreadsheet
+function FilterBuilder:has_presentation() table.insert(self.conditions, has_presentation()); return self end
+FilterBuilder.HasPresentation = FilterBuilder.has_presentation
+function FilterBuilder:has_youtube() table.insert(self.conditions, has_youtube()); return self end
+FilterBuilder.HasYoutube = FilterBuilder.has_youtube
+function FilterBuilder:has_userlabels() table.insert(self.conditions, has_userlabels()); return self end
+FilterBuilder.HasUserLabels = FilterBuilder.has_userlabels
+function FilterBuilder:has_nouserlabels() table.insert(self.conditions, has_nouserlabels()); return self end
+FilterBuilder.HasNoUserLabels = FilterBuilder.has_nouserlabels
 
 function FilterBuilder:is(val) table.insert(self.conditions, is(val)); return self end
 FilterBuilder.Is = FilterBuilder.is
