@@ -150,19 +150,15 @@ return {
     }
 
     [Fact]
-    public async Task Parse_DiscoveredGoogleOperators_ProducesCorrectFilter()
+    public async Task Parse_LabelOperator_ProducesCorrectFilter()
     {
-        string lua = @"
-return And(
-    Label('finance'),
-    Category('promotions'),
-    Has('attachment'),
-    Is('unread'),
-    in_folder('archive')
-)
-";
-        var rule = await _loader.LoadRuleFromScriptAsync(lua);
-        Assert.Equal("label:finance category:promotions has:attachment is:unread in:archive", rule.ToGmailQuery());
+        string luaSimple = @"return Label('finance')";
+        var ruleSimple = await _loader.LoadRuleFromScriptAsync(luaSimple);
+        Assert.Equal("label:finance", ruleSimple.ToGmailQuery());
+
+        string luaSpaces = @"return label('Important Clients')";
+        var ruleSpaces = await _loader.LoadRuleFromScriptAsync(luaSpaces);
+        Assert.Equal("label:\"Important Clients\"", ruleSpaces.ToGmailQuery());
     }
 
     [Fact]

@@ -21,11 +21,7 @@ public sealed class AndCondition : IFilterCondition
         { "filename", 8 },
         { "header", 9 },
         { "rfc822msgid", 10 },
-        { "label", 11 },
-        { "category", 12 },
-        { "has", 13 },
-        { "is", 14 },
-        { "in", 15 }
+        { "label", 11 }
     };
 
     public IReadOnlyList<IFilterCondition> Conditions { get; }

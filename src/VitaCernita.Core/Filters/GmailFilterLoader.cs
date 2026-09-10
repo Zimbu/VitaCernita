@@ -72,38 +72,17 @@ function header(name_or_pair, maybe_val)
 end
 Header = header
 
+function label(val)
+    return { type = 'field', field = 'label', value = tostring(val) }
+end
+Label = label
+
 -- Exact word or phrase match: double-quoted search term
 function match(phrase)
     return { type = 'exact', value = tostring(phrase) }
 end
 Match = match
 exact = match
-
--- Additional string matching operators from official Gmail documentation
-function label(val)
-    return { type = 'field', field = 'label', value = tostring(val) }
-end
-Label = label
-
-function category(val)
-    return { type = 'field', field = 'category', value = tostring(val) }
-end
-Category = category
-
-function has(val)
-    return { type = 'field', field = 'has', value = tostring(val) }
-end
-Has = has
-
-function is(val)
-    return { type = 'field', field = 'is', value = tostring(val) }
-end
-Is = is
-
-function in_folder(val)
-    return { type = 'field', field = 'in', value = tostring(val) }
-end
-InFolder = in_folder
 
 -- Logical operators
 function And(...)
@@ -164,23 +143,11 @@ FilterBuilder.Rfc822MsgId = FilterBuilder.rfc822msgid
 function FilterBuilder:header(name_or_pair, maybe_val) table.insert(self.conditions, header(name_or_pair, maybe_val)); return self end
 FilterBuilder.Header = FilterBuilder.header
 
-function FilterBuilder:match(phrase) table.insert(self.conditions, match(phrase)); return self end
-FilterBuilder.Match = FilterBuilder.match
-
 function FilterBuilder:label(val) table.insert(self.conditions, label(val)); return self end
 FilterBuilder.Label = FilterBuilder.label
 
-function FilterBuilder:category(val) table.insert(self.conditions, category(val)); return self end
-FilterBuilder.Category = FilterBuilder.category
-
-function FilterBuilder:has(val) table.insert(self.conditions, has(val)); return self end
-FilterBuilder.Has = FilterBuilder.has
-
-function FilterBuilder:is(val) table.insert(self.conditions, is(val)); return self end
-FilterBuilder.Is = FilterBuilder.is
-
-function FilterBuilder:in_folder(val) table.insert(self.conditions, in_folder(val)); return self end
-FilterBuilder.InFolder = FilterBuilder.in_folder
+function FilterBuilder:match(phrase) table.insert(self.conditions, match(phrase)); return self end
+FilterBuilder.Match = FilterBuilder.match
 
 function FilterBuilder:build()
     return { type = 'operator', op = 'and', conditions = self.conditions }

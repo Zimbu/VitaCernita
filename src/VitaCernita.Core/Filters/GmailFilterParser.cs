@@ -11,7 +11,7 @@ public static class GmailFilterParser
     [
         "from", "to", "cc", "bcc", "subject", "list", "filename",
         "deliveredto", "delivered-to", "delivered_to", "rfc822msgid", "msgid",
-        "header", "label", "category", "has", "is", "in"
+        "header", "label"
     ];
 
     public static GmailRule ParseRule(LuaTable table)

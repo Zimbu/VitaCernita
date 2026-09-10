@@ -1,9 +1,9 @@
 -- =======================================================================
 -- VitaCernita Gmail Filter Configuration
 -- =======================================================================
--- Demonstrating composite rules with all supported Gmail API fields:
+-- Demonstrating composite rules with string matching Gmail API fields:
 -- from, to, cc, bcc, subject, list, filename, delivered-to, rfc822msgid, header,
--- exact phrase matches (match("...")), and operators (label, has, is, category, in).
+-- label, and exact phrase matches (match("...")).
 
 return {
     rules = {
@@ -16,6 +16,7 @@ return {
                 Cc("ciso@company.com"),
                 Subject("Security Audit"),
                 Header("X-Severity", "CRITICAL"),
+                Label("security-alerts"),
                 match("unauthorized privilege escalation")
             )
         },
@@ -26,7 +27,7 @@ return {
             match = And(
                 Or(From("billing@aws.com"), From("invoicing@google.com")),
                 Or(Filename("invoice.pdf"), Filename("receipt.pdf")),
-                Has("attachment")
+                Label("finance-invoices")
             )
         },
 
@@ -36,7 +37,7 @@ return {
             match = And(
                 List("dev-announce@lists.company.com"),
                 delivered_to("oncall-alias@company.com"),
-                Is("unread")
+                Label("engineering")
             )
         },
 

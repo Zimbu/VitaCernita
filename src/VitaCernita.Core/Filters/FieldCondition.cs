@@ -3,7 +3,7 @@ using System;
 namespace VitaCernita.Core.Filters;
 
 /// <summary>
-/// Condition matching a specific email field (e.g. 'from', 'to', 'cc', 'bcc', 'subject', 'list', 'filename', etc.).
+/// Condition matching a specific email field (e.g. 'from', 'to', 'cc', 'bcc', 'subject', 'list', 'filename', 'label', etc.).
 /// </summary>
 public sealed class FieldCondition : IFilterCondition
 {
@@ -24,7 +24,6 @@ public sealed class FieldCondition : IFilterCondition
         {
             "delivered-to" or "delivered_to" => "deliveredto",
             "rfc-822-msg-id" or "msgid" => "rfc822msgid",
-            "in_folder" => "in",
             _ => f
         };
     }

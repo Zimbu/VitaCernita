@@ -8,9 +8,9 @@ VitaCernita pairs modern .NET performance with the flexibility of a declarative 
 
 ## Gmail Filter Configuration
 
-### Supported Fields & Operators
+### Supported String Match Fields & Operators
 
-All standard Google Gmail API search operators are supported with consistent match syntax:
+All standard Google Gmail API string search operators are supported with consistent match syntax:
 
 | DSL Operator | Gmail Operator | Description | Example |
 | :--- | :--- | :--- | :--- |
@@ -24,12 +24,10 @@ All standard Google Gmail API search operators are supported with consistent mat
 | `DeliveredTo(...)` | `deliveredto:` | Delivered-to header address (aliases) | `delivered_to("ops-alias@company.com")` |
 | `Rfc822MsgId(...)` | `rfc822msgid:` | Message-ID header value | `rfc822msgid("msg-01@example.com")` |
 | `Header(name, val)` | `header:` | Custom MIME header match | `Header("X-Severity", "CRITICAL")` |
-| `match("phrase")` | `" "` | Exact word or phrase (double-quoted) | `match("confidential audit")` |
 | `Label(...)` | `label:` | User or system label | `Label("finance")` |
-| `Category(...)` | `category:` | Inbox category (promotions, updates...) | `Category("updates")` |
-| `Has(...)` | `has:` | Email feature (attachment, drive...) | `Has("attachment")` |
-| `Is(...)` | `is:` | Email state (unread, starred, muted...) | `Is("unread")` |
-| `InFolder(...)` | `in:` | Search location (archive, trash, spam...) | `in_folder("archive")` |
+| `match("phrase")` | `" "` | Exact word or phrase (double-quoted) | `match("confidential audit")` |
+
+*Note: Special enumerated operators like `has:`, `is:`, and `in:` will be introduced in future commits with dedicated enumerated DSL constructs.*
 
 ---
 
@@ -41,10 +39,11 @@ Per Google Gmail search documentation, exact phrase searches are double-quoted s
 return rule {
     match = And(
         From("secops@company.com"),
+        Label("security-alerts"),
         match("unauthorized privilege escalation")
     )
 }
--- Emits: from:secops@company.com "unauthorized privilege escalation"
+-- Emits: from:secops@company.com label:security-alerts "unauthorized privilege escalation"
 ```
 
 #### 2. Composite Nested Rules
@@ -69,6 +68,7 @@ return {
         {
             from = "cfo@company.com",
             ["delivered-to"] = "finance@company.com",
+            label = "executive",
             match = "Quarterly Dividend",
             ["or"] = {
                 { filename = "dividend.pdf" },
