@@ -294,6 +294,47 @@ public static class FilterValidator
             $"Supported targets are: {string.Join(", ", CanonicalCategoryTargets.OrderBy(s => s))}.");
     }
 
+    private static readonly Regex SizeRegex = new(
+        @"^([1-9]\d*)\s*([kmgKMG](?:[bB])?|[bB])?$",
+        RegexOptions.Compiled);
+
+    public static string ValidateAndNormalizeSize(string op, string rawSize)
+    {
+        ValidateNonEmpty(op, rawSize);
+        string trimmed = rawSize.Trim();
+
+        var match = SizeRegex.Match(trimmed);
+        if (!match.Success)
+        {
+            throw new FilterValidationException(
+                $"Invalid size '{rawSize}' for operator '{op}'. Expected a positive integer optionally followed by K, M, or G (e.g. '10M', '500K', '1000000').");
+        }
+
+        string number = match.Groups[1].Value;
+        string unitGroup = match.Groups[2].Value.ToUpperInvariant();
+
+        string canonicalUnit = "";
+        if (unitGroup.StartsWith('K')) canonicalUnit = "K";
+        else if (unitGroup.StartsWith('M')) canonicalUnit = "M";
+        else if (unitGroup.StartsWith('G')) canonicalUnit = "G";
+
+        return $"{number}{canonicalUnit}";
+    }
+
+    public static string ValidateAndNormalizeSizeOperator(string op)
+    {
+        ValidateNonEmpty("operator", op);
+        string norm = op.Trim().ToLowerInvariant().Replace('-', '_');
+        return norm switch
+        {
+            "size" => "size",
+            "larger" or "larger_than" => "larger",
+            "smaller" or "smaller_than" => "smaller",
+            _ => throw new FilterValidationException(
+                $"Invalid size operator '{op}'. Supported size operators are: size, larger, smaller, larger_than, smaller_than.")
+        };
+    }
+
     public static string NormalizeDateFormat(string format)
     {
         return format

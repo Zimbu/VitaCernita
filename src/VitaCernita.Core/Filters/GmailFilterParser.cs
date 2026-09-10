@@ -62,7 +62,8 @@ public static class GmailFilterParser
         "category_updates", "category-updates", "category_update", "category-update",
         "category_forums", "category-forums", "category_forum", "category-forum",
         "category_reservations", "category-reservations", "category_reservation", "category-reservation",
-        "category_purchases", "category-purchases", "category_purchase", "category-purchase"
+        "category_purchases", "category-purchases", "category_purchase", "category-purchase",
+        "size", "larger", "smaller", "larger_than", "smaller_than", "larger-than", "smaller-than"
     ];
 
     public static GmailRule ParseRule(LuaTable table, string? customDateFormat = null)
@@ -200,6 +201,15 @@ public static class GmailFilterParser
         {
             string val = table.TryGetValue("value", out var vVal) ? vVal.ToString() : string.Empty;
             return new CategoryCondition(val);
+        }
+
+        // 9. Explicit DSL Size: { type = "size", ... }
+        if (table.TryGetValue("type", out var sizeTypeVal) && sizeTypeVal.Type == LuaValueType.String &&
+            sizeTypeVal.Read<string>() == "size")
+        {
+            string op = table.TryGetValue("op", out var sizeOpVal) ? sizeOpVal.ToString() : "size";
+            string val = table.TryGetValue("value", out var vVal) ? vVal.ToString() : string.Empty;
+            return new SizeCondition(op, val);
         }
 
         // 5. Keyed operators: ["or"], ["any_of"], ["any"]
@@ -419,6 +429,33 @@ public static class GmailFilterParser
                         conditions.Add(ParseCondition(catTable, customDateFormat));
                     }
                 }
+                else if (val.Type == LuaValueType.Number && IsSizeField(field))
+                {
+                    long num = (long)val.Read<double>();
+                    conditions.Add(new SizeCondition(field, num.ToString()));
+                }
+                else if (val.Type == LuaValueType.Table && IsSizeField(field) && val.TryRead<LuaTable>(out var sTable))
+                {
+                    bool hasDirect = false;
+                    for (int i = 1; i <= sTable.ArrayLength; i++)
+                    {
+                        if (sTable[i].Type == LuaValueType.String)
+                        {
+                            conditions.Add(new SizeCondition(field, sTable[i].Read<string>()));
+                            hasDirect = true;
+                        }
+                        else if (sTable[i].Type == LuaValueType.Number)
+                        {
+                            long num = (long)sTable[i].Read<double>();
+                            conditions.Add(new SizeCondition(field, num.ToString()));
+                            hasDirect = true;
+                        }
+                    }
+                    if (!hasDirect)
+                    {
+                        conditions.Add(ParseCondition(sTable, customDateFormat));
+                    }
+                }
                 else if (val.Type == LuaValueType.Table && field == "header" && val.TryRead<LuaTable>(out var hTable))
                 {
                     string name = hTable.TryGetValue("name", out var n) ? n.ToString() : string.Empty;
@@ -503,6 +540,11 @@ public static class GmailFilterParser
         if (IsCategoryKey(normField))
         {
             return new CategoryCondition(ExtractCategoryTargetFromKey(normField));
+        }
+
+        if (IsSizeField(normField))
+        {
+            return new SizeCondition(normField, value);
         }
 
         if (IsHasKey(normField))
@@ -597,6 +639,12 @@ public static class GmailFilterParser
         }
         norm = norm.Replace('_', '-');
         return FilterValidator.ValidateAndNormalizeCategoryTarget("category", norm);
+    }
+
+    private static bool IsSizeField(string field)
+    {
+        string norm = field.Trim().ToLowerInvariant().Replace('-', '_');
+        return norm is "size" or "larger" or "smaller" or "larger_than" or "smaller_than";
     }
 
     private static bool IsHasKey(string key)

@@ -295,6 +295,20 @@ category_purchases = make_category('purchases')
 CategoryPurchases = category_purchases
 category_purchase = category_purchases
 
+-- Size operators & helpers
+function size(val) return { type = 'size', op = 'size', value = tostring(val) } end
+Size = size
+
+function larger(val) return { type = 'size', op = 'larger', value = tostring(val) } end
+Larger = larger
+larger_than = larger
+LargerThan = larger
+
+function smaller(val) return { type = 'size', op = 'smaller', value = tostring(val) } end
+Smaller = smaller
+smaller_than = smaller
+SmallerThan = smaller
+
 -- Negation (NOT) operator
 function Not(...)
     local args = { ... }
@@ -520,6 +534,17 @@ function FilterBuilder:category_reservations() table.insert(self.conditions, cat
 FilterBuilder.CategoryReservations = FilterBuilder.category_reservations
 function FilterBuilder:category_purchases() table.insert(self.conditions, category_purchases()); return self end
 FilterBuilder.CategoryPurchases = FilterBuilder.category_purchases
+
+function FilterBuilder:size(val) table.insert(self.conditions, size(val)); return self end
+FilterBuilder.Size = FilterBuilder.size
+function FilterBuilder:larger(val) table.insert(self.conditions, larger(val)); return self end
+FilterBuilder.Larger = FilterBuilder.larger
+FilterBuilder.larger_than = FilterBuilder.larger
+FilterBuilder.LargerThan = FilterBuilder.larger
+function FilterBuilder:smaller(val) table.insert(self.conditions, smaller(val)); return self end
+FilterBuilder.Smaller = FilterBuilder.smaller
+FilterBuilder.smaller_than = FilterBuilder.smaller
+FilterBuilder.SmallerThan = FilterBuilder.smaller
 
 function FilterBuilder:Not(...) table.insert(self.conditions, Not(...)); return self end
 FilterBuilder['not'] = FilterBuilder.Not

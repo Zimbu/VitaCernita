@@ -26,12 +26,17 @@ public sealed class AndCondition : IFilterCondition
         { "is", 13 },
         { "in", 14 },
         { "category", 15 },
-        { "after", 16 },
-        { "before", 17 },
-        { "older", 18 },
-        { "newer", 19 },
-        { "older_than", 20 },
-        { "newer_than", 21 }
+        { "size", 16 },
+        { "larger", 17 },
+        { "smaller", 18 },
+        { "larger_than", 17 },
+        { "smaller_than", 18 },
+        { "after", 20 },
+        { "before", 21 },
+        { "older", 22 },
+        { "newer", 23 },
+        { "older_than", 24 },
+        { "newer_than", 25 }
     };
 
     public IReadOnlyList<IFilterCondition> Conditions { get; }
@@ -84,6 +89,11 @@ public sealed class AndCondition : IFilterCondition
         {
             int priority = FieldOrdering.TryGetValue("category", out int p) ? p : 15;
             return (priority, "category", catc.Target);
+        }
+        if (cond is SizeCondition sc)
+        {
+            int priority = FieldOrdering.TryGetValue(sc.Operator, out int p) ? p : 16;
+            return (priority, sc.Operator, sc.Size);
         }
         if (cond is DateCondition dc)
         {
