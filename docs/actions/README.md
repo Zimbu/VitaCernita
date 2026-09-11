@@ -97,8 +97,10 @@ Reserved Gmail system labels (`INBOX`, `UNREAD`, `STARRED`, `TRASH`, `SPAM`, `DR
 
 ## Syntax Options
 
-### 1. Functional Syntax (`actions(...)`)
-Compose action elements as comma-separated arguments:
+VitaCernita treats the **Functional DSL** as the primary, default format for defining actions, while also supporting alternate styles:
+
+### 1. Functional DSL (`actions(...)`) (Primary & Recommended)
+Compose action elements cleanly as comma-separated arguments:
 ```lua
 return actions(
     archive,
@@ -110,20 +112,7 @@ return actions(
 )
 ```
 
-### 2. Fluent ActionBuilder Syntax (`action():...:build()`)
-Chain action methods fluently:
-```lua
-return action()
-    :archive()
-    :star()
-    :mark_important()
-    :add_category('Purchases')
-    :add_label('Invoices')
-    :forward_message('accounting@company.com')
-    :build()
-```
-
-### 3. Declarative Table Syntax (`action { ... }`)
+### 2. Declarative Table Syntax (`action { ... }`)
 Provide configuration properties in a table:
 ```lua
 return action {
@@ -134,6 +123,19 @@ return action {
     add_label = 'Invoices',
     forward = 'accounting@company.com'
 }
+```
+
+### 3. Fluent ActionBuilder Syntax (`action():...:build()`)
+Chain action methods fluently:
+```lua
+return action()
+    :archive()
+    :star()
+    :mark_important()
+    :add_category('Purchases')
+    :add_label('Invoices')
+    :forward_message('accounting@company.com')
+    :build()
 ```
 
 ---

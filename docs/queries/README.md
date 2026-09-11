@@ -226,8 +226,10 @@ VitaCernita enforces strict validation at parse time before producing query stri
 
 ## Syntax Options
 
-### 1. Functional Syntax
-Ideal for complex nested queries using composable functions:
+VitaCernita treats the **Functional DSL** as the primary, default format for defining search queries, while also supporting alternate styles:
+
+### 1. Functional DSL (Primary & Recommended)
+Ideal for complex nested queries using composable functions and boolean logic:
 ```lua
 return query {
     match = And(
@@ -238,8 +240,18 @@ return query {
 }
 ```
 
-### 2. Fluent QueryBuilder Syntax
-Ideal for method-chaining workflows:
+### 2. Declarative Table Syntax
+Ideal for simple, flat key-value configurations:
+```lua
+return query {
+    from = "billing@stripe.com",
+    filename = "invoice.pdf",
+    newer_than = "30d"
+}
+```
+
+### 3. Fluent QueryBuilder Syntax
+Method-chaining workflow:
 ```lua
 return query()
     :from("secops@company.com")
@@ -247,14 +259,4 @@ return query()
     :has_attachment()
     :newer_than("7d")
     :build()
-```
-
-### 3. Declarative Table Syntax
-Ideal for data-driven, schema-first configurations:
-```lua
-return query {
-    from = "billing@stripe.com",
-    filename = "invoice.pdf",
-    newer_than = "30d"
-}
 ```

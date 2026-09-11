@@ -98,9 +98,10 @@ return filter {
 
 ## Syntax Options
 
-VitaCernita allows you to define filters using three distinct styles:
+VitaCernita treats the **Functional DSL** as the primary, default format for defining filters, while also supporting alternate styles:
 
-### 1. Declarative Table Syntax (`filter { ... }`)
+### 1. Functional DSL (Primary & Recommended)
+Composable, declarative functions with nested boolean logic and plain-English actions:
 ```lua
 return filter {
     id = "sec-001",
@@ -114,7 +115,26 @@ return filter {
 }
 ```
 
-### 2. Fluent FilterBuilder Syntax (`filter():...:build()`)
+### 2. Declarative Table Syntax (`filter { ... }`)
+Schema-first key-value tables:
+```lua
+return filter {
+    id = "sec-001",
+    name = "Critical Security Escalations",
+    query = {
+        from = "secops@company.com",
+        header = "X-Severity:CRITICAL",
+        label = "security-alerts"
+    },
+    action = {
+        star = true,
+        mark_important = true
+    }
+}
+```
+
+### 3. Fluent FilterBuilder Syntax (`filter():...:build()`)
+Method chaining for programmatic construction:
 ```lua
 return filter()
     :id("sec-001")
@@ -126,8 +146,8 @@ return filter()
     :build()
 ```
 
-### 3. Mixed / Unnested Syntax
-When you define criteria fields directly inside `filter { ... }`, VitaCernita automatically extracts them into the `query`:
+### 4. Mixed / Unnested Shortcut
+When you define criteria fields directly on the root `filter { ... }` table, VitaCernita automatically extracts them into the `query`:
 ```lua
 return filter {
     id = "ops-002",

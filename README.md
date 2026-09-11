@@ -69,10 +69,10 @@ For complete operator tables, validation specifications, and API mappings, see t
 
 ## Syntax Flavors
 
-VitaCernita provides three syntax styles across queries, actions, filters, and labels so you can use whichever best fits your workflow:
+VitaCernita treats the **Functional DSL** as the primary, default format for defining configurations, while also supporting declarative tables and fluent builders:
 
-### 1. Functional DSL
-Composable, declarative functions with nested boolean operators:
+### 1. Functional DSL (Primary & Recommended)
+Composable, declarative functions with nested boolean operators — the cleanest and most expressive format:
 ```lua
 return filter {
     id = "sec-001",

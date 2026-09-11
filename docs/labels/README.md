@@ -90,7 +90,22 @@ Any color names without an exact standard match in Google's palette (e.g., stand
 
 ## Syntax Options
 
-### 1. Declarative Table Syntax (`label { ... }`)
+VitaCernita treats the **Functional DSL** as the primary, default format for defining labels, while also supporting alternate styles:
+
+### 1. Functional DSL (`label { ... }` with `color(...)`) (Primary & Recommended)
+Clean declarative table paired with the functional `color(text, background)` helper:
+```lua
+return label {
+    id = "lbl_receipts",
+    name = "Receipts",
+    message_list_visibility = "show",
+    label_list_visibility = "labelShow",
+    color = color("white", "#43d692")
+}
+```
+
+### 2. Declarative Table Syntax (`label { ... }` with nested color table)
+Schema-first nested key-value tables:
 ```lua
 return label {
     id = "lbl_receipts",
@@ -104,7 +119,8 @@ return label {
 }
 ```
 
-### 2. Fluent LabelBuilder Syntax (`label():...:build()`)
+### 3. Fluent LabelBuilder Syntax (`label():...:build()`)
+Method-chaining for programmatic construction:
 ```lua
 return label()
     :id("lbl_sec")
@@ -113,16 +129,6 @@ return label()
     :show_if_unread()
     :color("white", "#fb4c2f")
     :build()
-```
-
-### 3. Color Helper Function (`color(text, background)`)
-```lua
-return label {
-    name = "Engineering",
-    message_list_visibility = "hide",
-    label_list_visibility = "labelShow",
-    color = color("black", "#c9daf8")
-}
 ```
 
 ---

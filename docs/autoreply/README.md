@@ -90,13 +90,17 @@ Per the Google Gmail API:
 
 ## Syntax Options
 
-### 1. Declarative Table Syntax
+VitaCernita treats the **Functional DSL** as the primary, default format for configuring auto-reply settings, while also supporting alternate styles:
+
+### 1. Functional DSL (`auto_reply { ... }`) (Primary & Recommended)
+
+Configured within a unified configuration file alongside labels and filters:
 
 ```lua
 return {
     -- Configured Labels
     labels = {
-        label { name = "Receipts" }
+        label { name = "Receipts", color = color("white", "#43d692") }
     },
 
     -- Configured Filters
@@ -121,7 +125,9 @@ return {
 }
 ```
 
-### 2. Fluent Builder Syntax
+### 2. Fluent Builder Syntax (`auto_reply():...:build()`)
+
+Method-chaining for programmatic construction:
 
 ```lua
 return auto_reply()

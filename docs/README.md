@@ -44,8 +44,8 @@ Explore detailed documentation, comprehensive operator tables, and validation ru
 
 ## Syntax Overview
 
-VitaCernita supports three syntax flavors across queries, actions, filters, and labels:
+VitaCernita treats the **Functional DSL** as the primary, default format for defining configurations, while also supporting alternate syntax styles:
 
-1. **Functional Syntax**: Composable, expressive functions (`And(...)`, `Or(...)`, `not(...)`, `actions(...)`, `color(...)`).
-2. **Fluent Builder Syntax**: Method chaining via `filter():...:build()`, `query():...:build()`, `action():...:build()`, and `label():...:build()`.
-3. **Declarative Table Syntax**: Schema-first, pure Lua tables (`filter { ... }`, `query { ... }`, `action { ... }`, `label { ... }`).
+1. **Functional DSL (Primary & Recommended)**: Composable, expressive functions and operators (`filter { ... }`, `And(...)`, `Or(...)`, `not(...)`, `actions(...)`, `color(...)`).
+2. **Declarative Table Syntax**: Schema-first, pure key-value Lua tables (`filter { query = { ... }, action = { ... } }`).
+3. **Fluent Builder Syntax**: Method chaining via `filter():...:build()`, `query():...:build()`, `action():...:build()`, and `label():...:build()`.
