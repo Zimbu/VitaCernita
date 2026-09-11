@@ -29,6 +29,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\VitaCernita.Core\VitaCernita.Core.csproj" />
+    <ProjectReference Include="..\..\src\VitaCernita\VitaCernita.csproj" />
   </ItemGroup>
-
 </Project>
