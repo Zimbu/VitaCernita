@@ -36,7 +36,7 @@ Explore detailed documentation, comprehensive operator tables, and validation ru
 | [**Search Queries**](queries/README.md) | Full reference for query conditions and search criteria | String matching (`from`, `to`, `subject`), 12 star & icon operators, media & attachments, status & state flags, locations, categories, size filtering, dates & relative durations, boolean logic (`And`, `Or`, `not`), input validation. |
 | [**Filter Actions**](actions/README.md) | Actions applied to matching messages | `archive`, `mark_read`, `star`, `delete`, `mark_important`, category assignments, custom user labels, message forwarding, Gmail API mapping (`addLabelIds`, `removeLabelIds`, `forward`), system label protection. |
 | [**Composite Filters**](filters/README.md) | Filters combining queries and actions | Filter structure, `.ToDictionary()` JSON serialization for the Gmail REST API, single vs multi-filter configurations, fluent `FilterBuilder`, and C# programmatic loader APIs. |
-| [**Gmail Labels**](labels/README.md) | Custom mailbox label configuration | Label configuration matching `users.labels`, message list visibility, sidebar label list visibility, 102 predefined palette colors & aliases, JSON export. |
+| [**Gmail Labels**](labels/README.md) | Custom mailbox label configuration & diffing | Label configuration matching `users.labels`, message list visibility, sidebar label list visibility, 102 predefined palette colors & aliases, label diff engine, dry-run reports, patch payloads. |
 
 ---
 

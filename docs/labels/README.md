@@ -13,6 +13,7 @@ In VitaCernita, a **Label** defines a custom user mailbox label matching the [Go
 5. [Syntax Options](#syntax-options)
 6. [JSON Serialization (`ToDictionary`)](#json-serialization-todictionary)
 7. [Validation Rules](#validation-rules)
+8. [Label Diffing & Dry-Run Engine](#label-diffing--dry-run-engine)
 
 ---
 
@@ -156,3 +157,106 @@ Calling `label.ToDictionary()` formats directly into the official Google Gmail R
 3. **Color Pairing & Hex Validity**:
    - If color is specified, both `textColor` and `backgroundColor` are strictly required.
    - Both text and background colors must match one of the 102 predefined hex colors or supported aliases (`black`, `white`).
+
+---
+
+## Label Diffing & Dry-Run Engine
+
+VitaCernita provides a powerful diff engine via [`GmailLabelDiffer`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Labels/Diff/GmailLabelDiffer.cs) to compare desired label definitions (e.g. from Lua configuration) against existing labels in a Gmail account (e.g. from the Gmail API).
+
+The diff engine is decoupled and serves two primary use cases:
+1. **Programmatic Synchronization**: Generates exact API command payloads (`GetCreatePayload()`, `GetPatchPayload()`, `GetDeleteId()`) for Gmail REST API calls.
+2. **Dry-Run Reporting**: Produces structured, human-readable reports displaying additions, deletions, and field-level modifications before applying any changes.
+
+### Comparison Models & Objects
+
+- [`GmailLabelDiffer`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Labels/Diff/GmailLabelDiffer.cs): Static methods `Diff(...)`, `DiffSets(...)`, `DiffApiListResponse(...)`, and `DiffJson(...)`.
+- [`LabelDiff`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Labels/Diff/LabelDiff.cs): Difference for an individual label (`DiffType`: `Unchanged`, `Added`, `Removed`, `Modified`).
+- [`LabelFieldDiff`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Labels/Diff/LabelFieldDiff.cs): Change details for a specific field (`FieldName`, `CurrentValue`, `DesiredValue`).
+- [`LabelSetDiff`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Labels/Diff/LabelSetDiff.cs): Aggregated diff across label collections with `Creations`, `Deletions`, `Modifications`, and `Unchanged`.
+- [`LabelDiffOptions`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Labels/Diff/LabelDiffOptions.cs): Options controlling matching strategies and selective field filtering.
+
+### Diff Options & Selective Comparison
+
+[`LabelDiffOptions`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Labels/Diff/LabelDiffOptions.cs) provides fine-grained control:
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `MatchBy` | `LabelMatchKey` | `Name` | Strategy used to pair labels: `Name`, `Id`, or `IdThenName`. |
+| `CaseInsensitiveNameMatch` | `bool` | `true` | When matching by name, whether casing differences are ignored. |
+| `IgnoreUnsetDesiredFields` | `bool` | `false` | When `true`, fields unset (null) in the desired configuration are ignored rather than treated as deletions/resets. |
+| `FieldsToCompare` | `IReadOnlySet<string>?` | `null` | Optional whitelist of fields to compare (e.g. only compare visibility or color). |
+| `FieldsToIgnore` | `IReadOnlySet<string>?` | `null` | Optional blacklist of fields to ignore during comparison. |
+| `IncludeUnchanged` | `bool` | `true` | Whether unchanged labels should be retained in the `Differences` collection. |
+
+### Example 1: Diffing Against Gmail API `users.labels.list` Response
+
+```csharp
+using VitaCernita.Core.Labels;
+using VitaCernita.Core.Labels.Diff;
+
+// Load desired labels from Lua configuration
+var loader = new GmailLabelLoader();
+List<GmailLabel> desiredLabels = await loader.LoadLabelsFromFileAsync("labels.lua");
+
+// Fetch labels JSON from Gmail API (users.labels.list)
+string apiJsonResponse = await gmailClient.ListLabelsRawJsonAsync();
+
+// Compute diff (automatically filters out system labels like INBOX, SENT, TRASH)
+LabelSetDiff diff = GmailLabelDiffer.DiffApiListResponse(apiJsonResponse, desiredLabels);
+
+// Display dry-run summary & report
+Console.WriteLine(diff.ToSummaryString());
+Console.WriteLine(diff.ToDryRunReport());
+```
+
+### Example 2: Programmatic Execution / Synchronization
+
+```csharp
+// 1. Create newly added labels
+foreach (var creation in diff.Creations)
+{
+    Dictionary<string, object> payload = creation.GetCreatePayload()!;
+    await gmailClient.CreateLabelAsync(payload);
+}
+
+// 2. Patch modified labels with only the changed fields
+foreach (var modification in diff.Modifications)
+{
+    string labelId = modification.Id!;
+    Dictionary<string, object> patchPayload = modification.GetPatchPayload();
+    await gmailClient.PatchLabelAsync(labelId, patchPayload);
+}
+
+// 3. Delete removed labels (if deletion sync is desired)
+foreach (var deletion in diff.Deletions)
+{
+    string labelId = deletion.GetDeleteId()!;
+    await gmailClient.DeleteLabelAsync(labelId);
+}
+```
+
+### Dry-Run Output Sample
+
+```text
+======================================================================
+VitaCernita Label Diff Report (Dry Run)
+======================================================================
+Summary: 1 to create, 1 to update, 1 to delete, 2 unchanged.
+
+[+] Create (1):
+  + 'BrandNew' (MessageList: show, Color: [#ffffff / #43d692])
+
+[~] Update (1):
+  ~ 'Updates' (ID: Label_22):
+      * messageListVisibility: show -> hide
+      * color: [#000000 / #ffffff] -> [#ffffff / #000000]
+
+[-] Delete (1):
+  - 'DeprecatedTag' (ID: Label_99)
+
+[=] Unchanged (2):
+  = 'Receipts' (ID: Label_10)
+  = 'Work' (ID: Label_11)
+======================================================================
+```
