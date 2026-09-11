@@ -1,0 +1,289 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Threading.Tasks;
+using Spectre.Console;
+using VitaCernita.Core.Actions;
+using VitaCernita.Core.Api;
+using VitaCernita.Core.Api.Auth;
+using VitaCernita.Core.Api.Fakes;
+using VitaCernita.Core.Configuration;
+using VitaCernita.Core.Filters;
+using VitaCernita.Core.Labels;
+using VitaCernita.Core.Queries;
+using VitaCernita.Core.Serialization;
+using VitaCernita.Core.Sources;
+using AutoReplyModel = VitaCernita.Core.AutoReply.AutoReply;
+
+namespace VitaCernita.Cli.Commands;
+
+/// <summary>
+/// CLI command that initializes a VitaCernita Lua configuration file.
+/// If connecting to an existing Gmail account, reads vacation responder, labels, and filters,
+/// serializing the result to the target configuration file using the Functional DSL.
+/// If no account is specified and the file does not exist, generates a starter default configuration.
+/// </summary>
+public class InitializeCommand : ICliCommand
+{
+    private readonly IAnsiConsole _console;
+    private readonly IGmailApiClient? _apiClientOverride;
+
+    public InitializeCommand(IAnsiConsole? console = null, IGmailApiClient? apiClientOverride = null)
+    {
+        _console = console ?? AnsiConsole.Console;
+        _apiClientOverride = apiClientOverride;
+    }
+
+    public string Name => "initialize";
+    public string Description => "Initialize a VitaCernita configuration file from scratch or an existing Gmail account";
+    public IReadOnlyList<string> Aliases => new[] { "init" };
+
+    public async Task<int> ExecuteAsync(string[] args)
+    {
+        string? explicitOutputPath = null;
+        string? account = null;
+        string? userId = null;
+        string? token = null;
+        bool useMock = false;
+        bool force = false;
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "-o":
+                case "--output":
+                case "-c":
+                case "--config":
+                    if (i + 1 < args.Length) explicitOutputPath = args[++i];
+                    break;
+                case "-a":
+                case "--account":
+                    if (i + 1 < args.Length) account = args[++i];
+                    break;
+                case "-u":
+                case "--user":
+                    if (i + 1 < args.Length) userId = args[++i];
+                    break;
+                case "-t":
+                case "--token":
+                    if (i + 1 < args.Length) token = args[++i];
+                    break;
+                case "--mock":
+                case "--fake-account":
+                    useMock = true;
+                    break;
+                case "-f":
+                case "--force":
+                    force = true;
+                    break;
+                case "-h":
+                case "--help":
+                    PrintHelp();
+                    return 0;
+            }
+        }
+
+        string targetPath = !string.IsNullOrWhiteSpace(explicitOutputPath)
+            ? ConfigPathResolver.ResolveConfigPath(explicitOutputPath)
+            : ConfigPathResolver.GetDefaultConfigPath();
+
+        if (File.Exists(targetPath) && !force)
+        {
+            _console.MarkupLine($"[bold red]Error:[/] Configuration file already exists at '[yellow]{Markup.Escape(targetPath)}[/]'. Use [bold]--force[/] to overwrite.");
+            return 1;
+        }
+
+        bool connectToAccount = useMock || !string.IsNullOrWhiteSpace(account) || !string.IsNullOrWhiteSpace(token) || _apiClientOverride != null;
+
+        if (connectToAccount)
+        {
+            return await InitializeFromAccountAsync(targetPath, account, userId, token, useMock);
+        }
+
+        return await InitializeDefaultConfigAsync(targetPath);
+    }
+
+    private async Task<int> InitializeFromAccountAsync(
+        string targetPath,
+        string? account,
+        string? userId,
+        string? token,
+        bool useMock)
+    {
+        string effectiveUser = !string.IsNullOrWhiteSpace(userId)
+            ? userId
+            : (!string.IsNullOrWhiteSpace(account) ? account : "me");
+
+        IGmailApiClient client;
+
+        if (_apiClientOverride != null)
+        {
+            client = _apiClientOverride;
+        }
+        else if (useMock)
+        {
+            _console.MarkupLine("[bold yellow]Mode:[/] In-Memory Fake Gmail Account (Mock)");
+            var fake = new FakeGmailApiClient();
+            fake.AddLabel(new GmailLabel("Receipts", id: "Label_1", messageListVisibility: "show", labelListVisibility: "labelShow"));
+            fake.AddLabel(new GmailLabel("Work", id: "Label_2", messageListVisibility: "show", labelListVisibility: "labelShow"));
+            fake.AddFilter(new GmailFilter(
+                id: "sec-001",
+                query: new FieldCondition("from", "secops@company.com"),
+                action: new GmailAction().Star(),
+                name: "Security Alerts"));
+            fake.AddFilter(new GmailFilter(
+                id: "fin-002",
+                query: new FieldCondition("from", "billing@vendor.com"),
+                action: new GmailAction().Archive().AddCustomLabel("Receipts"),
+                name: "Vendor Invoices"));
+            fake.SetAutoReply(new AutoReplyModel
+            {
+                EnableAutoReply = true,
+                ResponseSubject = "Out of Office",
+                ResponseBodyPlainText = "Thank you for reaching out. I am currently out of the office.",
+                RestrictToContacts = true,
+                RestrictToDomain = false
+            }, effectiveUser);
+            client = fake;
+        }
+        else
+        {
+            token ??= Environment.GetEnvironmentVariable("GMAIL_ACCESS_TOKEN");
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                _console.MarkupLine($"[bold red]Error:[/] Access token required to connect to Gmail account '[yellow]{Markup.Escape(effectiveUser)}[/]'. Provide [bold]--token <token>[/] or set the [bold]GMAIL_ACCESS_TOKEN[/] environment variable.");
+                return 1;
+            }
+
+            var tokenProvider = new BearerTokenProvider(token);
+            client = new HttpGmailApiClient(new HttpClient(), tokenProvider);
+        }
+
+        var source = new ApiGmailSource(client, effectiveUser, name: $"Gmail Account ({effectiveUser})");
+
+        _console.MarkupLine($"Connecting to Gmail account [cyan]{Markup.Escape(effectiveUser)}[/]...");
+
+        try
+        {
+            var labels = (await source.GetLabelsAsync()).ToList();
+            var filters = (await source.GetFiltersAsync()).ToList();
+            var autoReply = await source.GetAutoReplyAsync();
+
+            string vacationStatus = autoReply != null && autoReply.EnableAutoReply ? "enabled" : "disabled";
+            _console.MarkupLine($"Retrieved [green]{labels.Count}[/] label(s), [green]{filters.Count}[/] filter(s), and auto-reply ({vacationStatus}).");
+
+            var serializerOptions = new LuaSerializerOptions
+            {
+                HeaderComment =
+                    $"-- =======================================================================\n" +
+                    $"-- VitaCernita Gmail Configuration\n" +
+                    $"-- Initialized from Gmail Account: {effectiveUser}\n" +
+                    $"-- Generated on: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC\n" +
+                    $"-- =======================================================================",
+                IndentSpaces = 4
+            };
+
+            string luaContent = LuaConfigSerializer.Default.Serialize(labels, filters, autoReply, serializerOptions);
+
+            ConfigPathResolver.EnsureDirectoryExists(targetPath);
+            await File.WriteAllTextAsync(targetPath, luaContent);
+
+            _console.MarkupLine($"[bold green]Configuration successfully initialized and saved to:[/] [yellow]{Markup.Escape(targetPath)}[/]");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.MarkupLine($"[bold red]Error connecting to Gmail account:[/] {Markup.Escape(ex.Message)}");
+            return 1;
+        }
+    }
+
+    private async Task<int> InitializeDefaultConfigAsync(string targetPath)
+    {
+        _console.MarkupLine($"Generating default VitaCernita configuration at: [cyan]{Markup.Escape(targetPath)}[/]...");
+
+        var defaultLabels = new[]
+        {
+            new GmailLabel("Receipts", messageListVisibility: "show", labelListVisibility: "labelShow"),
+            new GmailLabel("Work", messageListVisibility: "show", labelListVisibility: "labelShow")
+        };
+
+        var defaultFilters = new[]
+        {
+            new GmailFilter(
+                id: null,
+                query: new AndCondition(new IQueryCondition[]
+                {
+                    new OrCondition(new IQueryCondition[]
+                    {
+                        new FieldCondition("from", "billing@"),
+                        new FieldCondition("from", "invoices@")
+                    }),
+                    new HasCondition("attachment")
+                }),
+                action: new GmailAction().Archive().AddCustomLabel("Receipts"),
+                name: "Receipts & Billing"
+            ),
+            new GmailFilter(
+                id: null,
+                query: new AndCondition(new IQueryCondition[]
+                {
+                    new FieldCondition("from", "@company.com"),
+                    new IsCondition("important")
+                }),
+                action: new GmailAction().Star(),
+                name: "Important Team Communications"
+            )
+        };
+
+        var defaultAutoReply = new AutoReplyModel
+        {
+            EnableAutoReply = false,
+            ResponseSubject = "Out of Office",
+            ResponseBodyPlainText = "Thank you for reaching out. I am currently out of the office and will respond upon my return.",
+            RestrictToContacts = false,
+            RestrictToDomain = false
+        };
+
+        var options = new LuaSerializerOptions
+        {
+            HeaderComment =
+                "-- =======================================================================\n" +
+                "-- VitaCernita Gmail Configuration\n" +
+                "-- Default configuration generated by 'vitacernita initialize'\n" +
+                "-- =======================================================================",
+            IndentSpaces = 4
+        };
+
+        string luaContent = LuaConfigSerializer.Default.Serialize(defaultLabels, defaultFilters, defaultAutoReply, options);
+
+        ConfigPathResolver.EnsureDirectoryExists(targetPath);
+        await File.WriteAllTextAsync(targetPath, luaContent);
+
+        _console.MarkupLine($"[bold green]Configuration successfully created at:[/] [yellow]{Markup.Escape(targetPath)}[/]");
+        _console.MarkupLine("[dim]Tip: You can now edit your configuration or run 'vitacernita test --diff' to preview changes.[/]");
+        return 0;
+    }
+
+    public void PrintHelp()
+    {
+        _console.MarkupLine("[bold]VitaCernita CLI - Initialize Command[/]");
+        _console.MarkupLine("Usage: vitacernita initialize [[OPTIONS]]\n");
+        _console.MarkupLine("[bold]Description:[/]");
+        _console.MarkupLine("  Initialize a VitaCernita Lua configuration file. If the configuration file");
+        _console.MarkupLine("  does not exist, generates a starter configuration. If connecting to an existing");
+        _console.MarkupLine("  Gmail account, reads vacation responder, labels, and filters and serializes them.\n");
+        _console.MarkupLine("[bold]Options:[/]");
+        _console.MarkupLine("  -o, --output <path>     Destination path for configuration (default: ~/.config/vitacernita/gmail.lua)");
+        _console.MarkupLine("  -c, --config <path>     Alias for --output");
+        _console.MarkupLine("  -a, --account <email>   Target Gmail account email address");
+        _console.MarkupLine("  -u, --user <userId>     Target Gmail user ID (defaults to --account or 'me')");
+        _console.MarkupLine("  -t, --token <token>     Bearer token for Gmail API (defaults to GMAIL_ACCESS_TOKEN)");
+        _console.MarkupLine("      --mock              Connect to an in-memory mock account (for testing/dry-run)");
+        _console.MarkupLine("  -f, --force             Overwrite destination file if it already exists");
+        _console.MarkupLine("  -h, --help              Show this help message");
+    }
+}
