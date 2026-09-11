@@ -152,14 +152,11 @@ youtube = has_youtube
 
 has_user_labels = make_star('userlabels')
 HasUserLabels = has_user_labels
-has_userlabels = has_user_labels
 user_labels = has_user_labels
 
 has_no_user_labels = make_star('nouserlabels')
 HasNoUserLabels = has_no_user_labels
-has_nouserlabels = has_no_user_labels
 no_user_labels = has_no_user_labels
-nouserlabels = has_no_user_labels
 
 -- Is operator & is_starred
 local function make_is(name)
@@ -457,10 +454,8 @@ function FilterBuilder:has_youtube() table.insert(self.conditions, has_youtube()
 FilterBuilder.HasYoutube = FilterBuilder.has_youtube
 function FilterBuilder:has_user_labels() table.insert(self.conditions, has_user_labels()); return self end
 FilterBuilder.HasUserLabels = FilterBuilder.has_user_labels
-FilterBuilder.has_userlabels = FilterBuilder.has_user_labels
 function FilterBuilder:has_no_user_labels() table.insert(self.conditions, has_no_user_labels()); return self end
 FilterBuilder.HasNoUserLabels = FilterBuilder.has_no_user_labels
-FilterBuilder.has_nouserlabels = FilterBuilder.has_no_user_labels
 
 function FilterBuilder:is(val) table.insert(self.conditions, is(val)); return self end
 FilterBuilder.Is = FilterBuilder.is

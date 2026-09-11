@@ -37,8 +37,6 @@ public class HasMediaAndDocumentOperatorsTests
     [InlineData("return has_user_labels()", "has:userlabels")]
     [InlineData("return HasUserLabels", "has:userlabels")]
     [InlineData("return user_labels", "has:userlabels")]
-    [InlineData("return has_userlabels", "has:userlabels")]
-    [InlineData("return has_userlabels()", "has:userlabels")]
     [InlineData("return has('userlabels')", "has:userlabels")]
     [InlineData("return has('user_labels')", "has:userlabels")]
     [InlineData("return has('user-labels')", "has:userlabels")]
@@ -46,8 +44,6 @@ public class HasMediaAndDocumentOperatorsTests
     [InlineData("return has_no_user_labels()", "has:nouserlabels")]
     [InlineData("return HasNoUserLabels", "has:nouserlabels")]
     [InlineData("return no_user_labels", "has:nouserlabels")]
-    [InlineData("return has_nouserlabels", "has:nouserlabels")]
-    [InlineData("return has_nouserlabels()", "has:nouserlabels")]
     [InlineData("return has('nouserlabels')", "has:nouserlabels")]
     [InlineData("return has('no_user_labels')", "has:nouserlabels")]
     [InlineData("return has('no-user-labels')", "has:nouserlabels")]
@@ -195,7 +191,7 @@ return Or(
         var rule = await _loader.LoadRuleFromScriptAsync(lua);
         Assert.Equal("-has:attachment", rule.ToGmailQuery());
 
-        string luaCompound = "return not(Or(has_userlabels, has_drive))";
+        string luaCompound = "return not(Or(has_user_labels, has_drive))";
         var ruleCompound = await _loader.LoadRuleFromScriptAsync(luaCompound);
         Assert.Equal("-(has:drive OR has:userlabels)", ruleCompound.ToGmailQuery());
     }
