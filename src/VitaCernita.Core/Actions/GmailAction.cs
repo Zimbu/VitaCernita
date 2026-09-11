@@ -99,6 +99,97 @@ public sealed class GmailAction : IEquatable<GmailAction>
         return dict;
     }
 
+    /// <summary>
+    /// Deserializes a GmailAction from a dictionary matching the Gmail API users.settings.filters Action resource.
+    /// </summary>
+    public static GmailAction FromDictionary(IReadOnlyDictionary<string, object?> dict)
+    {
+        var action = new GmailAction();
+
+        if (dict.TryGetValue("addLabelIds", out var addVal) && addVal != null)
+        {
+            if (addVal is IEnumerable<string> strs)
+            {
+                foreach (var s in strs) action.AddLabelIds.Add(s);
+            }
+            else if (addVal is System.Text.Json.JsonElement je && je.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                foreach (var el in je.EnumerateArray())
+                {
+                    if (el.GetString() is { } str) action.AddLabelIds.Add(str);
+                }
+            }
+            else if (addVal is IEnumerable<object> objs)
+            {
+                foreach (var o in objs) action.AddLabelIds.Add(o.ToString()!);
+            }
+        }
+
+        if (dict.TryGetValue("removeLabelIds", out var remVal) && remVal != null)
+        {
+            if (remVal is IEnumerable<string> strs)
+            {
+                foreach (var s in strs) action.RemoveLabelIds.Add(s);
+            }
+            else if (remVal is System.Text.Json.JsonElement je && je.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                foreach (var el in je.EnumerateArray())
+                {
+                    if (el.GetString() is { } str) action.RemoveLabelIds.Add(str);
+                }
+            }
+            else if (remVal is IEnumerable<object> objs)
+            {
+                foreach (var o in objs) action.RemoveLabelIds.Add(o.ToString()!);
+            }
+        }
+
+        if (dict.TryGetValue("forward", out var fwdVal) && fwdVal != null)
+        {
+            if (fwdVal is System.Text.Json.JsonElement je && je.ValueKind == System.Text.Json.JsonValueKind.String)
+            {
+                action.Forward = je.GetString();
+            }
+            else
+            {
+                action.Forward = fwdVal.ToString();
+            }
+        }
+
+        return action;
+    }
+
+    /// <summary>
+    /// Deserializes a GmailAction from a JsonElement matching the Gmail API users.settings.filters Action resource.
+    /// </summary>
+    public static GmailAction FromJsonElement(System.Text.Json.JsonElement element)
+    {
+        var action = new GmailAction();
+
+        if (element.TryGetProperty("addLabelIds", out var addProp) && addProp.ValueKind == System.Text.Json.JsonValueKind.Array)
+        {
+            foreach (var item in addProp.EnumerateArray())
+            {
+                if (item.GetString() is { } str) action.AddLabelIds.Add(str);
+            }
+        }
+
+        if (element.TryGetProperty("removeLabelIds", out var remProp) && remProp.ValueKind == System.Text.Json.JsonValueKind.Array)
+        {
+            foreach (var item in remProp.EnumerateArray())
+            {
+                if (item.GetString() is { } str) action.RemoveLabelIds.Add(str);
+            }
+        }
+
+        if (element.TryGetProperty("forward", out var fwdProp) && fwdProp.ValueKind == System.Text.Json.JsonValueKind.String)
+        {
+            action.Forward = fwdProp.GetString();
+        }
+
+        return action;
+    }
+
     public bool Equals(GmailAction? other)
     {
         if (other is null) return false;

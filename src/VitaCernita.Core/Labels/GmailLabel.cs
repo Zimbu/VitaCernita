@@ -20,14 +20,21 @@ public class GmailLabel : IEquatable<GmailLabel>
         string? id = null,
         string? messageListVisibility = null,
         string? labelListVisibility = null,
-        LabelColor? color = null)
+        LabelColor? color = null,
+        bool isSystemLabel = false)
     {
-        Name = LabelValidator.ValidateName(name);
+        Name = isSystemLabel ? (name ?? string.Empty).Trim() : LabelValidator.ValidateName(name);
         Id = id;
         MessageListVisibility = LabelValidator.ValidateMessageListVisibility(messageListVisibility);
         LabelListVisibility = LabelValidator.ValidateLabelListVisibility(labelListVisibility);
         Color = color;
     }
+
+    /// <summary>
+    /// Factory for creating system label representations (e.g. from the Gmail API).
+    /// </summary>
+    public static GmailLabel CreateSystemLabel(string name, string? id = null) =>
+        new(name, id, isSystemLabel: true);
 
     /// <summary>
     /// Serializes this label to a dictionary conforming to the Gmail API users.labels resource.
@@ -146,7 +153,18 @@ public class GmailLabel : IEquatable<GmailLabel>
             }
         }
 
-        return new GmailLabel(name, id, mlv, llv, color);
+        bool isSystem = false;
+        if (element.TryGetProperty("type", out var typeProp) &&
+            string.Equals(typeProp.GetString(), "system", StringComparison.OrdinalIgnoreCase))
+        {
+            isSystem = true;
+        }
+        else if (LabelValidator.ReservedSystemLabels.Contains(name))
+        {
+            isSystem = true;
+        }
+
+        return new GmailLabel(name, id, mlv, llv, color, isSystemLabel: isSystem);
     }
 
     /// <summary>

@@ -1,8 +1,13 @@
 using System;
 using System.IO;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Spectre.Console;
+using VitaCernita.Core.Api;
+using VitaCernita.Core.Api.Auth;
+using VitaCernita.Core.Api.Fakes;
 using VitaCernita.Core.Filters;
+using VitaCernita.Core.Labels;
 
 namespace VitaCernita.Cli;
 
@@ -12,6 +17,10 @@ public static class Program
     {
         string configPath = "config/gmail_filter.lua";
         bool explicitAnd = false;
+        bool runDiff = false;
+        bool useMock = false;
+        string? token = null;
+        string userId = "me";
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -23,6 +32,19 @@ public static class Program
                     break;
                 case "--explicit-and":
                     explicitAnd = true;
+                    break;
+                case "--diff":
+                    runDiff = true;
+                    break;
+                case "--mock":
+                case "--fake-account":
+                    useMock = true;
+                    break;
+                case "--token":
+                    if (i + 1 < args.Length) token = args[++i];
+                    break;
+                case "--user":
+                    if (i + 1 < args.Length) userId = args[++i];
                     break;
                 case "-v":
                 case "--version":
@@ -99,6 +121,29 @@ public static class Program
                 return 0;
             }
 
+            if (runDiff)
+            {
+                IGmailApiClient client;
+                if (useMock)
+                {
+                    AnsiConsole.MarkupLine("[bold yellow]Mode:[/] In-Memory Fake Gmail Account");
+                    var fake = new FakeGmailApiClient();
+                    fake.AddLabel(new GmailLabel("Receipts", id: "Label_1", messageListVisibility: "show", labelListVisibility: "labelShow"));
+                    fake.AddLabel(new GmailLabel("OldUnusedTag", id: "Label_99"));
+                    client = fake;
+                }
+                else
+                {
+                    var tokenProvider = new BearerTokenProvider(token);
+                    client = new HttpGmailApiClient(new HttpClient(), tokenProvider);
+                }
+
+                AnsiConsole.MarkupLine($"[bold cyan]Diffing local labels from '{Markup.Escape(configPath)}' against target Gmail account ('{Markup.Escape(userId)}')...[/]\n");
+                var diff = await GmailAccountDiffer.DiffLabelsAsync(client, config.Labels, userId: userId);
+                AnsiConsole.WriteLine(diff.ToDryRunReport());
+                return 0;
+            }
+
             for (int index = 0; index < filters.Count; index++)
             {
                 var filter = filters[index];
@@ -153,6 +198,10 @@ public static class Program
         AnsiConsole.MarkupLine("Usage: dotnet run --project src/VitaCernita -- [OPTIONS]\n");
         AnsiConsole.MarkupLine("[bold]Options:[/]");
         AnsiConsole.MarkupLine("  -c, --config <path>     Path to the Lua filter configuration file (default: config/gmail_filter.lua)");
+        AnsiConsole.MarkupLine("      --diff              Diff local Lua labels against the target Gmail account");
+        AnsiConsole.MarkupLine("      --mock              Use in-memory fake Gmail API client for dry-run testing");
+        AnsiConsole.MarkupLine("      --token <token>     Bearer token for Gmail API (defaults to GMAIL_ACCESS_TOKEN)");
+        AnsiConsole.MarkupLine("      --user <userId>     Target Gmail user ID (default: 'me')");
         AnsiConsole.MarkupLine("      --explicit-and      Render queries using the explicit 'AND' keyword");
         AnsiConsole.MarkupLine("  -v, --version           Display application version");
         AnsiConsole.MarkupLine("  -h, --help              Show this help message");

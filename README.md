@@ -57,6 +57,7 @@ For complete operator tables, validation specifications, and API mappings, see t
 | [**Filter Actions Guide**](docs/actions/README.md) | Actions and system labels reference | Supported actions (`archive`, `star`, `delete`, etc.), Gmail API mapping, category enums, custom user labels vs system labels, forwarding validation. |
 | [**Composite Filters Guide**](docs/filters/README.md) | Composite filter and serialization guide | Filter structure, `.ToDictionary()` JSON serialization for the Gmail REST API, multi-filter configurations, C# programmatic loader APIs, backwards compatibility. |
 | [**Gmail Labels Guide**](docs/labels/README.md) | Custom mailbox label configuration & diffing | Label properties (`name`, `messageListVisibility`, `labelListVisibility`), 102 predefined palette colors, standard aliases (`black`, `white`), diff engine, dry-run reports, patch payloads. |
+| [**Gmail API & Sync Guide**](docs/api/README.md) | API client interface, fakes, and account diffing | `IGmailApiClient` interface, native Core .NET `HttpClient` implementation, `FakeGmailApiClient` in-memory mock, auth architecture, and CLI account diffing. |
 
 ---
 
@@ -248,6 +249,13 @@ dotnet run --project src/VitaCernita -- -c path/to/filter.lua
 
 # Render queries with explicit 'AND' keyword
 dotnet run --project src/VitaCernita -- --explicit-and
+
+# Diff local labels against a mock in-memory Gmail account (dry-run)
+dotnet run --project src/VitaCernita -- --diff --mock
+
+# Diff local labels against a live Gmail account using a Bearer token
+export GMAIL_ACCESS_TOKEN="ya29..."
+dotnet run --project src/VitaCernita -- --diff
 ```
 
 ---

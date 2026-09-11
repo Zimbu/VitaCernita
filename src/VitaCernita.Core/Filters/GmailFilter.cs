@@ -82,6 +82,162 @@ public class GmailFilter : IEquatable<GmailFilter>
         return dict;
     }
 
+    /// <summary>
+    /// Deserializes a GmailFilter from a JSON string.
+    /// </summary>
+    public static GmailFilter FromJson(string json)
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        return FromJsonElement(doc.RootElement);
+    }
+
+    /// <summary>
+    /// Deserializes a GmailFilter from a JsonElement matching the Gmail API users.settings.filters resource.
+    /// </summary>
+    public static GmailFilter FromJsonElement(System.Text.Json.JsonElement element)
+    {
+        string? id = element.TryGetProperty("id", out var idProp) ? idProp.GetString() : null;
+        IQueryCondition? query = null;
+        GmailAction? action = null;
+
+        if (element.TryGetProperty("criteria", out var critProp) && critProp.ValueKind == System.Text.Json.JsonValueKind.Object)
+        {
+            var parts = new List<string>();
+            if (critProp.TryGetProperty("query", out var qProp) && !string.IsNullOrWhiteSpace(qProp.GetString()))
+            {
+                parts.Add(qProp.GetString()!);
+            }
+            if (critProp.TryGetProperty("from", out var fromProp) && !string.IsNullOrWhiteSpace(fromProp.GetString()))
+            {
+                parts.Add($"from:{fromProp.GetString()}");
+            }
+            if (critProp.TryGetProperty("to", out var toProp) && !string.IsNullOrWhiteSpace(toProp.GetString()))
+            {
+                parts.Add($"to:{toProp.GetString()}");
+            }
+            if (critProp.TryGetProperty("subject", out var subProp) && !string.IsNullOrWhiteSpace(subProp.GetString()))
+            {
+                parts.Add($"subject:{subProp.GetString()}");
+            }
+            if (critProp.TryGetProperty("negatedQuery", out var negProp) && !string.IsNullOrWhiteSpace(negProp.GetString()))
+            {
+                parts.Add($"-({negProp.GetString()})");
+            }
+            if (critProp.TryGetProperty("hasAttachment", out var attProp) && attProp.ValueKind == System.Text.Json.JsonValueKind.True)
+            {
+                parts.Add("has:attachment");
+            }
+            if (critProp.TryGetProperty("size", out var szProp) && szProp.TryGetInt64(out var sz))
+            {
+                string comparison = critProp.TryGetProperty("sizeComparison", out var scProp) ? (scProp.GetString() ?? "larger") : "larger";
+                parts.Add($"{comparison}:{sz}");
+            }
+
+            if (parts.Count > 0)
+            {
+                query = new RawQueryCondition(string.Join(" ", parts));
+            }
+        }
+
+        if (element.TryGetProperty("action", out var actProp) && actProp.ValueKind == System.Text.Json.JsonValueKind.Object)
+        {
+            action = GmailAction.FromJsonElement(actProp);
+        }
+
+        return new GmailFilter(id, query, action);
+    }
+
+    /// <summary>
+    /// Deserializes a GmailFilter from a dictionary.
+    /// </summary>
+    public static GmailFilter FromDictionary(IReadOnlyDictionary<string, object?> dict)
+    {
+        string? id = dict.TryGetValue("id", out var idVal) ? idVal?.ToString() : null;
+        IQueryCondition? query = null;
+        GmailAction? action = null;
+
+        if (dict.TryGetValue("criteria", out var critVal) && critVal != null)
+        {
+            if (critVal is System.Text.Json.JsonElement je)
+            {
+                var f = FromJsonElement(je);
+                query = f.Query;
+            }
+            else if (critVal is IReadOnlyDictionary<string, object?> cd)
+            {
+                var parts = new List<string>();
+                if (cd.TryGetValue("query", out var q) && q != null && !string.IsNullOrWhiteSpace(q.ToString()))
+                {
+                    parts.Add(q.ToString()!);
+                }
+                if (cd.TryGetValue("from", out var from) && from != null && !string.IsNullOrWhiteSpace(from.ToString()))
+                {
+                    parts.Add($"from:{from}");
+                }
+                if (cd.TryGetValue("to", out var to) && to != null && !string.IsNullOrWhiteSpace(to.ToString()))
+                {
+                    parts.Add($"to:{to}");
+                }
+                if (cd.TryGetValue("subject", out var sub) && sub != null && !string.IsNullOrWhiteSpace(sub.ToString()))
+                {
+                    parts.Add($"subject:{sub}");
+                }
+                if (parts.Count > 0)
+                {
+                    query = new RawQueryCondition(string.Join(" ", parts));
+                }
+            }
+        }
+
+        if (dict.TryGetValue("action", out var actVal) && actVal != null)
+        {
+            if (actVal is GmailAction ga)
+            {
+                action = ga;
+            }
+            else if (actVal is IReadOnlyDictionary<string, object?> ad)
+            {
+                action = GmailAction.FromDictionary(ad);
+            }
+            else if (actVal is System.Text.Json.JsonElement je)
+            {
+                action = GmailAction.FromJsonElement(je);
+            }
+        }
+
+        return new GmailFilter(id, query, action);
+    }
+
+    /// <summary>
+    /// Parses the JSON response from Gmail API users.settings.filters.list into a list of GmailFilter instances.
+    /// </summary>
+    public static List<GmailFilter> FromApiListResponse(string json)
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        var filters = new List<GmailFilter>();
+
+        System.Text.Json.JsonElement arrayElement;
+        if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array)
+        {
+            arrayElement = doc.RootElement;
+        }
+        else if (doc.RootElement.TryGetProperty("filter", out var fProp) && fProp.ValueKind == System.Text.Json.JsonValueKind.Array)
+        {
+            arrayElement = fProp;
+        }
+        else
+        {
+            return filters;
+        }
+
+        foreach (var item in arrayElement.EnumerateArray())
+        {
+            filters.Add(FromJsonElement(item));
+        }
+
+        return filters;
+    }
+
     public override string ToString() => ToGmailQuery();
 
     public bool Equals(GmailFilter? other)

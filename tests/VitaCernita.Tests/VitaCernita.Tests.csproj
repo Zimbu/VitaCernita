@@ -21,6 +21,9 @@
     <Using Include="VitaCernita.Core.Labels" />
     <Using Include="VitaCernita.Core.Labels.Validation" />
     <Using Include="VitaCernita.Core.Labels.Diff" />
+    <Using Include="VitaCernita.Core.Api" />
+    <Using Include="VitaCernita.Core.Api.Auth" />
+    <Using Include="VitaCernita.Core.Api.Fakes" />
   </ItemGroup>
 
   <ItemGroup>
