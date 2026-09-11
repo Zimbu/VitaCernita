@@ -3,13 +3,17 @@ using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Spectre.Console;
+using VitaCernita.Core.Actions;
 using VitaCernita.Core.Api;
 using VitaCernita.Core.Api.Auth;
 using VitaCernita.Core.Api.Fakes;
 using VitaCernita.Core.AutoReply.Diff;
 using VitaCernita.Core.Filters;
+using VitaCernita.Core.Filters.Diff;
 using VitaCernita.Core.Labels;
+using VitaCernita.Core.Queries;
 using VitaCernita.Core.Sources;
+using VitaCernita.Core.Sync;
 
 namespace VitaCernita.Cli;
 
@@ -36,6 +40,8 @@ public static class Program
                     explicitAnd = true;
                     break;
                 case "--diff":
+                case "--dry-run":
+                case "--sync-plan":
                     runDiff = true;
                     break;
                 case "--mock":
@@ -167,6 +173,8 @@ public static class Program
                     var fake = new FakeGmailApiClient();
                     fake.AddLabel(new GmailLabel("Receipts", id: "Label_1", messageListVisibility: "show", labelListVisibility: "labelShow"));
                     fake.AddLabel(new GmailLabel("OldUnusedTag", id: "Label_99"));
+                    fake.AddFilter(new GmailFilter("sec-001", new FieldCondition("from", "secops@company.com"), new GmailAction().Star()));
+                    fake.AddFilter(new GmailFilter("old-vendor-009", new FieldCondition("from", "spam@vendor.com"), new GmailAction().Delete()));
                     currentSource = new ApiGmailSource(fake, userId, name: "Fake Account (Mock)");
                 }
                 else
@@ -182,6 +190,10 @@ public static class Program
                 var labelDiff = await GmailSourceDiffer.DiffLabelsAsync(currentSource, desiredSource);
                 AnsiConsole.WriteLine(labelDiff.ToDryRunReport());
 
+                var filterDiff = await GmailSourceDiffer.DiffFiltersAsync(currentSource, desiredSource);
+                AnsiConsole.WriteLine();
+                AnsiConsole.WriteLine(filterDiff.ToDryRunReport());
+
                 var autoReplyDiff = await GmailSourceDiffer.DiffAutoReplyAsync(
                     currentSource,
                     desiredSource,
@@ -192,6 +204,10 @@ public static class Program
                     AnsiConsole.WriteLine();
                     AnsiConsole.WriteLine(autoReplyDiff.ToDryRunReport());
                 }
+
+                var syncPlan = GmailSyncPlanner.BuildPlan(labelDiff, filterDiff, autoReplyDiff);
+                AnsiConsole.WriteLine();
+                AnsiConsole.WriteLine(syncPlan.ToDryRunReport());
 
                 return 0;
             }
@@ -250,7 +266,9 @@ public static class Program
         AnsiConsole.MarkupLine("Usage: dotnet run --project src/VitaCernita -- [[OPTIONS]]\n");
         AnsiConsole.MarkupLine("[bold]Options:[/]");
         AnsiConsole.MarkupLine("  -c, --config <path>     Path to the Lua configuration file (default: config/gmail_filter.lua)");
-        AnsiConsole.MarkupLine("      --diff              Diff local Lua configuration (labels & auto-reply) against target Gmail account");
+        AnsiConsole.MarkupLine("      --diff              Diff local configuration (labels, filters, auto-reply) against target Gmail account");
+        AnsiConsole.MarkupLine("      --dry-run           Alias for --diff; computes diffs and outputs the dry-run synchronization plan");
+        AnsiConsole.MarkupLine("      --sync-plan         Generate and display the ordered sync commands to make target match configuration");
         AnsiConsole.MarkupLine("      --mock              Use in-memory fake Gmail API client for dry-run testing");
         AnsiConsole.MarkupLine("      --token <token>     Bearer token for Gmail API (defaults to GMAIL_ACCESS_TOKEN)");
         AnsiConsole.MarkupLine("      --user <userId>     Target Gmail user ID (default: 'me')");

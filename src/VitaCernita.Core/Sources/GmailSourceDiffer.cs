@@ -4,6 +4,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using VitaCernita.Core.AutoReply;
 using VitaCernita.Core.AutoReply.Diff;
+using VitaCernita.Core.Filters;
+using VitaCernita.Core.Filters.Diff;
 using VitaCernita.Core.Labels;
 using VitaCernita.Core.Labels.Diff;
 
@@ -55,6 +57,47 @@ public static class GmailSourceDiffer
         if (desiredFilter != null) desired = desiredFilter(desired);
 
         return GmailLabelDiffer.DiffSets(current, desired, options);
+    }
+
+    /// <summary>
+    /// Compares search filters from a current source against a desired source.
+    /// </summary>
+    public static async Task<FilterSetDiff> DiffFiltersAsync(
+        IGmailSource currentSource,
+        IGmailSource desiredSource,
+        FilterDiffOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (currentSource == null) throw new ArgumentNullException(nameof(currentSource));
+        if (desiredSource == null) throw new ArgumentNullException(nameof(desiredSource));
+
+        var current = await currentSource.GetFiltersAsync(cancellationToken);
+        var desired = await desiredSource.GetFiltersAsync(cancellationToken);
+
+        return GmailFilterDiffer.DiffSets(current, desired, options);
+    }
+
+    /// <summary>
+    /// Compares subsets of filters using LINQ filter expressions on both sources before diffing.
+    /// </summary>
+    public static async Task<FilterSetDiff> DiffFiltersAsync(
+        IGmailSource currentSource,
+        IGmailSource desiredSource,
+        Func<IQueryable<GmailFilter>, IQueryable<GmailFilter>>? currentFilter,
+        Func<IQueryable<GmailFilter>, IQueryable<GmailFilter>>? desiredFilter,
+        FilterDiffOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (currentSource == null) throw new ArgumentNullException(nameof(currentSource));
+        if (desiredSource == null) throw new ArgumentNullException(nameof(desiredSource));
+
+        var current = await currentSource.GetFiltersAsync(cancellationToken);
+        var desired = await desiredSource.GetFiltersAsync(cancellationToken);
+
+        if (currentFilter != null) current = currentFilter(current);
+        if (desiredFilter != null) desired = desiredFilter(desired);
+
+        return GmailFilterDiffer.DiffSets(current, desired, options);
     }
 
     /// <summary>

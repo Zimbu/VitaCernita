@@ -4,6 +4,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using VitaCernita.Core.AutoReply;
 using VitaCernita.Core.AutoReply.Diff;
+using VitaCernita.Core.Filters;
+using VitaCernita.Core.Filters.Diff;
 using VitaCernita.Core.Labels;
 using VitaCernita.Core.Labels.Diff;
 using VitaCernita.Core.Sources;
@@ -62,6 +64,54 @@ public static class GmailAccountDiffer
         var currentSource = new ApiGmailSource(client, userId);
         var desiredSource = new LuaGmailSource(filePath);
         return GmailSourceDiffer.DiffLabelsAsync(currentSource, desiredSource, options, cancellationToken);
+    }
+
+    /// <summary>
+    /// Compares desired filters against the target Gmail account.
+    /// </summary>
+    public static Task<FilterSetDiff> DiffFiltersAsync(
+        IGmailApiClient client,
+        IEnumerable<GmailFilter> desiredFilters,
+        FilterDiffOptions? options = null,
+        string userId = "me",
+        CancellationToken cancellationToken = default)
+    {
+        if (client == null) throw new ArgumentNullException(nameof(client));
+        var currentSource = new ApiGmailSource(client, userId);
+        var desiredSource = new InMemoryGmailSource(filters: desiredFilters);
+        return GmailSourceDiffer.DiffFiltersAsync(currentSource, desiredSource, options, cancellationToken);
+    }
+
+    /// <summary>
+    /// Loads filters from a Lua script and compares them against the target Gmail account.
+    /// </summary>
+    public static Task<FilterSetDiff> DiffFiltersFromScriptAsync(
+        IGmailApiClient client,
+        string luaScript,
+        FilterDiffOptions? options = null,
+        string userId = "me",
+        CancellationToken cancellationToken = default)
+    {
+        if (client == null) throw new ArgumentNullException(nameof(client));
+        var currentSource = new ApiGmailSource(client, userId);
+        var desiredSource = LuaGmailSource.FromScript(luaScript);
+        return GmailSourceDiffer.DiffFiltersAsync(currentSource, desiredSource, options, cancellationToken);
+    }
+
+    /// <summary>
+    /// Loads filters from a Lua file and compares them against the target Gmail account.
+    /// </summary>
+    public static Task<FilterSetDiff> DiffFiltersFromFileAsync(
+        IGmailApiClient client,
+        string filePath,
+        FilterDiffOptions? options = null,
+        string userId = "me",
+        CancellationToken cancellationToken = default)
+    {
+        if (client == null) throw new ArgumentNullException(nameof(client));
+        var currentSource = new ApiGmailSource(client, userId);
+        var desiredSource = new LuaGmailSource(filePath);
+        return GmailSourceDiffer.DiffFiltersAsync(currentSource, desiredSource, options, cancellationToken);
     }
 
     /// <summary>
