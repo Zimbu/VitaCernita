@@ -69,10 +69,22 @@ public static class GmailQueryParser
 
     public static IQueryCondition ParseQuery(LuaTable table, string? customDateFormat = null)
     {
-        // 1. Unwrap query wrapper if present: { type = "query", conditions/definition/query = ... }
+        // 0. Explicit raw or exact query node
         if (table.TryGetValue("type", out var typeVal) && typeVal.Type == LuaValueType.String)
         {
             string t = typeVal.Read<string>();
+            if (t is "raw" or "raw_query")
+            {
+                string q = table.TryGetValue("query", out var rqVal) ? rqVal.ToString() : string.Empty;
+                return new RawQueryCondition(q);
+            }
+            if (t == "exact")
+            {
+                string phrase = table.TryGetValue("value", out var pVal) ? pVal.ToString() : string.Empty;
+                return new ExactMatchCondition(phrase);
+            }
+
+            // 1. Unwrap query wrapper if present: { type = "query", conditions/definition/query = ... }
             if (t is "query" or "query_builder" or "builder" or "filter_builder")
             {
                 if (table.TryGetValue("conditions", out var condsVal) && condsVal.TryRead<LuaTable>(out var condsTable))
@@ -130,6 +142,14 @@ public static class GmailQueryParser
         {
             string phrase = table.TryGetValue("value", out var pVal) ? pVal.ToString() : string.Empty;
             return new ExactMatchCondition(phrase);
+        }
+
+        // 2b. Raw query string node: { type = "raw", query = "..." }
+        if (table.TryGetValue("type", out var rawTypeVal) && rawTypeVal.Type == LuaValueType.String &&
+            (rawTypeVal.Read<string>() == "raw" || rawTypeVal.Read<string>() == "raw_query"))
+        {
+            string q = table.TryGetValue("query", out var qVal) ? qVal.ToString() : string.Empty;
+            return new RawQueryCondition(q);
         }
 
         // 3. Explicit DSL Operator: { type = "operator", op = "and"|"or"|"not", conditions/condition = ... }

@@ -346,12 +346,20 @@ any_of = Or
 Any = Or
 either = Or
 
+-- Raw search query string (preserves exact Gmail search syntax)
+function raw_query(str) return { type = 'raw', query = tostring(str) } end
+RawQuery = raw_query
+raw = raw_query
+
 -- =======================================================================
 -- Query Builder & query() DSL
 -- =======================================================================
 local QueryBuilder = {}
 QueryBuilder.__index = QueryBuilder
 
+function QueryBuilder:raw_query(val) table.insert(self.conditions, raw_query(val)); return self end
+QueryBuilder.RawQuery = QueryBuilder.raw_query
+QueryBuilder.raw = QueryBuilder.raw_query
 function QueryBuilder:from(val) table.insert(self.conditions, from(val)); return self end
 QueryBuilder.From = QueryBuilder.from
 function QueryBuilder:to(val) table.insert(self.conditions, to(val)); return self end
@@ -1178,7 +1186,7 @@ VacationSettings = auto_reply
                         filters.Add(GmailFilterParser.ParseFilter(itemTable, customDateFormat));
                     }
                 }
-                if (filters.Count > 0) return filters;
+                return filters;
             }
         }
 
@@ -1195,8 +1203,27 @@ VacationSettings = auto_reply
             if (filters.Count > 0) return filters;
         }
 
+        // If root is a container table with only labels or auto_reply and no filter fields, don't parse as filter
+        if ((root.TryGetValue("labels", out _) || root.TryGetValue("auto_reply", out _) ||
+             root.TryGetValue("autoReply", out _) || root.TryGetValue("vacation", out _) ||
+             root.TryGetValue("vacation_settings", out _)) &&
+            !root.TryGetValue("query", out _) && !root.TryGetValue("action", out _) &&
+            !root.TryGetValue("actions", out _) && !root.TryGetValue("criteria", out _) &&
+            !root.TryGetValue("match", out _) && !root.TryGetValue("conditions", out _) &&
+            !GmailQueryParser.HasAnyConditionFields(root))
+        {
+            return filters;
+        }
+
         // Single filter
-        filters.Add(GmailFilterParser.ParseFilter(root, customDateFormat));
+        if (root.TryGetValue("query", out _) || root.TryGetValue("action", out _) ||
+            root.TryGetValue("actions", out _) || root.TryGetValue("criteria", out _) ||
+            root.TryGetValue("match", out _) || root.TryGetValue("conditions", out _) ||
+            (root.TryGetValue("type", out var rootType) && rootType.ToString() is "filter" or "rule" or "filter_builder") ||
+            GmailQueryParser.HasAnyConditionFields(root))
+        {
+            filters.Add(GmailFilterParser.ParseFilter(root, customDateFormat));
+        }
         return filters;
     }
 
@@ -1462,7 +1489,7 @@ VacationSettings = auto_reply
             for (int i = 1; i <= root.ArrayLength; i++)
             {
                 var elem = root[i];
-                if (elem.TryRead<LuaTable>(out var itemTable))
+                if (elem.TryRead<LuaTable>(out var itemTable) && GmailLabelParser.IsLabelTable(itemTable))
                 {
                     labels.Add(GmailLabelParser.ParseLabel(itemTable));
                 }
