@@ -4,18 +4,20 @@ using System.Threading;
 using System.Threading.Tasks;
 using VitaCernita.Core.Labels;
 using VitaCernita.Core.Labels.Diff;
+using VitaCernita.Core.Sources;
 
 namespace VitaCernita.Core.Api;
 
 /// <summary>
-/// Coordinates diffing local Lua label configurations against a target Gmail account via IGmailApiClient.
+/// Convenience adapter for diffing local Lua label configurations against a target Gmail account via IGmailApiClient.
+/// Backed by the agnostic GmailSourceDiffer.
 /// </summary>
 public static class GmailAccountDiffer
 {
     /// <summary>
     /// Compares desired labels against the target Gmail account.
     /// </summary>
-    public static async Task<LabelSetDiff> DiffLabelsAsync(
+    public static Task<LabelSetDiff> DiffLabelsAsync(
         IGmailApiClient client,
         IEnumerable<GmailLabel> desiredLabels,
         LabelDiffOptions? options = null,
@@ -23,38 +25,40 @@ public static class GmailAccountDiffer
         CancellationToken cancellationToken = default)
     {
         if (client == null) throw new ArgumentNullException(nameof(client));
-
-        var currentLabels = await client.ListLabelsAsync(userId, onlyUserLabels: true, cancellationToken);
-        return GmailLabelDiffer.DiffSets(currentLabels, desiredLabels, options);
+        var currentSource = new ApiGmailSource(client, userId);
+        var desiredSource = new InMemoryGmailSource(desiredLabels);
+        return GmailSourceDiffer.DiffLabelsAsync(currentSource, desiredSource, options, cancellationToken);
     }
 
     /// <summary>
     /// Loads labels from a Lua script and compares them against the target Gmail account.
     /// </summary>
-    public static async Task<LabelSetDiff> DiffLabelsFromScriptAsync(
+    public static Task<LabelSetDiff> DiffLabelsFromScriptAsync(
         IGmailApiClient client,
         string luaScript,
         LabelDiffOptions? options = null,
         string userId = "me",
         CancellationToken cancellationToken = default)
     {
-        var loader = new GmailLabelLoader();
-        var desiredLabels = await loader.LoadLabelsFromScriptAsync(luaScript);
-        return await DiffLabelsAsync(client, desiredLabels, options, userId, cancellationToken);
+        if (client == null) throw new ArgumentNullException(nameof(client));
+        var currentSource = new ApiGmailSource(client, userId);
+        var desiredSource = LuaGmailSource.FromScript(luaScript);
+        return GmailSourceDiffer.DiffLabelsAsync(currentSource, desiredSource, options, cancellationToken);
     }
 
     /// <summary>
     /// Loads labels from a Lua file and compares them against the target Gmail account.
     /// </summary>
-    public static async Task<LabelSetDiff> DiffLabelsFromFileAsync(
+    public static Task<LabelSetDiff> DiffLabelsFromFileAsync(
         IGmailApiClient client,
         string filePath,
         LabelDiffOptions? options = null,
         string userId = "me",
         CancellationToken cancellationToken = default)
     {
-        var loader = new GmailLabelLoader();
-        var desiredLabels = await loader.LoadLabelsFromFileAsync(filePath);
-        return await DiffLabelsAsync(client, desiredLabels, options, userId, cancellationToken);
+        if (client == null) throw new ArgumentNullException(nameof(client));
+        var currentSource = new ApiGmailSource(client, userId);
+        var desiredSource = new LuaGmailSource(filePath);
+        return GmailSourceDiffer.DiffLabelsAsync(currentSource, desiredSource, options, cancellationToken);
     }
 }

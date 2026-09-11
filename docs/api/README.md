@@ -11,8 +11,9 @@ VitaCernita provides a native, decoupled interface to the [Google Workspace Gmai
 3. [API Client Contract (`IGmailApiClient`)](#api-client-contract-igmailapiclient)
 4. [Native Core .NET Implementation (`HttpGmailApiClient`)](#native-core-net-implementation-httpgmailapiclient)
 5. [In-Memory Fake for Testing (`FakeGmailApiClient`)](#in-memory-fake-for-testing-fakegmailapiclient)
-6. [Account Diffing & Synchronization (`GmailAccountDiffer`)](#account-diffing--synchronization-gmailaccountdiffer)
-7. [CLI Usage (`--diff` & `--mock`)](#cli-usage---diff----mock)
+6. [Queryable Sources & Agnostic Differ (`IGmailSource`, `GmailSourceDiffer`)](#queryable-sources--agnostic-differ-igmailsource-gmailsourcediffer)
+7. [Account Diffing & Synchronization (`GmailAccountDiffer`)](#account-diffing--synchronization-gmailaccountdiffer)
+8. [CLI Usage (`--diff` & `--mock`)](#cli-usage---diff----mock)
 
 ---
 
@@ -143,6 +144,73 @@ Assert.Equal(1, fake.ListLabelsCallCount);
 // Simulate API errors
 fake.SimulatedHttpError = HttpStatusCode.Unauthorized;
 await Assert.ThrowsAsync<GmailApiException>(() => fake.ListLabelsAsync());
+```
+
+---
+
+## Queryable Sources & Agnostic Differ (`IGmailSource`, `GmailSourceDiffer`)
+
+VitaCernita unifies all mailbox representations—whether live Gmail accounts, local Lua scripts, or test fixtures—under a source-agnostic **`IGmailSource`** interface exposing in-memory **`IQueryable<T>`** collections.
+
+### The Unified Interface: `IGmailSource`
+
+```csharp
+namespace VitaCernita.Core.Sources;
+
+public interface IGmailSource
+{
+    string Name { get; }
+    Task<IQueryable<GmailLabel>> GetLabelsAsync(CancellationToken ct = default);
+    Task<IQueryable<GmailFilter>> GetFiltersAsync(CancellationToken ct = default);
+}
+```
+
+### Supported Source Implementations
+
+| Implementation | Description | Use Cases |
+| :--- | :--- | :--- |
+| [`LuaGmailSource`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Sources/LuaGmailSource.cs) | Evaluates Lua configuration files or scripts. | Desired state specifications in version control. |
+| [`ApiGmailSource`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Sources/ApiGmailSource.cs) | Adapts any `IGmailApiClient` into an `IQueryable` source. | Current live state of any Gmail account. |
+| [`InMemoryGmailSource`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Sources/InMemoryGmailSource.cs) | Mutable in-memory collection. | Testing, ad-hoc composition, pipeline manipulation. |
+
+### Source-Agnostic Diffing (`GmailSourceDiffer`)
+
+Because both sides are `IGmailSource`, the diff engine is completely decoupled from the data transport:
+
+```csharp
+using VitaCernita.Core.Sources;
+
+// 1. Agnostic Diff: Live account vs Local Lua
+IGmailSource current = new ApiGmailSource(gmailClient, "user@company.com");
+IGmailSource desired = new LuaGmailSource("config/gmail_filter.lua");
+LabelSetDiff diff = await GmailSourceDiffer.DiffLabelsAsync(current, desired);
+
+// 2. Cross-Account Migration: Account A vs Account B
+IGmailSource staging = new ApiGmailSource(stagingClient, "staging@corp.com");
+IGmailSource prod = new ApiGmailSource(prodClient, "prod@corp.com");
+LabelSetDiff syncDiff = await GmailSourceDiffer.DiffLabelsAsync(staging, prod);
+```
+
+### Arbitrary Subsets via LINQ Predicates
+
+Because each source produces `IQueryable<GmailLabel>`, standard C# LINQ predicates can filter what to compare before entering the differ:
+
+```csharp
+// Diff ONLY labels within the "Finance/" hierarchy
+var financeDiff = await GmailSourceDiffer.DiffLabelsAsync(
+    currentSource,
+    desiredSource,
+    currentFilter: q => q.Where(l => l.Name.StartsWith("Finance/")),
+    desiredFilter: q => q.Where(l => l.Name.StartsWith("Finance/"))
+);
+
+// Diff ONLY labels with custom colors
+var coloredDiff = await GmailSourceDiffer.DiffLabelsAsync(
+    currentSource,
+    desiredSource,
+    currentFilter: q => q.Where(l => l.Color != null),
+    desiredFilter: q => q.Where(l => l.Color != null)
+);
 ```
 
 ---

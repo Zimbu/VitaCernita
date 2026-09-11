@@ -19,6 +19,7 @@
     <Using Include="VitaCernita.Core.Api" />
     <Using Include="VitaCernita.Core.Api.Auth" />
     <Using Include="VitaCernita.Core.Api.Fakes" />
+    <Using Include="VitaCernita.Core.Sources" />
   </ItemGroup>
 
 </Project>

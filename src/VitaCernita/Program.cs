@@ -8,6 +8,7 @@ using VitaCernita.Core.Api.Auth;
 using VitaCernita.Core.Api.Fakes;
 using VitaCernita.Core.Filters;
 using VitaCernita.Core.Labels;
+using VitaCernita.Core.Sources;
 
 namespace VitaCernita.Cli;
 
@@ -123,23 +124,26 @@ public static class Program
 
             if (runDiff)
             {
-                IGmailApiClient client;
+                IGmailSource currentSource;
                 if (useMock)
                 {
-                    AnsiConsole.MarkupLine("[bold yellow]Mode:[/] In-Memory Fake Gmail Account");
+                    AnsiConsole.MarkupLine("[bold yellow]Mode:[/] In-Memory Fake Gmail Account (Mock)");
                     var fake = new FakeGmailApiClient();
                     fake.AddLabel(new GmailLabel("Receipts", id: "Label_1", messageListVisibility: "show", labelListVisibility: "labelShow"));
                     fake.AddLabel(new GmailLabel("OldUnusedTag", id: "Label_99"));
-                    client = fake;
+                    currentSource = new ApiGmailSource(fake, userId, name: "Fake Account (Mock)");
                 }
                 else
                 {
                     var tokenProvider = new BearerTokenProvider(token);
-                    client = new HttpGmailApiClient(new HttpClient(), tokenProvider);
+                    var client = new HttpGmailApiClient(new HttpClient(), tokenProvider);
+                    currentSource = new ApiGmailSource(client, userId);
                 }
 
-                AnsiConsole.MarkupLine($"[bold cyan]Diffing local labels from '{Markup.Escape(configPath)}' against target Gmail account ('{Markup.Escape(userId)}')...[/]\n");
-                var diff = await GmailAccountDiffer.DiffLabelsAsync(client, config.Labels, userId: userId);
+                var desiredSource = new LuaGmailSource(configPath);
+
+                AnsiConsole.MarkupLine($"[bold cyan]Diffing '{Markup.Escape(currentSource.Name)}' against '{Markup.Escape(desiredSource.Name)}'...[/]\n");
+                var diff = await GmailSourceDiffer.DiffLabelsAsync(currentSource, desiredSource);
                 AnsiConsole.WriteLine(diff.ToDryRunReport());
                 return 0;
             }
