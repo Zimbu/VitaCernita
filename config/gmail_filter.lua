@@ -19,6 +19,31 @@ return {
     -- Global custom date format (enforces MM-dd-YYYY for all dates in this config)
     date_format = "MM-dd-YYYY",
 
+    -- Configured Gmail Labels (MessageListVisibility, LabelListVisibility, Color)
+    labels = {
+        label {
+            id = "lbl_receipts",
+            name = "Receipts",
+            message_list_visibility = "show",
+            label_list_visibility = "labelShow",
+            color = color("white", "#43d692")
+        },
+        label {
+            id = "lbl_sec_alerts",
+            name = "security-alerts",
+            message_list_visibility = "show",
+            label_list_visibility = "labelShowIfUnread",
+            color = color("white", "#fb4c2f")
+        },
+        label {
+            id = "lbl_eng",
+            name = "engineering",
+            message_list_visibility = "hide",
+            label_list_visibility = "labelShow",
+            color = color("black", "#c9daf8")
+        }
+    },
+
     rules = {
         -- Filter 1: High Priority Audit Alerts with Exact Phrase Match
         filter {

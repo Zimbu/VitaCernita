@@ -61,10 +61,41 @@ public static class Program
         var loader = new GmailFilterLoader();
         try
         {
-            var filters = await loader.LoadFiltersFromFileAsync(configPath);
-            if (filters.Count == 0)
+            var config = await loader.LoadConfigurationFromFileAsync(configPath);
+
+            if (config.Labels.Count > 0)
             {
-                AnsiConsole.MarkupLine("[bold yellow]No filters found in configuration.[/]");
+                AnsiConsole.MarkupLine($"[bold yellow]Configured Labels ({config.Labels.Count}):[/]\n");
+                var table = new Table().Border(TableBorder.Rounded);
+                table.AddColumn("[bold]Label Name[/]");
+                table.AddColumn("[bold]ID[/]");
+                table.AddColumn("[bold]Message List[/]");
+                table.AddColumn("[bold]Label List[/]");
+                table.AddColumn("[bold]Color (Text / Bg)[/]");
+
+                foreach (var lbl in config.Labels)
+                {
+                    string colorInfo = lbl.Color != null
+                        ? $"{lbl.Color.TextColor} / {lbl.Color.BackgroundColor}"
+                        : "[dim]None[/]";
+
+                    table.AddRow(
+                        $"[cyan]{Markup.Escape(lbl.Name)}[/]",
+                        lbl.Id != null ? Markup.Escape(lbl.Id) : "[dim]-[/]",
+                        lbl.MessageListVisibility ?? "[dim]default[/]",
+                        lbl.LabelListVisibility ?? "[dim]default[/]",
+                        colorInfo
+                    );
+                }
+
+                AnsiConsole.Write(table);
+                AnsiConsole.WriteLine();
+            }
+
+            var filters = config.Filters;
+            if (filters.Count == 0 && config.Labels.Count == 0)
+            {
+                AnsiConsole.MarkupLine("[bold yellow]No filters or labels found in configuration.[/]");
                 return 0;
             }
 

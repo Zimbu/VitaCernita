@@ -41,6 +41,10 @@ VitaCernita is built upon three decoupled pillars:
    - The composite resource combining an optional `id`, a search `query` (criteria), and an `action`.
    - Exports directly to Google Gmail API payload format via `filter.ToDictionary()`.
 
+4. **Label** ([`GmailLabel`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Labels/GmailLabel.cs)):
+   - Custom mailbox labels configured with display `name`, visibility settings, and palette colors.
+   - Maps 1-to-1 to the Google Gmail API `users.labels` REST resource.
+
 ---
 
 ## Detailed Documentation Subfolders
@@ -52,12 +56,13 @@ For complete operator tables, validation specifications, and API mappings, see t
 | [**Search Queries Guide**](docs/queries/README.md) | Full query operator reference | String match fields, 12 stars/icons, media & attachments, status flags, folders, categories, size operators, dates & durations, boolean logic & negation, input validation rules. |
 | [**Filter Actions Guide**](docs/actions/README.md) | Actions and system labels reference | Supported actions (`archive`, `star`, `delete`, etc.), Gmail API mapping, category enums, custom user labels vs system labels, forwarding validation. |
 | [**Composite Filters Guide**](docs/filters/README.md) | Composite filter and serialization guide | Filter structure, `.ToDictionary()` JSON serialization for the Gmail REST API, multi-filter configurations, C# programmatic loader APIs, backwards compatibility. |
+| [**Gmail Labels Guide**](docs/labels/README.md) | Custom mailbox label configuration | Label properties (`name`, `messageListVisibility`, `labelListVisibility`), Google's 102 predefined palette colors, standard aliases (`black`, `white`), JSON export. |
 
 ---
 
 ## Syntax Flavors
 
-VitaCernita provides three syntax styles across queries, actions, and filters so you can use whichever best fits your workflow:
+VitaCernita provides three syntax styles across queries, actions, filters, and labels so you can use whichever best fits your workflow:
 
 ### 1. Functional DSL
 Composable, declarative functions with nested boolean operators:

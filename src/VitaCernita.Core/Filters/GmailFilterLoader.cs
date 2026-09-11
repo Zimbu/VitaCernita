@@ -8,6 +8,8 @@ using Lua;
 using Lua.Standard;
 using VitaCernita.Core.Actions;
 using VitaCernita.Core.Configuration;
+using VitaCernita.Core.Labels;
+using VitaCernita.Core.Labels.Validation;
 using VitaCernita.Core.Queries;
 
 namespace VitaCernita.Core.Filters;
@@ -56,9 +58,6 @@ function header(name_or_pair, maybe_val)
     end
 end
 Header = header
-
-function label(val) return { type = 'field', field = 'label', value = tostring(val) } end
-Label = label
 
 -- Exact word or phrase match: double-quoted search term
 function match(phrase) return { type = 'exact', value = tostring(phrase) } end
@@ -741,6 +740,140 @@ function rule(tbl)
     return tbl
 end
 Rule = rule
+
+-- =======================================================================
+-- Label Builder & label() DSL
+-- =======================================================================
+local LabelBuilder = {}
+LabelBuilder.__index = LabelBuilder
+
+function LabelBuilder.new()
+    local self = setmetatable({}, LabelBuilder)
+    self._data = { type = 'gmail_label' }
+    return self
+end
+
+function LabelBuilder:id(val)
+    self._data.id = tostring(val)
+    return self
+end
+LabelBuilder.Id = LabelBuilder.id
+
+function LabelBuilder:name(val)
+    self._data.name = tostring(val)
+    return self
+end
+LabelBuilder.Name = LabelBuilder.name
+
+function LabelBuilder:message_list_visibility(val)
+    self._data.message_list_visibility = tostring(val)
+    return self
+end
+LabelBuilder.MessageListVisibility = LabelBuilder.message_list_visibility
+LabelBuilder.messageListVisibility = LabelBuilder.message_list_visibility
+
+function LabelBuilder:show_in_message_list(val)
+    if val == nil or val == true then
+        self._data.message_list_visibility = 'show'
+    else
+        self._data.message_list_visibility = 'hide'
+    end
+    return self
+end
+
+function LabelBuilder:hide_in_message_list()
+    self._data.message_list_visibility = 'hide'
+    return self
+end
+
+function LabelBuilder:label_list_visibility(val)
+    self._data.label_list_visibility = tostring(val)
+    return self
+end
+LabelBuilder.LabelListVisibility = LabelBuilder.label_list_visibility
+LabelBuilder.labelListVisibility = LabelBuilder.label_list_visibility
+
+function LabelBuilder:show_in_label_list()
+    self._data.label_list_visibility = 'labelShow'
+    return self
+end
+
+function LabelBuilder:show_if_unread()
+    self._data.label_list_visibility = 'labelShowIfUnread'
+    return self
+end
+
+function LabelBuilder:hide_in_label_list()
+    self._data.label_list_visibility = 'labelHide'
+    return self
+end
+
+function LabelBuilder:color(arg1, arg2)
+    if type(arg1) == 'table' then
+        self._data.color = arg1
+    elseif arg1 ~= nil and arg2 ~= nil then
+        self._data.color = { textColor = tostring(arg1), backgroundColor = tostring(arg2) }
+    end
+    return self
+end
+LabelBuilder.Color = LabelBuilder.color
+
+function LabelBuilder:text_color(val)
+    self._data.color = self._data.color or {}
+    self._data.color.textColor = tostring(val)
+    return self
+end
+LabelBuilder.TextColor = LabelBuilder.text_color
+
+function LabelBuilder:background_color(val)
+    self._data.color = self._data.color or {}
+    self._data.color.backgroundColor = tostring(val)
+    return self
+end
+LabelBuilder.BackgroundColor = LabelBuilder.background_color
+
+function LabelBuilder:build()
+    return self._data
+end
+
+function color(arg1, arg2)
+    if type(arg1) == 'table' then
+        return {
+            type = 'label_color',
+            textColor = arg1.text or arg1.text_color or arg1.textColor,
+            backgroundColor = arg1.background or arg1.background_color or arg1.backgroundColor or arg1.bg
+        }
+    elseif arg1 ~= nil and arg2 ~= nil then
+        return { type = 'label_color', textColor = tostring(arg1), backgroundColor = tostring(arg2) }
+    end
+    return { type = 'label_color' }
+end
+Color = color
+
+function label(arg)
+    if arg == nil then
+        return LabelBuilder.new()
+    elseif type(arg) == 'string' then
+        return { type = 'field', field = 'label', value = tostring(arg) }
+    elseif type(arg) == 'table' then
+        arg.type = 'gmail_label'
+        return setmetatable(arg, { __index = arg })
+    end
+    return { type = 'field', field = 'label', value = tostring(arg) }
+end
+Label = label
+gmail_label = label
+user_label = label
+
+function labels(...)
+    local args = { ... }
+    if #args == 1 and type(args[1]) == 'table' and args[1].type ~= 'gmail_label' and args[1].name == nil then
+        return args[1]
+    else
+        return args
+    end
+end
+Labels = labels
 ";
 
     private static readonly Regex KeywordRewriteRegex = new(
@@ -841,9 +974,17 @@ Rule = rule
         {
             rootTable = qTable;
         }
+        else if (state.Environment.TryGetValue("label", out var gLabel) && gLabel.TryRead<LuaTable>(out var lTable))
+        {
+            rootTable = lTable;
+        }
+        else if (state.Environment.TryGetValue("labels", out var gLabels) && gLabels.TryRead<LuaTable>(out var lsTable))
+        {
+            rootTable = lsTable;
+        }
         else
         {
-            throw new LuaConfigException("Lua script must return a table or define a global 'filter', 'rule', 'query', or 'config' table.");
+            throw new LuaConfigException("Lua script must return a table or define a global 'filter', 'rule', 'query', 'label', or 'config' table.");
         }
 
         string? customDateFormat = ExtractDateFormat(rootTable, state);
@@ -1131,5 +1272,114 @@ Rule = rule
         }
 
         return GmailActionParser.ParseAction(table);
+    }
+
+    // =========================================================================
+    // Label Loading
+    // =========================================================================
+
+    public async Task<GmailLabel> LoadLabelFromFileAsync(string filePath, LuaState? externalState = null)
+    {
+        if (!File.Exists(filePath))
+        {
+            throw new FileNotFoundException($"Label configuration file not found: {filePath}", filePath);
+        }
+
+        string script = await File.ReadAllTextAsync(filePath);
+        return await LoadLabelFromScriptAsync(script, externalState);
+    }
+
+    public async Task<GmailLabel> LoadLabelFromScriptAsync(string script, LuaState? externalState = null)
+    {
+        var (rootTable, _) = await ExecuteScriptAsync(script, externalState);
+        return GmailLabelParser.ParseLabel(rootTable);
+    }
+
+    public async Task<List<GmailLabel>> LoadLabelsFromFileAsync(string filePath, LuaState? externalState = null)
+    {
+        if (!File.Exists(filePath))
+        {
+            throw new FileNotFoundException($"Label configuration file not found: {filePath}", filePath);
+        }
+
+        string script = await File.ReadAllTextAsync(filePath);
+        return await LoadLabelsFromScriptAsync(script, externalState);
+    }
+
+    public async Task<List<GmailLabel>> LoadLabelsFromScriptAsync(string script, LuaState? externalState = null)
+    {
+        var (rootTable, _) = await ExecuteScriptAsync(script, externalState);
+        return ParseLabelsFromRoot(rootTable);
+    }
+
+    public static List<GmailLabel> ParseLabelsFromRoot(LuaTable root)
+    {
+        var labels = new List<GmailLabel>();
+
+        // Check if root has "labels" table: { labels = { ... } }
+        if (root.TryGetValue("labels", out var listVal) && listVal.TryRead<LuaTable>(out var listTable))
+        {
+            for (int i = 1; i <= listTable.ArrayLength; i++)
+            {
+                var elem = listTable[i];
+                if (elem.TryRead<LuaTable>(out var itemTable))
+                {
+                    labels.Add(GmailLabelParser.ParseLabel(itemTable));
+                }
+            }
+            return labels;
+        }
+
+        // Check if root is an array of labels: { label { ... }, label { ... } }
+        if (root.ArrayLength > 0)
+        {
+            for (int i = 1; i <= root.ArrayLength; i++)
+            {
+                var elem = root[i];
+                if (elem.TryRead<LuaTable>(out var itemTable))
+                {
+                    labels.Add(GmailLabelParser.ParseLabel(itemTable));
+                }
+            }
+            return labels;
+        }
+
+        // If root is a single label
+        if (GmailLabelParser.IsLabelTable(root))
+        {
+            labels.Add(GmailLabelParser.ParseLabel(root));
+            return labels;
+        }
+
+        return labels;
+    }
+
+    // =========================================================================
+    // Full Configuration Loading (Filters + Labels)
+    // =========================================================================
+
+    public async Task<GmailConfiguration> LoadConfigurationFromFileAsync(string filePath, LuaState? externalState = null)
+    {
+        if (!File.Exists(filePath))
+        {
+            throw new FileNotFoundException($"Configuration file not found: {filePath}", filePath);
+        }
+
+        string script = await File.ReadAllTextAsync(filePath);
+        return await LoadConfigurationFromScriptAsync(script, externalState);
+    }
+
+    public async Task<GmailConfiguration> LoadConfigurationFromScriptAsync(string script, LuaState? externalState = null)
+    {
+        var (rootTable, customDateFormat) = await ExecuteScriptAsync(script, externalState);
+        var filters = ParseFiltersFromRoot(rootTable, customDateFormat);
+        var labels = ParseLabelsFromRoot(rootTable);
+
+        return new GmailConfiguration
+        {
+            Filters = filters,
+            Labels = labels,
+            CustomDateFormat = customDateFormat
+        };
     }
 }

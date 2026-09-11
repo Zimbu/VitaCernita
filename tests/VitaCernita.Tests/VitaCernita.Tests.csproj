@@ -18,6 +18,8 @@
     <Using Include="Xunit" />
     <Using Include="VitaCernita.Core.Queries" />
     <Using Include="VitaCernita.Core.Queries.Validation" />
+    <Using Include="VitaCernita.Core.Labels" />
+    <Using Include="VitaCernita.Core.Labels.Validation" />
   </ItemGroup>
 
   <ItemGroup>
