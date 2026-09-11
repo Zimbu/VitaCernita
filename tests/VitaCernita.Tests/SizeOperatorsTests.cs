@@ -210,40 +210,40 @@ return filter()
     // =========================================================================
 
     [Fact]
-    public async Task Validation_InvalidSize_ThrowsFilterValidationException()
+    public async Task Validation_InvalidSize_ThrowsQueryValidationException()
     {
         string luaInvalidStr = "return size('abc')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(luaInvalidStr));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(luaInvalidStr));
 
         string luaInvalidUnit = "return size('10TB')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(luaInvalidUnit));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(luaInvalidUnit));
 
         string luaDecimal = "return size('1.5M')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(luaDecimal));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(luaDecimal));
 
         string luaNegative = "return size('-10M')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(luaNegative));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(luaNegative));
 
         string luaZero = "return size('0')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(luaZero));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(luaZero));
 
         string luaZeroM = "return size('0M')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(luaZeroM));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(luaZeroM));
     }
 
     [Fact]
-    public async Task Validation_EmptySize_ThrowsFilterValidationException()
+    public async Task Validation_EmptySize_ThrowsQueryValidationException()
     {
         string luaEmpty = "return size('')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(luaEmpty));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(luaEmpty));
 
         string luaWhitespace = "return size('   ')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(luaWhitespace));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(luaWhitespace));
     }
 
     [Fact]
-    public void Validation_InvalidSizeOperator_ThrowsFilterValidationException()
+    public void Validation_InvalidSizeOperator_ThrowsQueryValidationException()
     {
-        Assert.Throws<FilterValidationException>(() => new SizeCondition("invalid_op", "10M"));
+        Assert.Throws<QueryValidationException>(() => new SizeCondition("invalid_op", "10M"));
     }
 }

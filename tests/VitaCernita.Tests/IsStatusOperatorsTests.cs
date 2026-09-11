@@ -182,19 +182,19 @@ return filter()
     // =========================================================================
 
     [Fact]
-    public async Task Validation_InvalidIsTarget_ThrowsFilterValidationException()
+    public async Task Validation_InvalidIsTarget_ThrowsQueryValidationException()
     {
         string lua = "return is('nonexistent_state')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
     }
 
     [Fact]
-    public async Task Validation_EmptyIsTarget_ThrowsFilterValidationException()
+    public async Task Validation_EmptyIsTarget_ThrowsQueryValidationException()
     {
         string luaEmpty = "return is('')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(luaEmpty));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(luaEmpty));
 
         string luaWhitespace = "return is('   ')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(luaWhitespace));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(luaWhitespace));
     }
 }

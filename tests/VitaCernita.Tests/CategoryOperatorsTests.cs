@@ -185,19 +185,19 @@ return filter()
     // =========================================================================
 
     [Fact]
-    public async Task Validation_InvalidCategoryTarget_ThrowsFilterValidationException()
+    public async Task Validation_InvalidCategoryTarget_ThrowsQueryValidationException()
     {
         string lua = "return category('unknown_category')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
     }
 
     [Fact]
-    public async Task Validation_EmptyCategoryTarget_ThrowsFilterValidationException()
+    public async Task Validation_EmptyCategoryTarget_ThrowsQueryValidationException()
     {
         string luaEmpty = "return category('')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(luaEmpty));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(luaEmpty));
 
         string luaWhitespace = "return category('   ')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(luaWhitespace));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(luaWhitespace));
     }
 }

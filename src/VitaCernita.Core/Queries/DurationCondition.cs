@@ -1,11 +1,12 @@
 using System;
+using VitaCernita.Core.Filters;
 
-namespace VitaCernita.Core.Filters;
+namespace VitaCernita.Core.Queries;
 
 /// <summary>
 /// Relative duration condition (older_than, newer_than). Formatted as operator:Nd/Nm/Ny per Gmail spec.
 /// </summary>
-public sealed class DurationCondition : IFilterCondition
+public sealed class DurationCondition : IQueryCondition, IFilterCondition
 {
     public string Operator { get; }
     public string Duration { get; }

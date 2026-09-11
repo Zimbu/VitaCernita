@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -16,6 +16,8 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="VitaCernita.Core.Queries" />
+    <Using Include="VitaCernita.Core.Queries.Validation" />
   </ItemGroup>
 
   <ItemGroup>

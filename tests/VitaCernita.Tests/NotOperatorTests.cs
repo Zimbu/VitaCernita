@@ -408,31 +408,31 @@ return filter():from('compliance@company.com'):not(Or(Subject('Confidential'), L
     }
 
     // =========================================================================
-    // 5. Negative & Empty Cases (Must Throw FilterValidationException)
+    // 5. Negative & Empty Cases (Must Throw QueryValidationException)
     // =========================================================================
 
     [Fact]
     public async Task Not_EmptyCall_ThrowsValidationException()
     {
         string lua = "return not()";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
     }
 
     [Fact]
     public async Task Not_EmptyTable_ThrowsValidationException()
     {
         string lua = "return not({})";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
     }
 
     [Fact]
     public async Task Not_EmptyString_ThrowsValidationException()
     {
         string luaEmpty = "return not('')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(luaEmpty));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(luaEmpty));
 
         string luaWhitespace = "return not('   ')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(luaWhitespace));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(luaWhitespace));
     }
 
     [Fact]
@@ -444,7 +444,7 @@ return {
     ['not'] = {}
 }
 ";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
     }
 
     [Fact]
@@ -453,6 +453,6 @@ return {
         string lua = @"
 return filter():from('corp@company.com'):Not():build()
 ";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
     }
 }

@@ -8,6 +8,7 @@ using Lua;
 using Lua.Standard;
 using VitaCernita.Core.Actions;
 using VitaCernita.Core.Configuration;
+using VitaCernita.Core.Queries;
 
 namespace VitaCernita.Core.Filters;
 
@@ -15,7 +16,7 @@ public sealed class GmailFilterLoader
 {
     private const string DslPrelude = @"
 -- =======================================================================
--- VitaCernita Gmail Filter DSL Prelude
+-- VitaCernita DSL Prelude (Query, Action & Filter)
 -- =======================================================================
 
 function from(val) return { type = 'field', field = 'from', value = tostring(val) } end
@@ -345,231 +346,194 @@ any_of = Or
 Any = Or
 either = Or
 
-function rule(tbl)
-    if type(tbl) == 'table' then
-        return setmetatable({ type = 'rule', rule = tbl }, {
-            __index = tbl
+-- =======================================================================
+-- Query Builder & query() DSL
+-- =======================================================================
+local QueryBuilder = {}
+QueryBuilder.__index = QueryBuilder
+
+function QueryBuilder:from(val) table.insert(self.conditions, from(val)); return self end
+QueryBuilder.From = QueryBuilder.from
+function QueryBuilder:to(val) table.insert(self.conditions, to(val)); return self end
+QueryBuilder.To = QueryBuilder.to
+function QueryBuilder:cc(val) table.insert(self.conditions, cc(val)); return self end
+QueryBuilder.Cc = QueryBuilder.cc
+function QueryBuilder:bcc(val) table.insert(self.conditions, bcc(val)); return self end
+QueryBuilder.Bcc = QueryBuilder.bcc
+function QueryBuilder:subject(val) table.insert(self.conditions, subject(val)); return self end
+QueryBuilder.Subject = QueryBuilder.subject
+function QueryBuilder:list(val) table.insert(self.conditions, list(val)); return self end
+QueryBuilder.List = QueryBuilder.list
+function QueryBuilder:filename(val) table.insert(self.conditions, filename(val)); return self end
+QueryBuilder.Filename = QueryBuilder.filename
+function QueryBuilder:delivered_to(val) table.insert(self.conditions, delivered_to(val)); return self end
+QueryBuilder.DeliveredTo = QueryBuilder.delivered_to
+function QueryBuilder:rfc822msgid(val) table.insert(self.conditions, rfc822msgid(val)); return self end
+QueryBuilder.Rfc822MsgId = QueryBuilder.rfc822msgid
+function QueryBuilder:header(name_or_pair, maybe_val) table.insert(self.conditions, header(name_or_pair, maybe_val)); return self end
+QueryBuilder.Header = QueryBuilder.header
+function QueryBuilder:label(val) table.insert(self.conditions, label(val)); return self end
+QueryBuilder.Label = QueryBuilder.label
+function QueryBuilder:match(phrase) table.insert(self.conditions, match(phrase)); return self end
+QueryBuilder.Match = QueryBuilder.match
+function QueryBuilder:after(val) table.insert(self.conditions, after(val)); return self end
+QueryBuilder.After = QueryBuilder.after
+function QueryBuilder:before(val) table.insert(self.conditions, before(val)); return self end
+QueryBuilder.Before = QueryBuilder.before
+function QueryBuilder:older(val) table.insert(self.conditions, older(val)); return self end
+QueryBuilder.Older = QueryBuilder.older
+function QueryBuilder:newer(val) table.insert(self.conditions, newer(val)); return self end
+QueryBuilder.Newer = QueryBuilder.newer
+function QueryBuilder:older_than(val) table.insert(self.conditions, older_than(val)); return self end
+QueryBuilder.OlderThan = QueryBuilder.older_than
+function QueryBuilder:newer_than(val) table.insert(self.conditions, newer_than(val)); return self end
+QueryBuilder.NewerThan = QueryBuilder.newer_than
+function QueryBuilder:has(val) table.insert(self.conditions, has(val)); return self end
+QueryBuilder.Has = QueryBuilder.has
+function QueryBuilder:has_yellow_star() table.insert(self.conditions, has_yellow_star()); return self end
+QueryBuilder.HasYellowStar = QueryBuilder.has_yellow_star
+function QueryBuilder:has_orange_star() table.insert(self.conditions, has_orange_star()); return self end
+QueryBuilder.HasOrangeStar = QueryBuilder.has_orange_star
+function QueryBuilder:has_red_star() table.insert(self.conditions, has_red_star()); return self end
+QueryBuilder.HasRedStar = QueryBuilder.has_red_star
+function QueryBuilder:has_purple_star() table.insert(self.conditions, has_purple_star()); return self end
+QueryBuilder.HasPurpleStar = QueryBuilder.has_purple_star
+function QueryBuilder:has_blue_star() table.insert(self.conditions, has_blue_star()); return self end
+QueryBuilder.HasBlueStar = QueryBuilder.has_blue_star
+function QueryBuilder:has_green_star() table.insert(self.conditions, has_green_star()); return self end
+QueryBuilder.HasGreenStar = QueryBuilder.has_green_star
+function QueryBuilder:has_red_bang() table.insert(self.conditions, has_red_bang()); return self end
+QueryBuilder.HasRedBang = QueryBuilder.has_red_bang
+function QueryBuilder:has_yellow_bang() table.insert(self.conditions, has_yellow_bang()); return self end
+QueryBuilder.HasYellowBang = QueryBuilder.has_yellow_bang
+function QueryBuilder:has_orange_guillemet() table.insert(self.conditions, has_orange_guillemet()); return self end
+QueryBuilder.HasOrangeGuillemet = QueryBuilder.has_orange_guillemet
+function QueryBuilder:has_green_check() table.insert(self.conditions, has_green_check()); return self end
+QueryBuilder.HasGreenCheck = QueryBuilder.has_green_check
+function QueryBuilder:has_blue_info() table.insert(self.conditions, has_blue_info()); return self end
+QueryBuilder.HasBlueInfo = QueryBuilder.has_blue_info
+function QueryBuilder:has_purple_question() table.insert(self.conditions, has_purple_question()); return self end
+QueryBuilder.HasPurpleQuestion = QueryBuilder.has_purple_question
+function QueryBuilder:has_attachment() table.insert(self.conditions, has_attachment()); return self end
+QueryBuilder.HasAttachment = QueryBuilder.has_attachment
+function QueryBuilder:has_drive() table.insert(self.conditions, has_drive()); return self end
+QueryBuilder.HasDrive = QueryBuilder.has_drive
+function QueryBuilder:has_document() table.insert(self.conditions, has_document()); return self end
+QueryBuilder.HasDocument = QueryBuilder.has_document
+function QueryBuilder:has_spreadsheet() table.insert(self.conditions, has_spreadsheet()); return self end
+QueryBuilder.HasSpreadsheet = QueryBuilder.has_spreadsheet
+function QueryBuilder:has_presentation() table.insert(self.conditions, has_presentation()); return self end
+QueryBuilder.HasPresentation = QueryBuilder.has_presentation
+function QueryBuilder:has_youtube() table.insert(self.conditions, has_youtube()); return self end
+QueryBuilder.HasYoutube = QueryBuilder.has_youtube
+function QueryBuilder:has_user_labels() table.insert(self.conditions, has_user_labels()); return self end
+QueryBuilder.HasUserLabels = QueryBuilder.has_user_labels
+function QueryBuilder:has_no_user_labels() table.insert(self.conditions, has_no_user_labels()); return self end
+QueryBuilder.HasNoUserLabels = QueryBuilder.has_no_user_labels
+function QueryBuilder:is(val) table.insert(self.conditions, is(val)); return self end
+QueryBuilder.Is = QueryBuilder.is
+function QueryBuilder:is_starred() table.insert(self.conditions, is_starred()); return self end
+QueryBuilder.IsStarred = QueryBuilder.is_starred
+QueryBuilder.starred = QueryBuilder.is_starred
+function QueryBuilder:is_unread() table.insert(self.conditions, is_unread()); return self end
+QueryBuilder.IsUnread = QueryBuilder.is_unread
+QueryBuilder.unread = QueryBuilder.is_unread
+function QueryBuilder:is_read() table.insert(self.conditions, is_read()); return self end
+QueryBuilder.IsRead = QueryBuilder.is_read
+QueryBuilder.read = QueryBuilder.is_read
+function QueryBuilder:is_important() table.insert(self.conditions, is_important()); return self end
+QueryBuilder.IsImportant = QueryBuilder.is_important
+QueryBuilder.important = QueryBuilder.is_important
+function QueryBuilder:is_muted() table.insert(self.conditions, is_muted()); return self end
+QueryBuilder.IsMuted = QueryBuilder.is_muted
+QueryBuilder.muted = QueryBuilder.is_muted
+function QueryBuilder:is_snoozed() table.insert(self.conditions, is_snoozed()); return self end
+QueryBuilder.IsSnoozed = QueryBuilder.is_snoozed
+QueryBuilder.snoozed = QueryBuilder.is_snoozed
+function QueryBuilder:is_chat() table.insert(self.conditions, is_chat()); return self end
+QueryBuilder.IsChat = QueryBuilder.is_chat
+function QueryBuilder:is_draft() table.insert(self.conditions, is_draft()); return self end
+QueryBuilder.IsDraft = QueryBuilder.is_draft
+function QueryBuilder:is_sent() table.insert(self.conditions, is_sent()); return self end
+QueryBuilder.IsSent = QueryBuilder.is_sent
+function QueryBuilder:is_trash() table.insert(self.conditions, is_trash()); return self end
+QueryBuilder.IsTrash = QueryBuilder.is_trash
+function QueryBuilder:is_spam() table.insert(self.conditions, is_spam()); return self end
+QueryBuilder.IsSpam = QueryBuilder.is_spam
+function QueryBuilder:In(target) table.insert(self.conditions, In(target)); return self end
+QueryBuilder['in'] = QueryBuilder.In
+QueryBuilder.in_folder = QueryBuilder.In
+QueryBuilder.in_location = QueryBuilder.In
+function QueryBuilder:in_anywhere() table.insert(self.conditions, in_anywhere()); return self end
+QueryBuilder.InAnywhere = QueryBuilder.in_anywhere
+function QueryBuilder:in_archive() table.insert(self.conditions, in_archive()); return self end
+QueryBuilder.InArchive = QueryBuilder.in_archive
+function QueryBuilder:in_snoozed() table.insert(self.conditions, in_snoozed()); return self end
+QueryBuilder.InSnoozed = QueryBuilder.in_snoozed
+function QueryBuilder:in_inbox() table.insert(self.conditions, in_inbox()); return self end
+QueryBuilder.InInbox = QueryBuilder.in_inbox
+function QueryBuilder:in_sent() table.insert(self.conditions, in_sent()); return self end
+QueryBuilder.InSent = QueryBuilder.in_sent
+function QueryBuilder:in_drafts() table.insert(self.conditions, in_drafts()); return self end
+QueryBuilder.InDrafts = QueryBuilder.in_drafts
+function QueryBuilder:in_trash() table.insert(self.conditions, in_trash()); return self end
+QueryBuilder.InTrash = QueryBuilder.in_trash
+function QueryBuilder:in_spam() table.insert(self.conditions, in_spam()); return self end
+QueryBuilder.InSpam = QueryBuilder.in_spam
+function QueryBuilder:in_chats() table.insert(self.conditions, in_chats()); return self end
+QueryBuilder.InChats = QueryBuilder.in_chats
+function QueryBuilder:category(target) table.insert(self.conditions, category(target)); return self end
+QueryBuilder.Category = QueryBuilder.category
+function QueryBuilder:category_primary() table.insert(self.conditions, category_primary()); return self end
+QueryBuilder.CategoryPrimary = QueryBuilder.category_primary
+function QueryBuilder:category_social() table.insert(self.conditions, category_social()); return self end
+QueryBuilder.CategorySocial = QueryBuilder.category_social
+function QueryBuilder:category_promotions() table.insert(self.conditions, category_promotions()); return self end
+QueryBuilder.CategoryPromotions = QueryBuilder.category_promotions
+function QueryBuilder:category_updates() table.insert(self.conditions, category_updates()); return self end
+QueryBuilder.CategoryUpdates = QueryBuilder.category_updates
+function QueryBuilder:category_forums() table.insert(self.conditions, category_forums()); return self end
+QueryBuilder.CategoryForums = QueryBuilder.category_forums
+function QueryBuilder:category_reservations() table.insert(self.conditions, category_reservations()); return self end
+QueryBuilder.CategoryReservations = QueryBuilder.category_reservations
+function QueryBuilder:category_purchases() table.insert(self.conditions, category_purchases()); return self end
+QueryBuilder.CategoryPurchases = QueryBuilder.category_purchases
+function QueryBuilder:size(val) table.insert(self.conditions, size(val)); return self end
+QueryBuilder.Size = QueryBuilder.size
+function QueryBuilder:larger(val) table.insert(self.conditions, larger(val)); return self end
+QueryBuilder.Larger = QueryBuilder.larger
+QueryBuilder.larger_than = QueryBuilder.larger
+QueryBuilder.LargerThan = QueryBuilder.larger
+function QueryBuilder:smaller(val) table.insert(self.conditions, smaller(val)); return self end
+QueryBuilder.Smaller = QueryBuilder.smaller
+QueryBuilder.smaller_than = QueryBuilder.smaller
+QueryBuilder.SmallerThan = QueryBuilder.smaller
+function QueryBuilder:Not(...) table.insert(self.conditions, Not(...)); return self end
+QueryBuilder['not'] = QueryBuilder.Not
+QueryBuilder.not_op = QueryBuilder.Not
+QueryBuilder.negate = QueryBuilder.Not
+QueryBuilder.invert = QueryBuilder.Not
+
+function QueryBuilder:build()
+    return { type = 'query', conditions = self.conditions }
+end
+
+function query(arg)
+    if arg == nil then
+        return setmetatable({ type = 'query_builder', conditions = {} }, QueryBuilder)
+    elseif type(arg) == 'table' then
+        return setmetatable({ type = 'query', definition = arg }, {
+            __index = arg
         })
+    else
+        return { type = 'query', query = tostring(arg) }
     end
-    return tbl
 end
-Rule = rule
+Query = query
 
-local FilterBuilder = {}
-FilterBuilder.__index = FilterBuilder
-
-function FilterBuilder:from(val) table.insert(self.conditions, from(val)); return self end
-FilterBuilder.From = FilterBuilder.from
-
-function FilterBuilder:to(val) table.insert(self.conditions, to(val)); return self end
-FilterBuilder.To = FilterBuilder.to
-
-function FilterBuilder:cc(val) table.insert(self.conditions, cc(val)); return self end
-FilterBuilder.Cc = FilterBuilder.cc
-
-function FilterBuilder:bcc(val) table.insert(self.conditions, bcc(val)); return self end
-FilterBuilder.Bcc = FilterBuilder.bcc
-
-function FilterBuilder:subject(val) table.insert(self.conditions, subject(val)); return self end
-FilterBuilder.Subject = FilterBuilder.subject
-
-function FilterBuilder:list(val) table.insert(self.conditions, list(val)); return self end
-FilterBuilder.List = FilterBuilder.list
-
-function FilterBuilder:filename(val) table.insert(self.conditions, filename(val)); return self end
-FilterBuilder.Filename = FilterBuilder.filename
-
-function FilterBuilder:delivered_to(val) table.insert(self.conditions, delivered_to(val)); return self end
-FilterBuilder.DeliveredTo = FilterBuilder.delivered_to
-
-function FilterBuilder:rfc822msgid(val) table.insert(self.conditions, rfc822msgid(val)); return self end
-FilterBuilder.Rfc822MsgId = FilterBuilder.rfc822msgid
-
-function FilterBuilder:header(name_or_pair, maybe_val) table.insert(self.conditions, header(name_or_pair, maybe_val)); return self end
-FilterBuilder.Header = FilterBuilder.header
-
-function FilterBuilder:label(val) table.insert(self.conditions, label(val)); return self end
-FilterBuilder.Label = FilterBuilder.label
-
-function FilterBuilder:match(phrase) table.insert(self.conditions, match(phrase)); return self end
-FilterBuilder.Match = FilterBuilder.match
-
-function FilterBuilder:after(val) table.insert(self.conditions, after(val)); return self end
-FilterBuilder.After = FilterBuilder.after
-
-function FilterBuilder:before(val) table.insert(self.conditions, before(val)); return self end
-FilterBuilder.Before = FilterBuilder.before
-
-function FilterBuilder:older(val) table.insert(self.conditions, older(val)); return self end
-FilterBuilder.Older = FilterBuilder.older
-
-function FilterBuilder:newer(val) table.insert(self.conditions, newer(val)); return self end
-FilterBuilder.Newer = FilterBuilder.newer
-
-function FilterBuilder:older_than(val) table.insert(self.conditions, older_than(val)); return self end
-FilterBuilder.OlderThan = FilterBuilder.older_than
-
-function FilterBuilder:newer_than(val) table.insert(self.conditions, newer_than(val)); return self end
-FilterBuilder.NewerThan = FilterBuilder.newer_than
-
-function FilterBuilder:has(val) table.insert(self.conditions, has(val)); return self end
-FilterBuilder.Has = FilterBuilder.has
-
-function FilterBuilder:has_yellow_star() table.insert(self.conditions, has_yellow_star()); return self end
-FilterBuilder.HasYellowStar = FilterBuilder.has_yellow_star
-function FilterBuilder:has_orange_star() table.insert(self.conditions, has_orange_star()); return self end
-FilterBuilder.HasOrangeStar = FilterBuilder.has_orange_star
-function FilterBuilder:has_red_star() table.insert(self.conditions, has_red_star()); return self end
-FilterBuilder.HasRedStar = FilterBuilder.has_red_star
-function FilterBuilder:has_purple_star() table.insert(self.conditions, has_purple_star()); return self end
-FilterBuilder.HasPurpleStar = FilterBuilder.has_purple_star
-function FilterBuilder:has_blue_star() table.insert(self.conditions, has_blue_star()); return self end
-FilterBuilder.HasBlueStar = FilterBuilder.has_blue_star
-function FilterBuilder:has_green_star() table.insert(self.conditions, has_green_star()); return self end
-FilterBuilder.HasGreenStar = FilterBuilder.has_green_star
-function FilterBuilder:has_red_bang() table.insert(self.conditions, has_red_bang()); return self end
-FilterBuilder.HasRedBang = FilterBuilder.has_red_bang
-function FilterBuilder:has_yellow_bang() table.insert(self.conditions, has_yellow_bang()); return self end
-FilterBuilder.HasYellowBang = FilterBuilder.has_yellow_bang
-function FilterBuilder:has_orange_guillemet() table.insert(self.conditions, has_orange_guillemet()); return self end
-FilterBuilder.HasOrangeGuillemet = FilterBuilder.has_orange_guillemet
-function FilterBuilder:has_green_check() table.insert(self.conditions, has_green_check()); return self end
-FilterBuilder.HasGreenCheck = FilterBuilder.has_green_check
-function FilterBuilder:has_blue_info() table.insert(self.conditions, has_blue_info()); return self end
-FilterBuilder.HasBlueInfo = FilterBuilder.has_blue_info
-function FilterBuilder:has_purple_question() table.insert(self.conditions, has_purple_question()); return self end
-FilterBuilder.HasPurpleQuestion = FilterBuilder.has_purple_question
-
-function FilterBuilder:has_attachment() table.insert(self.conditions, has_attachment()); return self end
-FilterBuilder.HasAttachment = FilterBuilder.has_attachment
-function FilterBuilder:has_drive() table.insert(self.conditions, has_drive()); return self end
-FilterBuilder.HasDrive = FilterBuilder.has_drive
-function FilterBuilder:has_document() table.insert(self.conditions, has_document()); return self end
-FilterBuilder.HasDocument = FilterBuilder.has_document
-function FilterBuilder:has_spreadsheet() table.insert(self.conditions, has_spreadsheet()); return self end
-FilterBuilder.HasSpreadsheet = FilterBuilder.has_spreadsheet
-function FilterBuilder:has_presentation() table.insert(self.conditions, has_presentation()); return self end
-FilterBuilder.HasPresentation = FilterBuilder.has_presentation
-function FilterBuilder:has_youtube() table.insert(self.conditions, has_youtube()); return self end
-FilterBuilder.HasYoutube = FilterBuilder.has_youtube
-function FilterBuilder:has_user_labels() table.insert(self.conditions, has_user_labels()); return self end
-FilterBuilder.HasUserLabels = FilterBuilder.has_user_labels
-function FilterBuilder:has_no_user_labels() table.insert(self.conditions, has_no_user_labels()); return self end
-FilterBuilder.HasNoUserLabels = FilterBuilder.has_no_user_labels
-
-function FilterBuilder:is(val) table.insert(self.conditions, is(val)); return self end
-FilterBuilder.Is = FilterBuilder.is
-
-function FilterBuilder:is_starred() table.insert(self.conditions, is_starred()); return self end
-FilterBuilder.IsStarred = FilterBuilder.is_starred
-FilterBuilder.starred = FilterBuilder.is_starred
-
-function FilterBuilder:is_unread() table.insert(self.conditions, is_unread()); return self end
-FilterBuilder.IsUnread = FilterBuilder.is_unread
-FilterBuilder.unread = FilterBuilder.is_unread
-
-function FilterBuilder:is_read() table.insert(self.conditions, is_read()); return self end
-FilterBuilder.IsRead = FilterBuilder.is_read
-FilterBuilder.read = FilterBuilder.is_read
-
-function FilterBuilder:is_important() table.insert(self.conditions, is_important()); return self end
-FilterBuilder.IsImportant = FilterBuilder.is_important
-FilterBuilder.important = FilterBuilder.is_important
-
-function FilterBuilder:is_muted() table.insert(self.conditions, is_muted()); return self end
-FilterBuilder.IsMuted = FilterBuilder.is_muted
-FilterBuilder.muted = FilterBuilder.is_muted
-
-function FilterBuilder:is_snoozed() table.insert(self.conditions, is_snoozed()); return self end
-FilterBuilder.IsSnoozed = FilterBuilder.is_snoozed
-FilterBuilder.snoozed = FilterBuilder.is_snoozed
-
-function FilterBuilder:is_chat() table.insert(self.conditions, is_chat()); return self end
-FilterBuilder.IsChat = FilterBuilder.is_chat
-
-function FilterBuilder:is_draft() table.insert(self.conditions, is_draft()); return self end
-FilterBuilder.IsDraft = FilterBuilder.is_draft
-
-function FilterBuilder:is_sent() table.insert(self.conditions, is_sent()); return self end
-FilterBuilder.IsSent = FilterBuilder.is_sent
-
-function FilterBuilder:is_trash() table.insert(self.conditions, is_trash()); return self end
-FilterBuilder.IsTrash = FilterBuilder.is_trash
-
-function FilterBuilder:is_spam() table.insert(self.conditions, is_spam()); return self end
-FilterBuilder.IsSpam = FilterBuilder.is_spam
-
-function FilterBuilder:In(target) table.insert(self.conditions, In(target)); return self end
-FilterBuilder['in'] = FilterBuilder.In
-FilterBuilder.in_folder = FilterBuilder.In
-FilterBuilder.in_location = FilterBuilder.In
-
-function FilterBuilder:in_anywhere() table.insert(self.conditions, in_anywhere()); return self end
-FilterBuilder.InAnywhere = FilterBuilder.in_anywhere
-function FilterBuilder:in_archive() table.insert(self.conditions, in_archive()); return self end
-FilterBuilder.InArchive = FilterBuilder.in_archive
-function FilterBuilder:in_snoozed() table.insert(self.conditions, in_snoozed()); return self end
-FilterBuilder.InSnoozed = FilterBuilder.in_snoozed
-function FilterBuilder:in_inbox() table.insert(self.conditions, in_inbox()); return self end
-FilterBuilder.InInbox = FilterBuilder.in_inbox
-function FilterBuilder:in_sent() table.insert(self.conditions, in_sent()); return self end
-FilterBuilder.InSent = FilterBuilder.in_sent
-function FilterBuilder:in_drafts() table.insert(self.conditions, in_drafts()); return self end
-FilterBuilder.InDrafts = FilterBuilder.in_drafts
-function FilterBuilder:in_trash() table.insert(self.conditions, in_trash()); return self end
-FilterBuilder.InTrash = FilterBuilder.in_trash
-function FilterBuilder:in_spam() table.insert(self.conditions, in_spam()); return self end
-FilterBuilder.InSpam = FilterBuilder.in_spam
-function FilterBuilder:in_chats() table.insert(self.conditions, in_chats()); return self end
-FilterBuilder.InChats = FilterBuilder.in_chats
-
-function FilterBuilder:category(target) table.insert(self.conditions, category(target)); return self end
-FilterBuilder.Category = FilterBuilder.category
-function FilterBuilder:category_primary() table.insert(self.conditions, category_primary()); return self end
-FilterBuilder.CategoryPrimary = FilterBuilder.category_primary
-function FilterBuilder:category_social() table.insert(self.conditions, category_social()); return self end
-FilterBuilder.CategorySocial = FilterBuilder.category_social
-function FilterBuilder:category_promotions() table.insert(self.conditions, category_promotions()); return self end
-FilterBuilder.CategoryPromotions = FilterBuilder.category_promotions
-function FilterBuilder:category_updates() table.insert(self.conditions, category_updates()); return self end
-FilterBuilder.CategoryUpdates = FilterBuilder.category_updates
-function FilterBuilder:category_forums() table.insert(self.conditions, category_forums()); return self end
-FilterBuilder.CategoryForums = FilterBuilder.category_forums
-function FilterBuilder:category_reservations() table.insert(self.conditions, category_reservations()); return self end
-FilterBuilder.CategoryReservations = FilterBuilder.category_reservations
-function FilterBuilder:category_purchases() table.insert(self.conditions, category_purchases()); return self end
-FilterBuilder.CategoryPurchases = FilterBuilder.category_purchases
-
-function FilterBuilder:size(val) table.insert(self.conditions, size(val)); return self end
-FilterBuilder.Size = FilterBuilder.size
-function FilterBuilder:larger(val) table.insert(self.conditions, larger(val)); return self end
-FilterBuilder.Larger = FilterBuilder.larger
-FilterBuilder.larger_than = FilterBuilder.larger
-FilterBuilder.LargerThan = FilterBuilder.larger
-function FilterBuilder:smaller(val) table.insert(self.conditions, smaller(val)); return self end
-FilterBuilder.Smaller = FilterBuilder.smaller
-FilterBuilder.smaller_than = FilterBuilder.smaller
-FilterBuilder.SmallerThan = FilterBuilder.smaller
-
-function FilterBuilder:Not(...) table.insert(self.conditions, Not(...)); return self end
-FilterBuilder['not'] = FilterBuilder.Not
-FilterBuilder.not_op = FilterBuilder.Not
-FilterBuilder.negate = FilterBuilder.Not
-FilterBuilder.invert = FilterBuilder.Not
-
-function FilterBuilder:action(act) self.action_def = act; return self end
-FilterBuilder.Action = FilterBuilder.action
-function FilterBuilder:actions(...) self.action_def = actions(...); return self end
-FilterBuilder.Actions = FilterBuilder.actions
-
-function FilterBuilder:build()
-    if self.action_def ~= nil then
-        return { type = 'filter_builder', conditions = self.conditions, action = self.action_def }
-    end
-    return { type = 'operator', op = 'and', conditions = self.conditions }
-end
-
--- Action operators & helpers
+-- =======================================================================
+-- Action Builder & action() DSL
+-- =======================================================================
 local function make_action_item(action_name)
     local tbl = { type = 'action_item', action = action_name }
     return setmetatable(tbl, {
@@ -699,18 +663,84 @@ function actions(...)
 end
 Actions = actions
 
+-- =======================================================================
+-- Filter Builder & filter() DSL (Filter = Id + Query + Action)
+-- =======================================================================
+local FilterBuilder = {}
+FilterBuilder.__index = function(tbl, key)
+    -- Check FilterBuilder methods first
+    local fbVal = rawget(FilterBuilder, key)
+    if fbVal ~= nil then return fbVal end
+
+    -- Forward query-related methods to QueryBuilder for fluent chaining
+    local qbVal = rawget(QueryBuilder, key)
+    if type(qbVal) == 'function' then
+        return function(self, ...)
+            qbVal(self, ...)
+            return self
+        end
+    end
+
+    return nil
+end
+
+function FilterBuilder:id(val) self.filter_id = tostring(val); return self end
+FilterBuilder.Id = FilterBuilder.id
+
+function FilterBuilder:name(val) self.filter_name = tostring(val); return self end
+FilterBuilder.Name = FilterBuilder.name
+
+function FilterBuilder:query(q) self.query_def = q; return self end
+FilterBuilder.Query = FilterBuilder.query
+FilterBuilder.criteria = FilterBuilder.query
+FilterBuilder.Criteria = FilterBuilder.query
+FilterBuilder.match = FilterBuilder.query
+FilterBuilder.Match = FilterBuilder.query
+
+function FilterBuilder:action(act) self.action_def = act; return self end
+FilterBuilder.Action = FilterBuilder.action
+
+function FilterBuilder:actions(...) self.action_def = actions(...); return self end
+FilterBuilder.Actions = FilterBuilder.actions
+
+function FilterBuilder:build()
+    local q = self.query_def
+    if q == nil and self.conditions ~= nil and #self.conditions > 0 then
+        q = { type = 'query', conditions = self.conditions }
+    end
+
+    -- Return full filter structure
+    return {
+        type = 'filter',
+        id = self.filter_id,
+        name = self.filter_name,
+        query = q,
+        action = self.action_def
+    }
+end
+
 function filter(arg)
     if arg == nil then
-        return setmetatable({ type = 'builder', conditions = {} }, FilterBuilder)
+        return setmetatable({ type = 'filter_builder', conditions = {} }, FilterBuilder)
     elseif type(arg) == 'table' then
-        return setmetatable({ type = 'rule', rule = arg }, {
+        return setmetatable({ type = 'filter', definition = arg }, {
             __index = arg
         })
     else
-        return { query = arg }
+        return { type = 'filter', query = arg }
     end
 end
 Filter = filter
+
+function rule(tbl)
+    if type(tbl) == 'table' then
+        return setmetatable({ type = 'rule', rule = tbl }, {
+            __index = tbl
+        })
+    end
+    return tbl
+end
+Rule = rule
 ";
 
     private static readonly Regex KeywordRewriteRegex = new(
@@ -728,28 +758,49 @@ Filter = filter
         });
     }
 
-    public async Task<List<GmailRule>> LoadRulesFromFileAsync(string filePath, LuaState? externalState = null)
+    private static void RegisterHelpers(LuaState state)
     {
-        if (!File.Exists(filePath))
+        state.Environment["env"] = new LuaFunction((context, ct) =>
         {
-            throw new FileNotFoundException($"Filter configuration file not found: {filePath}", filePath);
-        }
+            var key = context.GetArgument<string>(0);
+            var defaultVal = context.HasArgument(1) ? context.GetArgument<string>(1) : string.Empty;
+            var val = Environment.GetEnvironmentVariable(key) ?? defaultVal;
+            return ValueTask.FromResult(context.Return(val));
+        });
 
-        string script = await File.ReadAllTextAsync(filePath);
-        return await LoadRulesFromScriptAsync(script, externalState);
+        state.Environment["platform"] = new LuaFunction((context, ct) =>
+        {
+            string os = RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? "Linux"
+                      : RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "macOS"
+                      : RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "Windows"
+                      : "Unknown";
+            return ValueTask.FromResult(context.Return(os));
+        });
     }
 
-    public async Task<GmailRule> LoadRuleFromScriptAsync(string script, LuaState? externalState = null)
+    private static string? ExtractDateFormat(LuaTable root, LuaState state)
     {
-        var rules = await LoadRulesFromScriptAsync(script, externalState);
-        if (rules.Count == 0)
+        if (root.TryGetValue("date_format", out var dfVal) && dfVal.Type == LuaValueType.String)
         {
-            throw new LuaConfigException("No Gmail rules found in configuration script.");
+            return dfVal.Read<string>();
         }
-        return rules[0];
+        if (root.TryGetValue("DateFormat", out var dfValUpper) && dfValUpper.Type == LuaValueType.String)
+        {
+            return dfValUpper.Read<string>();
+        }
+        if (root.TryGetValue("settings", out var sVal) && sVal.TryRead<LuaTable>(out var sTable) &&
+            sTable.TryGetValue("date_format", out var sdfVal) && sdfVal.Type == LuaValueType.String)
+        {
+            return sdfVal.Read<string>();
+        }
+        if (state.Environment.TryGetValue("date_format", out var envDf) && envDf.Type == LuaValueType.String)
+        {
+            return envDf.Read<string>();
+        }
+        return null;
     }
 
-    public async Task<List<GmailRule>> LoadRulesFromScriptAsync(string script, LuaState? externalState = null)
+    private async Task<(LuaTable rootTable, string? customDateFormat)> ExecuteScriptAsync(string script, LuaState? externalState)
     {
         var state = externalState ?? LuaState.Create();
         state.OpenStandardLibraries();
@@ -782,63 +833,247 @@ Filter = filter
         {
             rootTable = rTable;
         }
+        else if (state.Environment.TryGetValue("filter", out var gFilter) && gFilter.TryRead<LuaTable>(out var fTable))
+        {
+            rootTable = fTable;
+        }
+        else if (state.Environment.TryGetValue("query", out var gQuery) && gQuery.TryRead<LuaTable>(out var qTable))
+        {
+            rootTable = qTable;
+        }
         else
         {
-            throw new LuaConfigException("Lua filter script must return a rule table or define a global 'rule' or 'config' table.");
+            throw new LuaConfigException("Lua script must return a table or define a global 'filter', 'rule', 'query', or 'config' table.");
         }
 
         string? customDateFormat = ExtractDateFormat(rootTable, state);
-
-        return ParseRulesFromRoot(rootTable, customDateFormat);
+        return (rootTable, customDateFormat);
     }
 
-    private static string? ExtractDateFormat(LuaTable root, LuaState state)
-    {
-        if (root.TryGetValue("date_format", out var dfVal) && dfVal.Type == LuaValueType.String)
-        {
-            return dfVal.Read<string>();
-        }
-        if (root.TryGetValue("DateFormat", out var dfValUpper) && dfValUpper.Type == LuaValueType.String)
-        {
-            return dfValUpper.Read<string>();
-        }
-        if (root.TryGetValue("settings", out var sVal) && sVal.TryRead<LuaTable>(out var sTable) &&
-            sTable.TryGetValue("date_format", out var sdfVal) && sdfVal.Type == LuaValueType.String)
-        {
-            return sdfVal.Read<string>();
-        }
-        if (state.Environment.TryGetValue("date_format", out var envDf) && envDf.Type == LuaValueType.String)
-        {
-            return envDf.Read<string>();
-        }
-        return null;
-    }
+    // =========================================================================
+    // Filter Loading (Filter = Id + Query + Action)
+    // =========================================================================
 
-    private static void RegisterHelpers(LuaState state)
+    public async Task<GmailFilter> LoadFilterFromFileAsync(string filePath, LuaState? externalState = null)
     {
-        state.Environment["env"] = new LuaFunction((context, ct) =>
+        if (!File.Exists(filePath))
         {
-            var key = context.GetArgument<string>(0);
-            var defaultVal = context.HasArgument(1) ? context.GetArgument<string>(1) : string.Empty;
-            var val = Environment.GetEnvironmentVariable(key) ?? defaultVal;
-            return ValueTask.FromResult(context.Return(val));
-        });
+            throw new FileNotFoundException($"Filter configuration file not found: {filePath}", filePath);
+        }
 
-        state.Environment["platform"] = new LuaFunction((context, ct) =>
-        {
-            string os = RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? "Linux"
-                      : RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "macOS"
-                      : RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "Windows"
-                      : "Unknown";
-            return ValueTask.FromResult(context.Return(os));
-        });
+        string script = await File.ReadAllTextAsync(filePath);
+        return await LoadFilterFromScriptAsync(script, externalState);
     }
 
     public async Task<GmailFilter> LoadFilterFromScriptAsync(string script, LuaState? externalState = null)
-        => await LoadRuleFromScriptAsync(script, externalState);
+    {
+        var (rootTable, customDateFormat) = await ExecuteScriptAsync(script, externalState);
+        return GmailFilterParser.ParseFilter(rootTable, customDateFormat);
+    }
 
-    public async Task<List<GmailRule>> LoadFiltersFromScriptAsync(string script, LuaState? externalState = null)
-        => await LoadRulesFromScriptAsync(script, externalState);
+    public async Task<List<GmailFilter>> LoadFiltersFromFileAsync(string filePath, LuaState? externalState = null)
+    {
+        if (!File.Exists(filePath))
+        {
+            throw new FileNotFoundException($"Filter configuration file not found: {filePath}", filePath);
+        }
+
+        string script = await File.ReadAllTextAsync(filePath);
+        return await LoadFiltersFromScriptAsync(script, externalState);
+    }
+
+    public async Task<List<GmailFilter>> LoadFiltersFromScriptAsync(string script, LuaState? externalState = null)
+    {
+        var (rootTable, customDateFormat) = await ExecuteScriptAsync(script, externalState);
+        return ParseFiltersFromRoot(rootTable, customDateFormat);
+    }
+
+    private static List<GmailFilter> ParseFiltersFromRoot(LuaTable root, string? customDateFormat)
+    {
+        var filters = new List<GmailFilter>();
+
+        // Check if root has "filters" or "rules" table: { filters = { ... } } or { rules = { ... } }
+        foreach (var key in new[] { "filters", "rules" })
+        {
+            if (root.TryGetValue(key, out var listVal) && listVal.TryRead<LuaTable>(out var listTable))
+            {
+                for (int i = 1; i <= listTable.ArrayLength; i++)
+                {
+                    if (listTable[i].TryRead<LuaTable>(out var itemTable))
+                    {
+                        filters.Add(GmailFilterParser.ParseFilter(itemTable, customDateFormat));
+                    }
+                }
+                foreach (var pair in listTable)
+                {
+                    if (pair.Key.Type != LuaValueType.Number && pair.Value.TryRead<LuaTable>(out var itemTable))
+                    {
+                        filters.Add(GmailFilterParser.ParseFilter(itemTable, customDateFormat));
+                    }
+                }
+                if (filters.Count > 0) return filters;
+            }
+        }
+
+        // Check if root is an array of filters/rules: { filter1, filter2 }
+        if (root.ArrayLength > 0 && root[1].Type == LuaValueType.Table)
+        {
+            for (int i = 1; i <= root.ArrayLength; i++)
+            {
+                if (root[i].TryRead<LuaTable>(out var itemTable))
+                {
+                    filters.Add(GmailFilterParser.ParseFilter(itemTable, customDateFormat));
+                }
+            }
+            if (filters.Count > 0) return filters;
+        }
+
+        // Single filter
+        filters.Add(GmailFilterParser.ParseFilter(root, customDateFormat));
+        return filters;
+    }
+
+    // =========================================================================
+    // Rule Loading (Backward Compatibility: Rule = Filter with metadata)
+    // =========================================================================
+
+    public async Task<List<GmailRule>> LoadRulesFromFileAsync(string filePath, LuaState? externalState = null)
+    {
+        if (!File.Exists(filePath))
+        {
+            throw new FileNotFoundException($"Filter configuration file not found: {filePath}", filePath);
+        }
+
+        string script = await File.ReadAllTextAsync(filePath);
+        return await LoadRulesFromScriptAsync(script, externalState);
+    }
+
+    public async Task<GmailRule> LoadRuleFromScriptAsync(string script, LuaState? externalState = null)
+    {
+        var rules = await LoadRulesFromScriptAsync(script, externalState);
+        if (rules.Count == 0)
+        {
+            throw new LuaConfigException("No Gmail rules found in configuration script.");
+        }
+        return rules[0];
+    }
+
+    public async Task<List<GmailRule>> LoadRulesFromScriptAsync(string script, LuaState? externalState = null)
+    {
+        var (rootTable, customDateFormat) = await ExecuteScriptAsync(script, externalState);
+        return ParseRulesFromRoot(rootTable, customDateFormat);
+    }
+
+    private static List<GmailRule> ParseRulesFromRoot(LuaTable root, string? customDateFormat)
+    {
+        var rules = new List<GmailRule>();
+
+        foreach (var key in new[] { "rules", "filters" })
+        {
+            if (root.TryGetValue(key, out var listVal) && listVal.TryRead<LuaTable>(out var listTable))
+            {
+                for (int i = 1; i <= listTable.ArrayLength; i++)
+                {
+                    if (listTable[i].TryRead<LuaTable>(out var itemTable))
+                    {
+                        rules.Add(GmailFilterParser.ParseRule(itemTable, customDateFormat));
+                    }
+                }
+                foreach (var pair in listTable)
+                {
+                    if (pair.Key.Type != LuaValueType.Number && pair.Value.TryRead<LuaTable>(out var itemTable))
+                    {
+                        rules.Add(GmailFilterParser.ParseRule(itemTable, customDateFormat));
+                    }
+                }
+                if (rules.Count > 0) return rules;
+            }
+        }
+
+        if (root.ArrayLength > 0 && root[1].Type == LuaValueType.Table)
+        {
+            for (int i = 1; i <= root.ArrayLength; i++)
+            {
+                if (root[i].TryRead<LuaTable>(out var itemTable))
+                {
+                    rules.Add(GmailFilterParser.ParseRule(itemTable, customDateFormat));
+                }
+            }
+            if (rules.Count > 0) return rules;
+        }
+
+        rules.Add(GmailFilterParser.ParseRule(root, customDateFormat));
+        return rules;
+    }
+
+    // =========================================================================
+    // Query Loading (Query = Search criteria / condition)
+    // =========================================================================
+
+    public async Task<IQueryCondition> LoadQueryFromFileAsync(string filePath, LuaState? externalState = null)
+    {
+        if (!File.Exists(filePath))
+        {
+            throw new FileNotFoundException($"Query configuration file not found: {filePath}", filePath);
+        }
+
+        string script = await File.ReadAllTextAsync(filePath);
+        return await LoadQueryFromScriptAsync(script, externalState);
+    }
+
+    public async Task<IQueryCondition> LoadQueryFromScriptAsync(string script, LuaState? externalState = null)
+    {
+        var (rootTable, customDateFormat) = await ExecuteScriptAsync(script, externalState);
+        return GmailQueryParser.ParseQuery(rootTable, customDateFormat);
+    }
+
+    public async Task<List<IQueryCondition>> LoadQueriesFromFileAsync(string filePath, LuaState? externalState = null)
+    {
+        if (!File.Exists(filePath))
+        {
+            throw new FileNotFoundException($"Query configuration file not found: {filePath}", filePath);
+        }
+
+        string script = await File.ReadAllTextAsync(filePath);
+        return await LoadQueriesFromScriptAsync(script, externalState);
+    }
+
+    public async Task<List<IQueryCondition>> LoadQueriesFromScriptAsync(string script, LuaState? externalState = null)
+    {
+        var (rootTable, customDateFormat) = await ExecuteScriptAsync(script, externalState);
+        var queries = new List<IQueryCondition>();
+
+        if (rootTable.TryGetValue("queries", out var qVal) && qVal.TryRead<LuaTable>(out var qTable))
+        {
+            for (int i = 1; i <= qTable.ArrayLength; i++)
+            {
+                if (qTable[i].TryRead<LuaTable>(out var itemTable))
+                {
+                    queries.Add(GmailQueryParser.ParseQuery(itemTable, customDateFormat));
+                }
+            }
+            if (queries.Count > 0) return queries;
+        }
+
+        if (rootTable.ArrayLength > 0 && rootTable[1].Type == LuaValueType.Table)
+        {
+            for (int i = 1; i <= rootTable.ArrayLength; i++)
+            {
+                if (rootTable[i].TryRead<LuaTable>(out var itemTable))
+                {
+                    queries.Add(GmailQueryParser.ParseQuery(itemTable, customDateFormat));
+                }
+            }
+            if (queries.Count > 0) return queries;
+        }
+
+        queries.Add(GmailQueryParser.ParseQuery(rootTable, customDateFormat));
+        return queries;
+    }
+
+    // =========================================================================
+    // Action Loading (Action = Actions performed on messages)
+    // =========================================================================
 
     public async Task<GmailAction> LoadActionFromFileAsync(string filePath, LuaState? externalState = null)
     {
@@ -896,61 +1131,5 @@ Filter = filter
         }
 
         return GmailActionParser.ParseAction(table);
-    }
-
-    private static List<GmailRule> ParseRulesFromRoot(LuaTable root, string? customDateFormat)
-    {
-        var rules = new List<GmailRule>();
-
-        // Check if root has a "rules" or "filters" table: { rules = { ... } } or { filters = { ... } }
-        foreach (var key in new[] { "rules", "filters" })
-        {
-            if (root.TryGetValue(key, out var rulesVal) && rulesVal.TryRead<LuaTable>(out var rulesTable))
-            {
-                for (int i = 1; i <= rulesTable.ArrayLength; i++)
-                {
-                    if (rulesTable[i].TryRead<LuaTable>(out var rTable))
-                    {
-                        rules.Add(GmailFilterParser.ParseRule(rTable, customDateFormat));
-                    }
-                }
-                foreach (var pair in rulesTable)
-                {
-                    if (pair.Key.Type != LuaValueType.Number && pair.Value.TryRead<LuaTable>(out var rTable))
-                    {
-                        rules.Add(GmailFilterParser.ParseRule(rTable, customDateFormat));
-                    }
-                }
-                if (rules.Count > 0) return rules;
-            }
-        }
-
-        // Check if root is an operator, exact match, builder, or action
-        if (root.TryGetValue("type", out var typeVal))
-        {
-            string t = typeVal.ToString();
-            if (t is "operator" or "exact" or "field" or "builder" or "filter_builder" or "has" or "is" or "in" or "category" or "size" or "action" or "action_builder" or "action_item")
-            {
-                rules.Add(GmailFilterParser.ParseRule(root, customDateFormat));
-                return rules;
-            }
-        }
-
-        // Check if root is an array of rules/filters: { rule1, rule2 }
-        if (root.ArrayLength > 0 && root[1].Type == LuaValueType.Table)
-        {
-            for (int i = 1; i <= root.ArrayLength; i++)
-            {
-                if (root[i].TryRead<LuaTable>(out var rTable))
-                {
-                    rules.Add(GmailFilterParser.ParseRule(rTable, customDateFormat));
-                }
-            }
-            if (rules.Count > 0) return rules;
-        }
-
-        // Single rule
-        rules.Add(GmailFilterParser.ParseRule(root, customDateFormat));
-        return rules;
     }
 }

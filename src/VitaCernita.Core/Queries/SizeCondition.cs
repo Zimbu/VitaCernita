@@ -1,20 +1,21 @@
 using System;
-using VitaCernita.Core.Filters.Validation;
+using VitaCernita.Core.Filters;
+using VitaCernita.Core.Queries.Validation;
 
-namespace VitaCernita.Core.Filters;
+namespace VitaCernita.Core.Queries;
 
 /// <summary>
 /// Represents a Gmail size comparison operator ('size:', 'larger:', 'smaller:').
 /// </summary>
-public sealed class SizeCondition : IFilterCondition, IEquatable<SizeCondition>
+public sealed class SizeCondition : IQueryCondition, IFilterCondition, IEquatable<SizeCondition>
 {
     public string Operator { get; }
     public string Size { get; }
 
     public SizeCondition(string op, string size)
     {
-        Operator = FilterValidator.ValidateAndNormalizeSizeOperator(op);
-        Size = FilterValidator.ValidateAndNormalizeSize(Operator, size);
+        Operator = QueryValidator.ValidateAndNormalizeSizeOperator(op);
+        Size = QueryValidator.ValidateAndNormalizeSize(Operator, size);
     }
 
     public string ToGmailQuery(bool explicitAnd = false)

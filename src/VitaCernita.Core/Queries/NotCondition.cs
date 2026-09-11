@@ -1,15 +1,16 @@
 using System;
+using VitaCernita.Core.Filters;
 
-namespace VitaCernita.Core.Filters;
+namespace VitaCernita.Core.Queries;
 
 /// <summary>
-/// Represents a negation (NOT) filter condition, emitting the '-' prefix in Gmail search queries.
+/// Represents a negation (NOT) query condition, emitting the '-' prefix in Gmail search queries.
 /// </summary>
-public sealed class NotCondition : IFilterCondition, IEquatable<NotCondition>
+public sealed class NotCondition : IQueryCondition, IFilterCondition, IEquatable<NotCondition>
 {
-    public IFilterCondition InnerCondition { get; }
+    public IQueryCondition InnerCondition { get; }
 
-    public NotCondition(IFilterCondition innerCondition)
+    public NotCondition(IQueryCondition innerCondition)
     {
         InnerCondition = innerCondition ?? throw new ArgumentNullException(nameof(innerCondition));
     }

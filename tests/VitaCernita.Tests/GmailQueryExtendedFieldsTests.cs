@@ -1,20 +1,21 @@
 using System.Threading.Tasks;
 using Xunit;
 using VitaCernita.Core.Filters;
+using VitaCernita.Core.Queries;
 
 namespace VitaCernita.Tests;
 
 /// <summary>
-/// Unit tests for extended string match fields:
+/// Unit tests for extended string match query fields:
 /// to, cc, bcc, list, filename, delivered-to, rfc822msgid, header, match (exact phrase),
 /// and discovered operators (label, category, has, is, in).
 /// </summary>
-public class GmailFilterExtendedFieldsTests
+public class GmailQueryExtendedFieldsTests
 {
     private readonly GmailFilterLoader _loader = new();
 
     [Fact]
-    public async Task Parse_ToField_ProducesCorrectFilter()
+    public async Task Parse_ToField_ProducesCorrectQuery()
     {
         string lua = @"return To('devs@example.com')";
         var rule = await _loader.LoadRuleFromScriptAsync(lua);
@@ -26,7 +27,7 @@ public class GmailFilterExtendedFieldsTests
     }
 
     [Fact]
-    public async Task Parse_CcAndBccFields_ProducesCorrectFilter()
+    public async Task Parse_CcAndBccFields_ProducesCorrectQuery()
     {
         string lua = @"
 return And(
@@ -39,7 +40,7 @@ return And(
     }
 
     [Fact]
-    public async Task Parse_ListField_ProducesCorrectFilter()
+    public async Task Parse_ListField_ProducesCorrectQuery()
     {
         string lua = @"return List('announce@lists.example.com')";
         var rule = await _loader.LoadRuleFromScriptAsync(lua);
@@ -47,7 +48,7 @@ return And(
     }
 
     [Fact]
-    public async Task Parse_FilenameField_ProducesCorrectFilter()
+    public async Task Parse_FilenameField_ProducesCorrectQuery()
     {
         string luaSimple = @"return Filename('invoice.pdf')";
         var ruleSimple = await _loader.LoadRuleFromScriptAsync(luaSimple);
@@ -77,7 +78,7 @@ return {
     }
 
     [Fact]
-    public async Task Parse_Rfc822MsgId_ProducesCorrectFilter()
+    public async Task Parse_Rfc822MsgId_ProducesCorrectQuery()
     {
         string lua = @"return rfc822msgid('200503292@example.com')";
         var rule = await _loader.LoadRuleFromScriptAsync(lua);
@@ -150,7 +151,7 @@ return {
     }
 
     [Fact]
-    public async Task Parse_LabelOperator_ProducesCorrectFilter()
+    public async Task Parse_LabelOperator_ProducesCorrectQuery()
     {
         string luaSimple = @"return Label('finance')";
         var ruleSimple = await _loader.LoadRuleFromScriptAsync(luaSimple);
@@ -197,7 +198,7 @@ return And(
     }
 
     [Fact]
-    public async Task Parse_NestedOrWithExtendedFields_ProducesCorrectFilter()
+    public async Task Parse_NestedOrWithExtendedFields_ProducesCorrectQuery()
     {
         string lua = @"
 return Or(

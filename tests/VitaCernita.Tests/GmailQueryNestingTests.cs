@@ -1,13 +1,14 @@
 using System.Threading.Tasks;
 using Xunit;
 using VitaCernita.Core.Filters;
+using VitaCernita.Core.Queries;
 
 namespace VitaCernita.Tests;
 
 /// <summary>
-/// Boundary Value Analysis (BVA) and Nesting Test Cases for AND/OR Gmail filters.
+/// Boundary Value Analysis (BVA) and Nesting Test Cases for AND/OR Gmail queries.
 /// </summary>
-public class GmailFilterNestingTests
+public class GmailQueryNestingTests
 {
     private readonly GmailFilterLoader _loader = new();
 
@@ -16,7 +17,7 @@ public class GmailFilterNestingTests
     // =========================================================================
 
     [Fact]
-    public async Task Or_ContainingThreeMatchesOfAnd_FunctionalDsl_ProducesCorrectFilter()
+    public async Task Or_ContainingThreeMatchesOfAnd_FunctionalDsl_ProducesCorrectQuery()
     {
         string lua = @"
 return Or(
@@ -40,7 +41,7 @@ return Or(
     }
 
     [Fact]
-    public async Task Or_ContainingThreeMatchesOfAnd_DeclarativeTable_ProducesIdenticalFilter()
+    public async Task Or_ContainingThreeMatchesOfAnd_DeclarativeTable_ProducesIdenticalQuery()
     {
         string lua = @"
 return {
@@ -61,7 +62,7 @@ return {
     }
 
     [Fact]
-    public async Task Or_ContainingThreeMatchesOfAnd_OrderPermutations_ProducesCanonicalFilter()
+    public async Task Or_ContainingThreeMatchesOfAnd_OrderPermutations_ProducesCanonicalQuery()
     {
         // Reordering the branches (carol, then bob, then alice) must produce the exact same canonical string
         string lua = @"
@@ -85,7 +86,7 @@ return Or(
     // =========================================================================
 
     [Fact]
-    public async Task And_ContainingOr_FunctionalDsl_ProducesCorrectFilter()
+    public async Task And_ContainingOr_FunctionalDsl_ProducesCorrectQuery()
     {
         string lua = @"
 return And(
@@ -104,7 +105,7 @@ return And(
     }
 
     [Fact]
-    public async Task And_ContainingOr_DeclarativeTable_ProducesIdenticalFilter()
+    public async Task And_ContainingOr_DeclarativeTable_ProducesIdenticalQuery()
     {
         string lua = @"
 return {
@@ -122,7 +123,7 @@ return {
     }
 
     [Fact]
-    public async Task And_ContainingMultipleOrs_ProducesCorrectFilter()
+    public async Task And_ContainingMultipleOrs_ProducesCorrectQuery()
     {
         string lua = @"
 return And(
@@ -164,7 +165,7 @@ return And(
     }
 
     [Fact]
-    public async Task Bva_Arity2_MinimalOr_ProducesCorrectFilter()
+    public async Task Bva_Arity2_MinimalOr_ProducesCorrectQuery()
     {
         // Boundary N = 2 for OR: two flat field conditions
         string lua = @"return Or(From('alerts@monitoring.com'), Subject('Critical'))";

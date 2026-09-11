@@ -98,9 +98,9 @@ public static class ActionValidator
         string trimmed = rawEmail.Trim();
         try
         {
-            FilterValidator.ValidateEmailAddressOrFragment("forward", trimmed);
+            QueryValidator.ValidateEmailAddressOrFragment("forward", trimmed);
         }
-        catch (FilterValidationException ex)
+        catch (QueryValidationException ex)
         {
             throw new ActionValidationException($"Invalid forwarding email address '{rawEmail}': {ex.Message}", ex);
         }

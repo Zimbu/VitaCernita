@@ -61,30 +61,35 @@ public static class Program
         var loader = new GmailFilterLoader();
         try
         {
-            var rules = await loader.LoadRulesFromFileAsync(configPath);
-            if (rules.Count == 0)
+            var filters = await loader.LoadFiltersFromFileAsync(configPath);
+            if (filters.Count == 0)
             {
-                AnsiConsole.MarkupLine("[bold yellow]No filter rules found in configuration.[/]");
+                AnsiConsole.MarkupLine("[bold yellow]No filters found in configuration.[/]");
                 return 0;
             }
 
-            for (int index = 0; index < rules.Count; index++)
+            for (int index = 0; index < filters.Count; index++)
             {
-                var rule = rules[index];
-                string title = !string.IsNullOrWhiteSpace(rule.Name) 
-                    ? rule.Name 
-                    : $"Rule #{index + 1}";
+                var filter = filters[index];
+                string title = !string.IsNullOrWhiteSpace(filter.Name)
+                    ? filter.Name
+                    : $"Filter #{index + 1}";
 
-                string canonicalQuery = rule.ToGmailQuery(explicitAnd: false);
-                string explicitAndQuery = rule.ToGmailQuery(explicitAnd: true);
+                string canonicalQuery = filter.ToGmailQuery(explicitAnd: false);
+                string explicitAndQuery = filter.ToGmailQuery(explicitAnd: true);
 
-                string actionInfo = rule.Action != null && !rule.Action.IsEmpty
-                    ? $"\n\n[bold white]Action:[/] [cyan]{Markup.Escape(rule.Action.ToString())}[/]"
+                string idInfo = !string.IsNullOrWhiteSpace(filter.Id)
+                    ? $"[bold white]Filter ID:[/] [magenta]{Markup.Escape(filter.Id)}[/]\n"
+                    : string.Empty;
+
+                string actionInfo = filter.Action != null && !filter.Action.IsEmpty
+                    ? $"\n\n[bold white]Action:[/] [cyan]{Markup.Escape(filter.Action.ToString())}[/]"
                     : string.Empty;
 
                 var panel = new Panel(
                     new Markup(
-                        $"[bold white]Gmail Search Query:[/] [bold green]{Markup.Escape(explicitAnd ? explicitAndQuery : canonicalQuery)}[/]\n\n" +
+                        idInfo +
+                        $"[bold white]Search Query:[/] [bold green]{Markup.Escape(explicitAnd ? explicitAndQuery : canonicalQuery)}[/]\n\n" +
                         $"[dim]Canonical (Space-AND):[/] [yellow]{Markup.Escape(canonicalQuery)}[/]\n" +
                         $"[dim]Explicit AND Keyword :[/] [yellow]{Markup.Escape(explicitAndQuery)}[/]" +
                         actionInfo
@@ -99,7 +104,7 @@ public static class Program
                 AnsiConsole.WriteLine();
 
                 // Directly output the exact search text for easy copying/piping
-                AnsiConsole.MarkupLine("[bold]Precise Gmail Filter Text:[/] [green]" + Markup.Escape(canonicalQuery) + "[/]");
+                AnsiConsole.MarkupLine("[bold]Precise Gmail Query Text:[/] [green]" + Markup.Escape(canonicalQuery) + "[/]");
             }
 
             return 0;

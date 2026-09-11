@@ -1,19 +1,20 @@
 using System;
-using VitaCernita.Core.Filters.Validation;
+using VitaCernita.Core.Filters;
+using VitaCernita.Core.Queries.Validation;
 
-namespace VitaCernita.Core.Filters;
+namespace VitaCernita.Core.Queries;
 
 /// <summary>
 /// Represents a Gmail 'in:' operator condition for locations and folders
 /// (e.g. in:anywhere, in:archive, in:snoozed, in:inbox, in:trash, in:spam).
 /// </summary>
-public sealed class InCondition : IFilterCondition, IEquatable<InCondition>
+public sealed class InCondition : IQueryCondition, IFilterCondition, IEquatable<InCondition>
 {
     public string Target { get; }
 
     public InCondition(string target)
     {
-        Target = FilterValidator.ValidateAndNormalizeInTarget("in", target);
+        Target = QueryValidator.ValidateAndNormalizeInTarget("in", target);
     }
 
     public string ToGmailQuery(bool explicitAnd = false)

@@ -76,7 +76,7 @@ return {
     match = after('2024/12/25')
 }
 ";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
     }
 
     // =========================================================================
@@ -90,7 +90,7 @@ return {
     public async Task DateValidation_RejectsDatesWithTimes(string invalidDateWithTime)
     {
         string lua = $"return after('{invalidDateWithTime}')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
     }
 
     [Theory]
@@ -101,7 +101,7 @@ return {
     public async Task DateValidation_RejectsCalendarInvalidDates(string invalidDate)
     {
         string lua = $"return before('{invalidDate}')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
     }
 
     // =========================================================================
@@ -132,7 +132,7 @@ return {
     public async Task DurationOperators_InvalidDurations_ThrowValidationException(string op, string invalidDuration)
     {
         string lua = $"return {op}('{invalidDuration}')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
     }
 
     // =========================================================================
@@ -149,10 +149,10 @@ return {
     public async Task StringFields_RejectEmptyOrWhitespaceOnly(string field)
     {
         string luaEmpty = $"return {field}('')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(luaEmpty));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(luaEmpty));
 
         string luaWhitespace = $"return {field}('   ')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(luaWhitespace));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(luaWhitespace));
     }
 
     // =========================================================================
@@ -181,7 +181,7 @@ return {
     public async Task EmailFields_RejectMoreThanOneAtSign(string invalidEmail)
     {
         string lua = $"return to('{invalidEmail}')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
     }
 
     [Theory]
@@ -194,6 +194,6 @@ return {
     public async Task EmailFields_RejectUnsupportedCharacters(string invalidEmail)
     {
         string lua = $"return from('{invalidEmail}')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
     }
 }

@@ -20,10 +20,11 @@ return {
     date_format = "MM-dd-YYYY",
 
     rules = {
-        -- Rule 1: High Priority Audit Alerts with Exact Phrase Match
-        rule {
+        -- Filter 1: High Priority Audit Alerts with Exact Phrase Match
+        filter {
+            id = "sec-001",
             name = "Security Incident - Confidential Audit Alert",
-            match = And(
+            query = And(
                 From("secops@company.com"),
                 To("compliance@company.com"),
                 Cc("ciso@company.com"),
@@ -31,13 +32,15 @@ return {
                 Header("X-Severity", "CRITICAL"),
                 Label("security-alerts"),
                 match("unauthorized privilege escalation")
-            )
+            ),
+            action = actions(star, mark_important)
         },
 
-        -- Rule 2: Invoices & Receipts with Attachment Filename Match & Date Range
-        rule {
+        -- Filter 2: Invoices & Receipts with Attachment Filename Match & Date Range
+        filter {
+            id = "fin-002",
             name = "Invoices and Monthly Billing (2026 Fiscal Year)",
-            match = And(
+            query = And(
                 Or(From("billing@aws.com"), From("invoicing@google.com")),
                 Or(Filename("invoice.pdf"), Filename("receipt.pdf")),
                 After("01-01-2026"),
@@ -47,10 +50,11 @@ return {
             action = actions(archive, add_category('Purchases'), add_label('Receipts'), forward_message('accounting@company.com'))
         },
 
-        -- Rule 3: Archive Stale Engineering Announcements with Duration Filter
-        rule {
+        -- Filter 3: Archive Stale Engineering Announcements with Duration Filter
+        filter {
+            id = "dev-003",
             name = "Stale Engineering Announcements",
-            match = And(
+            query = And(
                 List("dev-announce@lists.company.com"),
                 delivered_to("oncall-alias@company.com"),
                 older_than("90d"),

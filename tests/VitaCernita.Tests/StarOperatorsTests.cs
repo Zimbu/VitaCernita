@@ -217,7 +217,7 @@ return And(
     public async Task GenericHas_InvalidStarName_ThrowsValidationException(string invalidStar)
     {
         string lua = $"return has('{invalidStar}')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
     }
 
     [Theory]
@@ -226,7 +226,7 @@ return And(
     public async Task GenericHas_EmptyOrWhitespace_ThrowsValidationException(string emptyValue)
     {
         string lua = $"return has('{emptyValue}')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
     }
 
     // =========================================================================
@@ -305,6 +305,6 @@ return {
     public async Task GenericIs_UnsupportedOrEmptyTarget_ThrowsValidationException(string target)
     {
         string lua = $"return is('{target}')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
     }
 }

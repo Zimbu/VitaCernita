@@ -1,12 +1,13 @@
 using System;
 using System.Globalization;
+using VitaCernita.Core.Filters;
 
-namespace VitaCernita.Core.Filters;
+namespace VitaCernita.Core.Queries;
 
 /// <summary>
 /// Date filter condition (after, before, older, newer). Formatted as yyyy/MM/dd per Gmail spec.
 /// </summary>
-public sealed class DateCondition : IFilterCondition
+public sealed class DateCondition : IQueryCondition, IFilterCondition
 {
     public string Operator { get; }
     public DateTime Date { get; }

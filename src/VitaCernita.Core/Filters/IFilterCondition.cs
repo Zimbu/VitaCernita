@@ -1,13 +1,11 @@
+using VitaCernita.Core.Queries;
+
 namespace VitaCernita.Core.Filters;
 
 /// <summary>
-/// Represents a condition in a Gmail filter query.
+/// Legacy interface representing a condition in a Gmail filter query.
+/// Inherits from <see cref="IQueryCondition"/> for full backward compatibility.
 /// </summary>
-public interface IFilterCondition
+public interface IFilterCondition : IQueryCondition
 {
-    /// <summary>
-    /// Formats this condition into Gmail search query syntax.
-    /// </summary>
-    /// <param name="explicitAnd">If true, uses 'AND' keyword between terms; if false, uses space (Gmail default).</param>
-    string ToGmailQuery(bool explicitAnd = false);
 }

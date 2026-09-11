@@ -242,19 +242,19 @@ return filter()
     // =========================================================================
 
     [Fact]
-    public async Task Validation_InvalidHasTarget_ThrowsFilterValidationException()
+    public async Task Validation_InvalidHasTarget_ThrowsQueryValidationException()
     {
         string lua = "return has('invalid-format')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
     }
 
     [Fact]
-    public async Task Validation_EmptyHasTarget_ThrowsFilterValidationException()
+    public async Task Validation_EmptyHasTarget_ThrowsQueryValidationException()
     {
         string luaEmpty = "return has('')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(luaEmpty));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(luaEmpty));
 
         string luaWhitespace = "return has('   ')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(luaWhitespace));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(luaWhitespace));
     }
 }

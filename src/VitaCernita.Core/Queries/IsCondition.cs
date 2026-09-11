@@ -1,18 +1,19 @@
 using System;
-using VitaCernita.Core.Filters.Validation;
+using VitaCernita.Core.Filters;
+using VitaCernita.Core.Queries.Validation;
 
-namespace VitaCernita.Core.Filters;
+namespace VitaCernita.Core.Queries;
 
 /// <summary>
 /// Represents a Gmail 'is:' operator condition (e.g. is:starred).
 /// </summary>
-public sealed class IsCondition : IFilterCondition, IEquatable<IsCondition>
+public sealed class IsCondition : IQueryCondition, IFilterCondition, IEquatable<IsCondition>
 {
     public string Target { get; }
 
     public IsCondition(string target)
     {
-        Target = FilterValidator.ValidateAndNormalizeIsTarget("is", target);
+        Target = QueryValidator.ValidateAndNormalizeIsTarget("is", target);
     }
 
     public string ToGmailQuery(bool explicitAnd = false)

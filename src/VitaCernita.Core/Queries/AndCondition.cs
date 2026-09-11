@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using VitaCernita.Core.Filters;
 
-namespace VitaCernita.Core.Filters;
+namespace VitaCernita.Core.Queries;
 
 /// <summary>
-/// Conjunction (AND) of multiple filter conditions.
+/// Conjunction (AND) of multiple query conditions.
 /// </summary>
-public sealed class AndCondition : IFilterCondition
+public sealed class AndCondition : IQueryCondition, IFilterCondition
 {
     private static readonly Dictionary<string, int> FieldOrdering = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -39,14 +40,14 @@ public sealed class AndCondition : IFilterCondition
         { "newer_than", 25 }
     };
 
-    public IReadOnlyList<IFilterCondition> Conditions { get; }
+    public IReadOnlyList<IQueryCondition> Conditions { get; }
 
-    public AndCondition(IEnumerable<IFilterCondition> conditions)
+    public AndCondition(IEnumerable<IQueryCondition> conditions)
     {
         if (conditions == null) throw new ArgumentNullException(nameof(conditions));
 
         // Flatten any nested AndConditions for clean canonical representation
-        var list = new List<IFilterCondition>();
+        var list = new List<IQueryCondition>();
         foreach (var cond in conditions)
         {
             if (cond is AndCondition nestedAnd)
@@ -63,7 +64,7 @@ public sealed class AndCondition : IFilterCondition
         Conditions = list.OrderBy(GetSortKey).ToList();
     }
 
-    private static (int priority, string field, string val) GetSortKey(IFilterCondition cond)
+    private static (int priority, string field, string val) GetSortKey(IQueryCondition cond)
     {
         if (cond is FieldCondition fc)
         {
@@ -129,7 +130,7 @@ public sealed class AndCondition : IFilterCondition
         return string.Join(separator, Conditions.Select(c => FormatChild(c, explicitAnd)));
     }
 
-    private static string FormatChild(IFilterCondition cond, bool explicitAnd)
+    private static string FormatChild(IQueryCondition cond, bool explicitAnd)
     {
         string query = cond.ToGmailQuery(explicitAnd);
         // OrCondition with multiple elements needs parentheses when inside an AND

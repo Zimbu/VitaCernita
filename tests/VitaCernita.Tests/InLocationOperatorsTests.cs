@@ -180,19 +180,19 @@ return filter()
     // =========================================================================
 
     [Fact]
-    public async Task Validation_InvalidInTarget_ThrowsFilterValidationException()
+    public async Task Validation_InvalidInTarget_ThrowsQueryValidationException()
     {
         string lua = "return in('nonexistent_folder')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(lua));
     }
 
     [Fact]
-    public async Task Validation_EmptyInTarget_ThrowsFilterValidationException()
+    public async Task Validation_EmptyInTarget_ThrowsQueryValidationException()
     {
         string luaEmpty = "return in('')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(luaEmpty));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(luaEmpty));
 
         string luaWhitespace = "return in('   ')";
-        await Assert.ThrowsAsync<FilterValidationException>(() => _loader.LoadRuleFromScriptAsync(luaWhitespace));
+        await Assert.ThrowsAsync<QueryValidationException>(() => _loader.LoadRuleFromScriptAsync(luaWhitespace));
     }
 }

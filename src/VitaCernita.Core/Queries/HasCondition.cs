@@ -1,19 +1,20 @@
 using System;
-using VitaCernita.Core.Filters.Validation;
+using VitaCernita.Core.Filters;
+using VitaCernita.Core.Queries.Validation;
 
-namespace VitaCernita.Core.Filters;
+namespace VitaCernita.Core.Queries;
 
 /// <summary>
 /// Represents a Gmail 'has:' operator condition for stars, media, Workspace documents, and label metadata
 /// (e.g. has:yellow-star, has:attachment, has:drive, has:userlabels).
 /// </summary>
-public sealed class HasCondition : IFilterCondition, IEquatable<HasCondition>
+public sealed class HasCondition : IQueryCondition, IFilterCondition, IEquatable<HasCondition>
 {
     public string Target { get; }
 
     public HasCondition(string target)
     {
-        Target = FilterValidator.ValidateAndNormalizeHasTarget("has", target);
+        Target = QueryValidator.ValidateAndNormalizeHasTarget("has", target);
     }
 
     public string ToGmailQuery(bool explicitAnd = false)

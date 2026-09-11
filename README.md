@@ -6,7 +6,44 @@ VitaCernita pairs modern .NET performance with the flexibility of a declarative 
 
 ---
 
-## Gmail Filter Configuration
+## Core Architecture: Query, Action & Filter
+
+VitaCernita strictly separates search criteria, actions, and filter resources, mirroring the [Google Gmail API `users.settings.filters` specification](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.settings.filters):
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        GmailFilter                          │
+│                                                             │
+│  id: "sec-001"                                              │
+│                                                             │
+│  criteria (Query):                                          │
+│    from:alerts@security.org label:security-alerts           │
+│                                                             │
+│  action:                                                    │
+│    addLabelIds: ["STARRED", "IMPORTANT"]                    │
+│    removeLabelIds: ["INBOX"]                                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+1. **Query** ([`IQueryCondition`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Queries/IQueryCondition.cs), [`GmailQuery`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Queries/GmailQuery.cs)):
+   - Generates Gmail search criteria strings (`from:secops@company.com is:unread`).
+   - Supports functional operators (`And`, `Or`, `not`, `From`), fluent builder (`query():from(...):build()`), and declarative tables (`query { from = "..." }`).
+   - Completely decoupled: queries can be authored, validated, and evaluated independently of actions.
+
+2. **Action** ([`GmailAction`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Actions/GmailAction.cs)):
+   - Defines actions applied to matching messages (`archive`, `star`, `mark_important`, `add_category`, `forward_message`).
+   - Maps directly to Gmail's `addLabelIds`, `removeLabelIds`, and `forward` fields.
+   - Completely decoupled: actions can be authored, validated, and reused across multiple queries or filters.
+
+3. **Filter** ([`GmailFilter`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Filters/GmailFilter.cs)):
+   - The composite resource combining an optional `id`, a search `query` (criteria), and an `action`.
+   - Exports directly to Google Gmail API payload via `filter.ToDictionary()`.
+   - Authored in Lua using `filter { id = "...", query = ..., action = ... }` or fluent `filter():id("..."):...:build()`.
+   - Full backwards compatibility with existing configurations using `rule { ... }`.
+
+---
+
+## Query Construction & Search Operators
 
 ### Supported String Match Fields & Operators
 
@@ -164,7 +201,7 @@ VitaCernita performs rigorous input validation before building filters:
 #### 1. Exact Word or Phrase Match (`match`)
 Per Google Gmail search documentation, exact phrase searches are double-quoted search terms:
 ```lua
-return rule {
+return query {
     match = And(
         From("secops@company.com"),
         Label("security-alerts"),
@@ -177,8 +214,7 @@ return rule {
 #### 2. Negation Operator (`not` / `-`)
 Negate single fields, exact phrases, star operators, or composite logical expressions using `-`:
 ```lua
-return rule {
-    name = "Exclude Executive Noise",
+return query {
     match = And(
         From("exec-team@company.com"),
         not({ is_starred = true }),
@@ -192,11 +228,10 @@ return rule {
 - **Double Negation**: `not(not(From("a")))` -> `-(-from:a)`
 - **Validation**: Empty `not()`, `not({})`, or `not("")` is strictly rejected.
 
-#### 3. Composite Nested Rules
+#### 3. Composite Nested Queries
 Combine boolean operators (`And`, `Or`, `not`) at arbitrary depths:
 ```lua
-return rule {
-    name = "Tri-Team Incident Dispatcher",
+return query {
     match = Or(
         And(From("secops@company.com"), Subject("Security Breach")),
         And(From("devops@company.com"), Subject("Cluster Outage")),
@@ -206,31 +241,35 @@ return rule {
 -- Emits: (from:devops@company.com subject:"Cluster Outage") OR (from:netops@company.com subject:"BGP Route Leak") OR (from:secops@company.com subject:"Security Breach")
 ```
 
-#### 4. Declarative Table Syntax
-Any rule can also be written in pure Lua table syntax:
+#### 4. Declarative & Fluent Query Syntax
+Queries can be authored standalone using declarative tables or the fluent `QueryBuilder`:
+
 ```lua
-return {
-    rules = {
-        {
-            from = "cfo@company.com",
-            ["not"] = { is_starred = true },
-            ["or"] = {
-                { filename = "dividend.pdf" },
-                { filename = "sheet.xlsx" }
-            }
-        }
+-- Declarative table:
+return query {
+    from = "cfo@company.com",
+    ["not"] = { is_starred = true },
+    ["or"] = {
+        { filename = "dividend.pdf" },
+        { filename = "sheet.xlsx" }
     }
 }
-```
 
+-- Fluent QueryBuilder:
+return query()
+    :from("cfo@company.com")
+    :is_unread()
+    :has_attachment()
+    :build()
+```
 
 ---
 
-### Action Language & System Labels
+## Filter Actions & System Labels
 
-VitaCernita provides a decoupled action language matching the [Gmail API labels and filter actions guide](https://developers.google.com/workspace/gmail/api/guides/labels). The search criteria and actions are decoupled and can be used together or independently.
+VitaCernita provides a decoupled action language matching the [Gmail API labels and filter actions guide](https://developers.google.com/workspace/gmail/api/guides/labels). Search criteria and actions are decoupled and can be used together or independently.
 
-#### Supported Actions
+### Supported Actions
 
 | Action | Gmail API Mapping | Description |
 |---|---|---|
@@ -243,7 +282,7 @@ VitaCernita provides a decoupled action language matching the [Gmail API labels 
 | `add_label(lbl)` / `add_labels(...)` | `addLabelIds: [lbl]` | Adds custom user labels. Rejects empty strings and reserved system label names. |
 | `forward_message(email)` | `forward: email` | Forwards the message to a validated email address. |
 
-#### Action Syntax Styles
+### Action Syntax Styles
 
 **1. Functional Actions:**
 ```lua
@@ -281,23 +320,82 @@ return action {
 }
 ```
 
-#### Combining Query and Action
+---
 
-Filters combine search criteria and actions:
+## Composite Filters & Gmail API Export
+
+A **Filter** combines an identifier (`id`), search criteria (`query`), and one or more `action`s.
+
+### Declarative Filter Syntax
+
 ```lua
 return filter {
-    query = { from = 'billing@stripe.com' },
+    id = "fin-001",
+    name = "Stripe Invoices",
+    query = And(
+        From("billing@stripe.com"),
+        Filename("invoice.pdf")
+    ),
     action = actions(archive, add_category('Purchases'), add_label('Stripe'))
 }
 ```
 
-Or using the fluent builder:
+### Fluent FilterBuilder Syntax
+
 ```lua
 return filter()
-    :from('billing@stripe.com')
-    :actions(archive, add_category('Purchases'))
+    :id("fin-001")
+    :name("Stripe Invoices")
+    :from("billing@stripe.com")
+    :filename("invoice.pdf")
+    :actions(archive, add_category("Purchases"), add_label("Stripe"))
     :build()
 ```
+
+### Multi-Filter Configurations
+
+```lua
+return {
+    filters = {
+        filter {
+            id = "sec-001",
+            name = "Security Alerts",
+            query = From("secops@company.com"),
+            action = actions(star, mark_important)
+        },
+        filter {
+            id = "fin-002",
+            name = "Vendor Invoices",
+            query = And(From("invoicing@vendor.com"), older_than("30d")),
+            action = actions(archive, add_label("Invoices"))
+        }
+    }
+}
+```
+
+### Gmail API Serialization (`ToDictionary`)
+
+Every [`GmailFilter`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Filters/GmailFilter.cs) can be exported directly via `filter.ToDictionary()`, generating a dictionary that matches the official [Google Gmail API `users.settings.filters` resource schema](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.settings.filters):
+
+```json
+{
+  "id": "fin-001",
+  "criteria": {
+    "query": "from:billing@stripe.com filename:invoice.pdf"
+  },
+  "action": {
+    "addLabelIds": ["CATEGORY_PURCHASES", "Stripe"],
+    "removeLabelIds": ["INBOX"]
+  }
+}
+```
+
+### Backwards Compatibility
+
+Existing configurations using `rules = { rule { ... } }`, `match = ...`, `filter.Criteria`, or `filter.Condition` continue to work with 100% backward compatibility:
+- `rule { match = ... }` creates a `GmailRule` (subclass of `GmailFilter`).
+- `filter.Criteria` and `filter.Condition` are bidirectional property aliases for `filter.Query`.
+- `IFilterCondition` implements `IQueryCondition`.
 
 ---
 

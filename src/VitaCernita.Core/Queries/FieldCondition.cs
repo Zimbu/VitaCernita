@@ -1,12 +1,13 @@
 using System;
-using VitaCernita.Core.Filters.Validation;
+using VitaCernita.Core.Filters;
+using VitaCernita.Core.Queries.Validation;
 
-namespace VitaCernita.Core.Filters;
+namespace VitaCernita.Core.Queries;
 
 /// <summary>
 /// Condition matching a specific email field (e.g. 'from', 'to', 'cc', 'bcc', 'subject', 'list', 'filename', 'label', etc.).
 /// </summary>
-public sealed class FieldCondition : IFilterCondition
+public sealed class FieldCondition : IQueryCondition, IFilterCondition
 {
     public string Field { get; }
     public string Value { get; }
@@ -18,11 +19,11 @@ public sealed class FieldCondition : IFilterCondition
 
         if (IsEmailField(Field))
         {
-            FilterValidator.ValidateEmailAddressOrFragment(Field, value);
+            QueryValidator.ValidateEmailAddressOrFragment(Field, value);
         }
         else
         {
-            FilterValidator.ValidateNonEmpty(Field, value);
+            QueryValidator.ValidateNonEmpty(Field, value);
         }
 
         Value = value.Trim();

@@ -1,18 +1,19 @@
 using System;
-using VitaCernita.Core.Filters.Validation;
+using VitaCernita.Core.Filters;
+using VitaCernita.Core.Queries.Validation;
 
-namespace VitaCernita.Core.Filters;
+namespace VitaCernita.Core.Queries;
 
 /// <summary>
 /// Exact word or phrase match condition (enclosed in double quotes per Gmail search spec).
 /// </summary>
-public sealed class ExactMatchCondition : IFilterCondition
+public sealed class ExactMatchCondition : IQueryCondition, IFilterCondition
 {
     public string Phrase { get; }
 
     public ExactMatchCondition(string phrase)
     {
-        FilterValidator.ValidateNonEmpty("match", phrase);
+        QueryValidator.ValidateNonEmpty("match", phrase);
         Phrase = phrase.Trim();
     }
 

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -8,6 +8,11 @@
 
   <ItemGroup>
     <PackageReference Include="LuaCSharp" Version="0.5.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="VitaCernita.Core.Queries" />
+    <Using Include="VitaCernita.Core.Queries.Validation" />
   </ItemGroup>
 
 </Project>

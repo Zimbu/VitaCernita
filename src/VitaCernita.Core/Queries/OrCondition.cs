@@ -1,22 +1,23 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using VitaCernita.Core.Filters;
 
-namespace VitaCernita.Core.Filters;
+namespace VitaCernita.Core.Queries;
 
 /// <summary>
-/// Disjunction (OR) of multiple filter conditions.
+/// Disjunction (OR) of multiple query conditions.
 /// </summary>
-public sealed class OrCondition : IFilterCondition
+public sealed class OrCondition : IQueryCondition, IFilterCondition
 {
-    public IReadOnlyList<IFilterCondition> Conditions { get; }
+    public IReadOnlyList<IQueryCondition> Conditions { get; }
 
-    public OrCondition(IEnumerable<IFilterCondition> conditions)
+    public OrCondition(IEnumerable<IQueryCondition> conditions)
     {
         if (conditions == null) throw new ArgumentNullException(nameof(conditions));
 
         // Flatten any nested OrConditions for associative canonical representation
-        var list = new List<IFilterCondition>();
+        var list = new List<IQueryCondition>();
         foreach (var cond in conditions)
         {
             if (cond is OrCondition nestedOr)
@@ -41,7 +42,7 @@ public sealed class OrCondition : IFilterCondition
         return string.Join(" OR ", Conditions.Select(c => FormatChild(c, explicitAnd)));
     }
 
-    private static string FormatChild(IFilterCondition cond, bool explicitAnd)
+    private static string FormatChild(IQueryCondition cond, bool explicitAnd)
     {
         string query = cond.ToGmailQuery(explicitAnd);
         // AndCondition with multiple elements needs parentheses when inside an OR

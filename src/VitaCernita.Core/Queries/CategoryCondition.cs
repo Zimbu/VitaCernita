@@ -1,19 +1,20 @@
 using System;
-using VitaCernita.Core.Filters.Validation;
+using VitaCernita.Core.Filters;
+using VitaCernita.Core.Queries.Validation;
 
-namespace VitaCernita.Core.Filters;
+namespace VitaCernita.Core.Queries;
 
 /// <summary>
 /// Represents a Gmail 'category:' operator condition
 /// (e.g. category:primary, category:social, category:promotions, category:updates, category:forums, category:reservations, category:purchases).
 /// </summary>
-public sealed class CategoryCondition : IFilterCondition, IEquatable<CategoryCondition>
+public sealed class CategoryCondition : IQueryCondition, IFilterCondition, IEquatable<CategoryCondition>
 {
     public string Target { get; }
 
     public CategoryCondition(string target)
     {
-        Target = FilterValidator.ValidateAndNormalizeCategoryTarget("category", target);
+        Target = QueryValidator.ValidateAndNormalizeCategoryTarget("category", target);
     }
 
     public string ToGmailQuery(bool explicitAnd = false)
