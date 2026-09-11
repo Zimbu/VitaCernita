@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using VitaCernita.Core.AutoReply;
 using VitaCernita.Core.Filters;
 using VitaCernita.Core.Labels;
 
@@ -44,6 +45,22 @@ public interface IGmailApiClient
     /// </summary>
     Task<GmailFilter?> GetFilterAsync(
         string filterId,
+        string userId = "me",
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves vacation responder settings (users.settings.getVacation).
+    /// Returns null if settings could not be found (404).
+    /// </summary>
+    Task<AutoReply.AutoReply?> GetAutoReplyAsync(
+        string userId = "me",
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates vacation responder settings (users.settings.updateVacation).
+    /// </summary>
+    Task<AutoReply.AutoReply> UpdateAutoReplyAsync(
+        AutoReply.AutoReply autoReply,
         string userId = "me",
         CancellationToken cancellationToken = default);
 }

@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using VitaCernita.Core.Api;
+using VitaCernita.Core.AutoReply;
 using VitaCernita.Core.Filters;
 using VitaCernita.Core.Labels;
 
@@ -42,5 +43,18 @@ public class ApiGmailSource : IGmailSource
     {
         var filters = await _client.ListFiltersAsync(_userId, cancellationToken);
         return filters.AsQueryable();
+    }
+
+    public async Task<AutoReply.AutoReply?> GetAutoReplyAsync(CancellationToken cancellationToken = default)
+    {
+        return await _client.GetAutoReplyAsync(_userId, cancellationToken);
+    }
+
+    public async Task<IQueryable<AutoReply.AutoReply>> GetAutoRepliesAsync(CancellationToken cancellationToken = default)
+    {
+        var ar = await GetAutoReplyAsync(cancellationToken);
+        return ar != null
+            ? new[] { ar }.AsQueryable()
+            : Enumerable.Empty<AutoReply.AutoReply>().AsQueryable();
     }
 }

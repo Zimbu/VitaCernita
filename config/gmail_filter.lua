@@ -176,6 +176,18 @@ return {
             ),
             action = actions(delete)
         }
+    },
+
+    -- Configured Auto-Reply (Vacation Responder)
+    auto_reply = auto_reply {
+        enabled = true,
+        subject = "Out of Office: Annual Leave",
+        body = "Thank you for reaching out. I am currently out of the office on annual leave and will respond upon my return.",
+        html = "<p>Thank you for reaching out. I am currently <b>out of the office</b> on annual leave and will respond upon my return.</p>",
+        contacts_only = true,
+        domain_only = false,
+        start_date = "10-01-2026",
+        end_date = "10-15-2026"
     }
 }
 

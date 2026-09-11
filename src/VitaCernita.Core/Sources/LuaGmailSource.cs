@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using VitaCernita.Core.AutoReply;
 using VitaCernita.Core.Filters;
 using VitaCernita.Core.Labels;
 
@@ -67,5 +68,30 @@ public class LuaGmailSource : IGmailSource
         }
 
         return Enumerable.Empty<GmailFilter>().AsQueryable();
+    }
+
+    public async Task<AutoReply.AutoReply?> GetAutoReplyAsync(CancellationToken cancellationToken = default)
+    {
+        if (_filePath != null)
+        {
+            var config = await _loader.LoadConfigurationFromFileAsync(_filePath);
+            return config.AutoReply;
+        }
+
+        if (_script != null)
+        {
+            var config = await _loader.LoadConfigurationFromScriptAsync(_script);
+            return config.AutoReply;
+        }
+
+        return null;
+    }
+
+    public async Task<IQueryable<AutoReply.AutoReply>> GetAutoRepliesAsync(CancellationToken cancellationToken = default)
+    {
+        var ar = await GetAutoReplyAsync(cancellationToken);
+        return ar != null
+            ? new[] { ar }.AsQueryable()
+            : Enumerable.Empty<AutoReply.AutoReply>().AsQueryable();
     }
 }

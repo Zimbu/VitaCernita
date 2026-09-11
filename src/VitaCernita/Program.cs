@@ -6,6 +6,7 @@ using Spectre.Console;
 using VitaCernita.Core.Api;
 using VitaCernita.Core.Api.Auth;
 using VitaCernita.Core.Api.Fakes;
+using VitaCernita.Core.AutoReply.Diff;
 using VitaCernita.Core.Filters;
 using VitaCernita.Core.Labels;
 using VitaCernita.Core.Sources;
@@ -115,10 +116,45 @@ public static class Program
                 AnsiConsole.WriteLine();
             }
 
-            var filters = config.Filters;
-            if (filters.Count == 0 && config.Labels.Count == 0)
+            if (config.AutoReply != null)
             {
-                AnsiConsole.MarkupLine("[bold yellow]No filters or labels found in configuration.[/]");
+                var ar = config.AutoReply;
+                AnsiConsole.MarkupLine("[bold yellow]Configured Auto-Reply (Vacation Responder):[/]\n");
+                var arTable = new Table().Border(TableBorder.Rounded);
+                arTable.AddColumn("[bold]Setting[/]");
+                arTable.AddColumn("[bold]Configured Value[/]");
+
+                arTable.AddRow("Status", ar.EnableAutoReply ? "[bold green]Enabled[/]" : "[bold red]Disabled[/]");
+                arTable.AddRow("Response Subject", ar.ResponseSubject != null ? $"[cyan]{Markup.Escape(ar.ResponseSubject)}[/]" : "[dim]<none>[/]");
+                if (!string.IsNullOrWhiteSpace(ar.ResponseBodyPlainText))
+                {
+                    string snippet = ar.ResponseBodyPlainText.Length > 60 ? ar.ResponseBodyPlainText[..57] + "..." : ar.ResponseBodyPlainText;
+                    arTable.AddRow("Plain Text Body", Markup.Escape(snippet.Replace("\n", " ")));
+                }
+                if (!string.IsNullOrWhiteSpace(ar.ResponseBodyHtml))
+                {
+                    string snippet = ar.ResponseBodyHtml.Length > 60 ? ar.ResponseBodyHtml[..57] + "..." : ar.ResponseBodyHtml;
+                    arTable.AddRow("HTML Body", Markup.Escape(snippet.Replace("\n", " ")));
+                }
+                arTable.AddRow("Restrict to Contacts", ar.RestrictToContacts ? "[yellow]True[/]" : "False");
+                arTable.AddRow("Restrict to Domain", ar.RestrictToDomain ? "[yellow]True (Workspace Only)[/]" : "False");
+                if (ar.StartTime.HasValue)
+                {
+                    arTable.AddRow("Start Time", $"{ar.StartDateTime:yyyy-MM-dd HH:mm:ss} UTC");
+                }
+                if (ar.EndTime.HasValue)
+                {
+                    arTable.AddRow("End Time", $"{ar.EndDateTime:yyyy-MM-dd HH:mm:ss} UTC");
+                }
+
+                AnsiConsole.Write(arTable);
+                AnsiConsole.WriteLine();
+            }
+
+            var filters = config.Filters;
+            if (filters.Count == 0 && config.Labels.Count == 0 && config.AutoReply == null)
+            {
+                AnsiConsole.MarkupLine("[bold yellow]No filters, labels, or auto-reply settings found in configuration.[/]");
                 return 0;
             }
 
@@ -143,8 +179,20 @@ public static class Program
                 var desiredSource = new LuaGmailSource(configPath);
 
                 AnsiConsole.MarkupLine($"[bold cyan]Diffing '{Markup.Escape(currentSource.Name)}' against '{Markup.Escape(desiredSource.Name)}'...[/]\n");
-                var diff = await GmailSourceDiffer.DiffLabelsAsync(currentSource, desiredSource);
-                AnsiConsole.WriteLine(diff.ToDryRunReport());
+                var labelDiff = await GmailSourceDiffer.DiffLabelsAsync(currentSource, desiredSource);
+                AnsiConsole.WriteLine(labelDiff.ToDryRunReport());
+
+                var autoReplyDiff = await GmailSourceDiffer.DiffAutoReplyAsync(
+                    currentSource,
+                    desiredSource,
+                    new AutoReplyDiffOptions { TargetAccount = userId });
+
+                if (autoReplyDiff.HasChanges || autoReplyDiff.AccountError != null || config.AutoReply != null)
+                {
+                    AnsiConsole.WriteLine();
+                    AnsiConsole.WriteLine(autoReplyDiff.ToDryRunReport());
+                }
+
                 return 0;
             }
 
@@ -198,11 +246,11 @@ public static class Program
 
     private static void PrintHelp()
     {
-        AnsiConsole.MarkupLine("[bold]VitaCernita CLI - Gmail Filter Manager[/]");
-        AnsiConsole.MarkupLine("Usage: dotnet run --project src/VitaCernita -- [OPTIONS]\n");
+        AnsiConsole.MarkupLine("[bold]VitaCernita CLI - Gmail Filter, Label & Auto-Reply Manager[/]");
+        AnsiConsole.MarkupLine("Usage: dotnet run --project src/VitaCernita -- [[OPTIONS]]\n");
         AnsiConsole.MarkupLine("[bold]Options:[/]");
-        AnsiConsole.MarkupLine("  -c, --config <path>     Path to the Lua filter configuration file (default: config/gmail_filter.lua)");
-        AnsiConsole.MarkupLine("      --diff              Diff local Lua labels against the target Gmail account");
+        AnsiConsole.MarkupLine("  -c, --config <path>     Path to the Lua configuration file (default: config/gmail_filter.lua)");
+        AnsiConsole.MarkupLine("      --diff              Diff local Lua configuration (labels & auto-reply) against target Gmail account");
         AnsiConsole.MarkupLine("      --mock              Use in-memory fake Gmail API client for dry-run testing");
         AnsiConsole.MarkupLine("      --token <token>     Bearer token for Gmail API (defaults to GMAIL_ACCESS_TOKEN)");
         AnsiConsole.MarkupLine("      --user <userId>     Target Gmail user ID (default: 'me')");

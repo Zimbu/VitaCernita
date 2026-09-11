@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using VitaCernita.Core.Api.Auth;
+using VitaCernita.Core.AutoReply;
 using VitaCernita.Core.Filters;
 using VitaCernita.Core.Labels;
 
@@ -72,6 +74,50 @@ public class HttpGmailApiClient : IGmailApiClient
         string endpoint = $"{_baseUrl}/users/{Uri.EscapeDataString(userId)}/settings/filters/{Uri.EscapeDataString(filterId)}";
         string? json = await SendGetRequestAllowNotFoundAsync(endpoint, cancellationToken);
         return json != null ? GmailFilter.FromJson(json) : null;
+    }
+
+    public async Task<AutoReply.AutoReply?> GetAutoReplyAsync(
+        string userId = "me",
+        CancellationToken cancellationToken = default)
+    {
+        string endpoint = $"{_baseUrl}/users/{Uri.EscapeDataString(userId)}/settings/vacation";
+        string? json = await SendGetRequestAllowNotFoundAsync(endpoint, cancellationToken);
+        return json != null ? AutoReply.AutoReply.FromJson(json) : null;
+    }
+
+    public async Task<AutoReply.AutoReply> UpdateAutoReplyAsync(
+        AutoReply.AutoReply autoReply,
+        string userId = "me",
+        CancellationToken cancellationToken = default)
+    {
+        if (autoReply == null)
+            throw new ArgumentNullException(nameof(autoReply));
+
+        string endpoint = $"{_baseUrl}/users/{Uri.EscapeDataString(userId)}/settings/vacation";
+        string payload = autoReply.ToJson();
+        string responseBody = await SendPutRequestAsync(endpoint, payload, cancellationToken);
+        return AutoReply.AutoReply.FromJson(responseBody);
+    }
+
+    private async Task<string> SendPutRequestAsync(string endpoint, string jsonPayload, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put, endpoint);
+        await ApplyHeadersAsync(request, cancellationToken);
+        request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        string responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new GmailApiException(
+                $"Gmail API request failed with status {(int)response.StatusCode} ({response.StatusCode}): {responseBody}",
+                response.StatusCode,
+                endpoint,
+                responseBody);
+        }
+
+        return responseBody;
     }
 
     private async Task<string> SendGetRequestAsync(string endpoint, CancellationToken cancellationToken)

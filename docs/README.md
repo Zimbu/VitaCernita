@@ -37,6 +37,7 @@ Explore detailed documentation, comprehensive operator tables, and validation ru
 | [**Filter Actions**](actions/README.md) | Actions applied to matching messages | `archive`, `mark_read`, `star`, `delete`, `mark_important`, category assignments, custom user labels, message forwarding, Gmail API mapping (`addLabelIds`, `removeLabelIds`, `forward`), system label protection. |
 | [**Composite Filters**](filters/README.md) | Filters combining queries and actions | Filter structure, `.ToDictionary()` JSON serialization for the Gmail REST API, single vs multi-filter configurations, fluent `FilterBuilder`, and C# programmatic loader APIs. |
 | [**Gmail Labels**](labels/README.md) | Custom mailbox label configuration & diffing | Label configuration matching `users.labels`, message list visibility, sidebar label list visibility, 102 predefined palette colors & aliases, label diff engine, dry-run reports, patch payloads. |
+| [**Auto-Reply (Vacation)**](autoreply/README.md) | Vacation responder configuration & diffing | Auto-reply configuration matching `VacationSettings`, subject, plain text & HTML bodies, contact & domain restrictions, start/end date ranges, Workspace domain validation, diffing. |
 | [**Gmail API & Sync**](api/README.md) | API client interface, fakes, and account diffing | `IGmailApiClient` interface, native Core .NET `HttpClient` implementation, `FakeGmailApiClient` in-memory mock, auth architecture, and CLI account diffing. |
 
 ---

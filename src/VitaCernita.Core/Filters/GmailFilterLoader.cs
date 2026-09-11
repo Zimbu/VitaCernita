@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Lua;
 using Lua.Standard;
 using VitaCernita.Core.Actions;
+using VitaCernita.Core.AutoReply;
 using VitaCernita.Core.Configuration;
 using VitaCernita.Core.Labels;
 using VitaCernita.Core.Labels.Validation;
@@ -874,6 +875,115 @@ function labels(...)
     end
 end
 Labels = labels
+
+-- =======================================================================
+-- AutoReply Builder & auto_reply() DSL (VacationSettings)
+-- =======================================================================
+local AutoReplyBuilder = {}
+AutoReplyBuilder.__index = AutoReplyBuilder
+
+function AutoReplyBuilder.new()
+    local self = setmetatable({}, AutoReplyBuilder)
+    self._data = { type = 'auto_reply', enable_auto_reply = true }
+    return self
+end
+
+function AutoReplyBuilder:enable(val)
+    if val == nil then self._data.enable_auto_reply = true
+    else self._data.enable_auto_reply = (val == true) end
+    return self
+end
+AutoReplyBuilder.enabled = AutoReplyBuilder.enable
+AutoReplyBuilder.enable_auto_reply = AutoReplyBuilder.enable
+AutoReplyBuilder.EnableAutoReply = AutoReplyBuilder.enable
+
+function AutoReplyBuilder:disable()
+    self._data.enable_auto_reply = false
+    return self
+end
+
+function AutoReplyBuilder:subject(val)
+    self._data.response_subject = tostring(val)
+    return self
+end
+AutoReplyBuilder.Subject = AutoReplyBuilder.subject
+AutoReplyBuilder.response_subject = AutoReplyBuilder.subject
+AutoReplyBuilder.responseSubject = AutoReplyBuilder.subject
+
+function AutoReplyBuilder:body(val)
+    self._data.response_body_plain_text = tostring(val)
+    return self
+end
+AutoReplyBuilder.Body = AutoReplyBuilder.body
+AutoReplyBuilder.plain_text = AutoReplyBuilder.body
+AutoReplyBuilder.response_body_plain_text = AutoReplyBuilder.body
+AutoReplyBuilder.responseBodyPlainText = AutoReplyBuilder.body
+
+function AutoReplyBuilder:html(val)
+    self._data.response_body_html = tostring(val)
+    return self
+end
+AutoReplyBuilder.Html = AutoReplyBuilder.html
+AutoReplyBuilder.response_body_html = AutoReplyBuilder.html
+AutoReplyBuilder.responseBodyHtml = AutoReplyBuilder.html
+
+function AutoReplyBuilder:contacts_only(val)
+    if val == nil then self._data.restrict_to_contacts = true
+    else self._data.restrict_to_contacts = (val == true) end
+    return self
+end
+AutoReplyBuilder.ContactsOnly = AutoReplyBuilder.contacts_only
+AutoReplyBuilder.restrict_to_contacts = AutoReplyBuilder.contacts_only
+AutoReplyBuilder.restrictToContacts = AutoReplyBuilder.contacts_only
+
+function AutoReplyBuilder:domain_only(val)
+    if val == nil then self._data.restrict_to_domain = true
+    else self._data.restrict_to_domain = (val == true) end
+    return self
+end
+AutoReplyBuilder.DomainOnly = AutoReplyBuilder.domain_only
+AutoReplyBuilder.restrict_to_domain = AutoReplyBuilder.domain_only
+AutoReplyBuilder.restrictToDomain = AutoReplyBuilder.domain_only
+
+function AutoReplyBuilder:start(val)
+    self._data.start_time = val
+    return self
+end
+AutoReplyBuilder.Start = AutoReplyBuilder.start
+AutoReplyBuilder.start_time = AutoReplyBuilder.start
+AutoReplyBuilder.startTime = AutoReplyBuilder.start
+AutoReplyBuilder.start_date = AutoReplyBuilder.start
+AutoReplyBuilder.startDate = AutoReplyBuilder.start
+
+function AutoReplyBuilder:end_time(val)
+    self._data.end_time = val
+    return self
+end
+AutoReplyBuilder['end'] = AutoReplyBuilder.end_time
+AutoReplyBuilder.End = AutoReplyBuilder.end_time
+AutoReplyBuilder.endTime = AutoReplyBuilder.end_time
+AutoReplyBuilder.end_date = AutoReplyBuilder.end_time
+AutoReplyBuilder.endDate = AutoReplyBuilder.end_time
+
+function AutoReplyBuilder:build()
+    return self._data
+end
+
+function auto_reply(arg)
+    if arg == nil then
+        return AutoReplyBuilder.new()
+    elseif type(arg) == 'table' then
+        arg.type = 'auto_reply'
+        return setmetatable(arg, { __index = arg })
+    end
+    return AutoReplyBuilder.new():subject(arg)
+end
+AutoReply = auto_reply
+autoreply = auto_reply
+vacation = auto_reply
+Vacation = auto_reply
+vacation_settings = auto_reply
+VacationSettings = auto_reply
 ";
 
     private static readonly Regex KeywordRewriteRegex = new(
@@ -982,9 +1092,25 @@ Labels = labels
         {
             rootTable = lsTable;
         }
+        else if (state.Environment.TryGetValue("auto_reply", out var gAr) && gAr.TryRead<LuaTable>(out var arTable))
+        {
+            rootTable = arTable;
+        }
+        else if (state.Environment.TryGetValue("AutoReply", out var gAr2) && gAr2.TryRead<LuaTable>(out var ar2Table))
+        {
+            rootTable = ar2Table;
+        }
+        else if (state.Environment.TryGetValue("vacation", out var gVac) && gVac.TryRead<LuaTable>(out var vacTable))
+        {
+            rootTable = vacTable;
+        }
+        else if (state.Environment.TryGetValue("vacation_settings", out var gVacSet) && gVacSet.TryRead<LuaTable>(out var vacSetTable))
+        {
+            rootTable = vacSetTable;
+        }
         else
         {
-            throw new LuaConfigException("Lua script must return a table or define a global 'filter', 'rule', 'query', 'label', or 'config' table.");
+            throw new LuaConfigException("Lua script must return a table or define a global 'filter', 'rule', 'query', 'label', 'auto_reply', or 'config' table.");
         }
 
         string? customDateFormat = ExtractDateFormat(rootTable, state);
@@ -1355,7 +1481,46 @@ Labels = labels
     }
 
     // =========================================================================
-    // Full Configuration Loading (Filters + Labels)
+    // AutoReply Loading (AutoReply = VacationSettings)
+    // =========================================================================
+
+    public async Task<AutoReply.AutoReply?> LoadAutoReplyFromFileAsync(string filePath, LuaState? externalState = null)
+    {
+        if (!File.Exists(filePath))
+        {
+            throw new FileNotFoundException($"Configuration file not found: {filePath}", filePath);
+        }
+
+        string script = await File.ReadAllTextAsync(filePath);
+        return await LoadAutoReplyFromScriptAsync(script, externalState);
+    }
+
+    public async Task<AutoReply.AutoReply?> LoadAutoReplyFromScriptAsync(string script, LuaState? externalState = null)
+    {
+        var (rootTable, customDateFormat) = await ExecuteScriptAsync(script, externalState);
+        return ParseAutoReplyFromRoot(rootTable, customDateFormat);
+    }
+
+    public static AutoReply.AutoReply? ParseAutoReplyFromRoot(LuaTable root, string? customDateFormat)
+    {
+        foreach (var key in new[] { "auto_reply", "autoReply", "autoreply", "vacation", "vacation_settings", "vacationSettings" })
+        {
+            if (root.TryGetValue(key, out var arVal) && arVal.TryRead<LuaTable>(out var arTable))
+            {
+                return AutoReplyParser.ParseAutoReply(arTable, customDateFormat);
+            }
+        }
+
+        if (AutoReplyParser.IsAutoReplyTable(root))
+        {
+            return AutoReplyParser.ParseAutoReply(root, customDateFormat);
+        }
+
+        return null;
+    }
+
+    // =========================================================================
+    // Full Configuration Loading (Filters + Labels + AutoReply)
     // =========================================================================
 
     public async Task<GmailConfiguration> LoadConfigurationFromFileAsync(string filePath, LuaState? externalState = null)
@@ -1374,11 +1539,13 @@ Labels = labels
         var (rootTable, customDateFormat) = await ExecuteScriptAsync(script, externalState);
         var filters = ParseFiltersFromRoot(rootTable, customDateFormat);
         var labels = ParseLabelsFromRoot(rootTable);
+        var autoReply = ParseAutoReplyFromRoot(rootTable, customDateFormat);
 
         return new GmailConfiguration
         {
             Filters = filters,
             Labels = labels,
+            AutoReply = autoReply,
             CustomDateFormat = customDateFormat
         };
     }

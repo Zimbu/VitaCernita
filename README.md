@@ -45,6 +45,11 @@ VitaCernita is built upon three decoupled pillars:
    - Custom mailbox labels configured with display `name`, visibility settings, and palette colors matching the Gmail API `users.labels` REST resource.
    - Built-in label diffing engine compares desired labels against active Gmail accounts with selective field comparison, API patch payloads, and dry-run reporting.
 
+5. **Auto-Reply (Vacation Responder)** ([`AutoReply`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/AutoReply/AutoReply.cs), [`AutoReplyDiffer`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/AutoReply/Diff/AutoReplyDiffer.cs)):
+   - Gmail vacation responder settings matching the official Gmail API `VacationSettings` REST resource.
+   - Configures subject, plain text and HTML bodies, contact restriction, start and end date ranges, and Google Workspace-specific domain restriction checks.
+   - Built-in differ and dry-run reporting integrate with LINQ queryable sources and CLI.
+
 ---
 
 ## Detailed Documentation Subfolders
@@ -57,6 +62,7 @@ For complete operator tables, validation specifications, and API mappings, see t
 | [**Filter Actions Guide**](docs/actions/README.md) | Actions and system labels reference | Supported actions (`archive`, `star`, `delete`, etc.), Gmail API mapping, category enums, custom user labels vs system labels, forwarding validation. |
 | [**Composite Filters Guide**](docs/filters/README.md) | Composite filter and serialization guide | Filter structure, `.ToDictionary()` JSON serialization for the Gmail REST API, multi-filter configurations, C# programmatic loader APIs, backwards compatibility. |
 | [**Gmail Labels Guide**](docs/labels/README.md) | Custom mailbox label configuration & diffing | Label properties (`name`, `messageListVisibility`, `labelListVisibility`), 102 predefined palette colors, standard aliases (`black`, `white`), diff engine, dry-run reports, patch payloads. |
+| [**Auto-Reply (Vacation) Guide**](docs/autoreply/README.md) | Vacation responder configuration & diffing | Auto-reply matching `VacationSettings`, plain text & HTML bodies, contact/domain restrictions, start/end dates, Workspace domain validation, diffing. |
 | [**Gmail API & Sync Guide**](docs/api/README.md) | API client interface, fakes, and account diffing | `IGmailApiClient` interface, native Core .NET `HttpClient` implementation, `FakeGmailApiClient` in-memory mock, auth architecture, and CLI account diffing. |
 
 ---

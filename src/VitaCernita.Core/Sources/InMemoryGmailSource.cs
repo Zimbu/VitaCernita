@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using VitaCernita.Core.AutoReply;
 using VitaCernita.Core.Filters;
 using VitaCernita.Core.Labels;
 
@@ -15,17 +16,26 @@ public class InMemoryGmailSource : IGmailSource
 {
     private readonly List<GmailLabel> _labels = new();
     private readonly List<GmailFilter> _filters = new();
+    private AutoReply.AutoReply? _autoReply;
 
     public string Name { get; set; }
 
     public InMemoryGmailSource(
         IEnumerable<GmailLabel>? labels = null,
         IEnumerable<GmailFilter>? filters = null,
+        AutoReply.AutoReply? autoReply = null,
         string name = "InMemory")
     {
         if (labels != null) _labels.AddRange(labels);
         if (filters != null) _filters.AddRange(filters);
+        _autoReply = autoReply;
         Name = name;
+    }
+
+    public InMemoryGmailSource SetAutoReply(AutoReply.AutoReply? autoReply)
+    {
+        _autoReply = autoReply;
+        return this;
     }
 
     public InMemoryGmailSource AddLabel(GmailLabel label)
@@ -61,4 +71,12 @@ public class InMemoryGmailSource : IGmailSource
 
     public Task<IQueryable<GmailFilter>> GetFiltersAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(_filters.AsQueryable());
+
+    public Task<AutoReply.AutoReply?> GetAutoReplyAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(_autoReply);
+
+    public Task<IQueryable<AutoReply.AutoReply>> GetAutoRepliesAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(_autoReply != null
+            ? new[] { _autoReply }.AsQueryable()
+            : Enumerable.Empty<AutoReply.AutoReply>().AsQueryable());
 }
