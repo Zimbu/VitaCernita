@@ -1,22 +1,18 @@
 using System;
+using VitaCernita.Core.Actions;
 
 namespace VitaCernita.Core.Filters;
 
 /// <summary>
-/// A Gmail filter rule consisting of a matching condition and metadata.
+/// A Gmail filter rule consisting of a matching condition, action, and metadata.
+/// Inherits from GmailFilter to maintain full backward compatibility while supporting decoupled actions.
 /// </summary>
-public sealed class GmailRule
+public sealed class GmailRule : GmailFilter
 {
-    public string? Name { get; set; }
-    public IFilterCondition Condition { get; }
+    public IFilterCondition? Condition => Criteria;
 
-    public GmailRule(IFilterCondition condition, string? name = null)
+    public GmailRule(IFilterCondition? condition = null, string? name = null, GmailAction? action = null)
+        : base(condition, action, name)
     {
-        Condition = condition ?? throw new ArgumentNullException(nameof(condition));
-        Name = name;
     }
-
-    public string ToGmailQuery(bool explicitAnd = false) => Condition.ToGmailQuery(explicitAnd);
-
-    public override string ToString() => ToGmailQuery();
 }

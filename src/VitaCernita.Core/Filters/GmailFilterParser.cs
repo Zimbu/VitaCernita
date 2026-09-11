@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Lua;
+using VitaCernita.Core.Actions;
 using VitaCernita.Core.Configuration;
 using VitaCernita.Core.Filters.Validation;
 
@@ -74,28 +75,101 @@ public static class GmailFilterParser
             ruleName = nameVal.Read<string>();
         }
 
-        // Check if wrapped in `rule = ...`
+        // Check if wrapped in `filter = ...` or `rule = ...`
+        if (table.TryGetValue("filter", out var innerFilter) && innerFilter.TryRead<LuaTable>(out var filterTable))
+        {
+            return ParseRule(filterTable, customDateFormat);
+        }
         if (table.TryGetValue("rule", out var innerRule) && innerRule.TryRead<LuaTable>(out var innerTable))
         {
             return ParseRule(innerTable, customDateFormat);
         }
 
-        // Check if wrapped in `match = ...` where match is a table (composite condition)
-        if (table.TryGetValue("match", out var matchVal) && matchVal.TryRead<LuaTable>(out var matchTable))
+        // Check if this table itself is explicitly an action object
+        if (table.TryGetValue("type", out var rootTypeVal))
         {
-            var cond = ParseCondition(matchTable, customDateFormat);
-            return new GmailRule(cond, ruleName);
+            string rt = rootTypeVal.ToString();
+            if (rt is "action" or "action_builder" or "action_item")
+            {
+                var act = GmailActionParser.ParseAction(table);
+                return new GmailRule(null, ruleName, act);
+            }
         }
 
-        var condition = ParseCondition(table, customDateFormat);
-        return new GmailRule(condition, ruleName);
+        // Extract action if defined
+        GmailAction? action = null;
+        if (table.TryGetValue("action", out var actVal))
+        {
+            if (actVal.TryRead<LuaTable>(out var actTable))
+            {
+                action = GmailActionParser.ParseAction(actTable);
+            }
+            else if (actVal.Type == LuaValueType.String)
+            {
+                action = GmailActionParser.ParseActionString(actVal.Read<string>());
+            }
+        }
+        else if (table.TryGetValue("actions", out var actsVal) && actsVal.TryRead<LuaTable>(out var actsTable))
+        {
+            action = GmailActionParser.ParseAction(actsTable);
+        }
+
+        // Extract condition if defined
+        IFilterCondition? condition = null;
+        if (table.TryGetValue("query", out var queryVal) && queryVal.TryRead<LuaTable>(out var queryTable))
+        {
+            condition = ParseCondition(queryTable, customDateFormat);
+        }
+        else if (table.TryGetValue("match", out var matchVal) && matchVal.TryRead<LuaTable>(out var matchTable))
+        {
+            condition = ParseCondition(matchTable, customDateFormat);
+        }
+        else if (HasAnyConditionFields(table))
+        {
+            condition = ParseCondition(table, customDateFormat);
+        }
+
+        return new GmailRule(condition, ruleName, action);
+    }
+
+    private static bool HasAnyConditionFields(LuaTable table)
+    {
+        if (table.TryGetValue("type", out var typeVal))
+        {
+            string t = typeVal.ToString();
+            if (t is "action" or "action_builder" or "action_item")
+                return false;
+            if (t is "operator" or "exact" or "field" or "builder" or "has" or "is" or "in" or "category" or "size" or "filter_builder")
+                return true;
+        }
+
+        if (table.TryGetValue("match", out _) || table.TryGetValue("query", out _))
+            return true;
+
+        if (table.TryGetValue("op", out _))
+            return true;
+
+        foreach (var opKey in new[] { "and", "or", "not", "any_of", "any", "all_of", "all" })
+        {
+            if (table.TryGetValue(opKey, out _)) return true;
+        }
+
+        foreach (var field in SupportedFieldNames)
+        {
+            if (table.TryGetValue(field, out _)) return true;
+        }
+
+        if (table.ArrayLength > 0 && !GmailActionParser.IsActionTable(table))
+            return true;
+
+        return false;
     }
 
     public static IFilterCondition ParseCondition(LuaTable table, string? customDateFormat = null)
     {
-        // 1. Fluent Builder pattern: { type = "builder", conditions = { ... } }
+        // 1. Fluent Builder pattern: { type = "builder"|"filter_builder", conditions = { ... } }
         if (table.TryGetValue("type", out var typeVal) && typeVal.Type == LuaValueType.String &&
-            typeVal.Read<string>() == "builder" &&
+            (typeVal.Read<string>() == "builder" || typeVal.Read<string>() == "filter_builder") &&
             table.TryGetValue("conditions", out var builderConds) && builderConds.TryRead<LuaTable>(out var bCondsTable))
         {
             return ParseConditionsList(bCondsTable, isOr: false, customDateFormat);

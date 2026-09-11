@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Lua;
 using Lua.Standard;
+using VitaCernita.Core.Actions;
 using VitaCernita.Core.Configuration;
 
 namespace VitaCernita.Core.Filters;
@@ -228,7 +229,10 @@ anywhere = in_anywhere
 
 in_archive = make_in('archive')
 InArchive = in_archive
-archive = in_archive
+archive = setmetatable({ type = 'in', value = 'archive', action = 'archive' }, {
+    __call = function() return { type = 'in', value = 'archive', action = 'archive' } end
+})
+Archive = archive
 
 in_snoozed = make_in('snoozed')
 InSnoozed = in_snoozed
@@ -262,7 +266,8 @@ chats = in_chats
 local function make_category(name)
     local tbl = { type = 'category', value = name }
     return setmetatable(tbl, {
-        __call = function() return { type = 'category', value = name } end
+        __call = function() return { type = 'category', value = name } end,
+        __tostring = function() return name end
     })
 end
 
@@ -552,12 +557,158 @@ FilterBuilder.not_op = FilterBuilder.Not
 FilterBuilder.negate = FilterBuilder.Not
 FilterBuilder.invert = FilterBuilder.Not
 
+function FilterBuilder:action(act) self.action_def = act; return self end
+FilterBuilder.Action = FilterBuilder.action
+function FilterBuilder:actions(...) self.action_def = actions(...); return self end
+FilterBuilder.Actions = FilterBuilder.actions
+
 function FilterBuilder:build()
+    if self.action_def ~= nil then
+        return { type = 'filter_builder', conditions = self.conditions, action = self.action_def }
+    end
     return { type = 'operator', op = 'and', conditions = self.conditions }
 end
 
-function filter()
-    return setmetatable({ type = 'builder', conditions = {} }, FilterBuilder)
+-- Action operators & helpers
+local function make_action_item(action_name)
+    local tbl = { type = 'action_item', action = action_name }
+    return setmetatable(tbl, {
+        __call = function() return { type = 'action_item', action = action_name } end
+    })
+end
+
+mark_unread = make_action_item('mark_unread')
+MarkUnread = mark_unread
+mark_read = mark_unread
+MarkRead = mark_unread
+mark_as_read = mark_unread
+MarkAsRead = mark_unread
+
+star = make_action_item('star')
+Star = star
+
+delete = make_action_item('delete')
+Delete = delete
+
+mark_important = make_action_item('mark_important')
+MarkImportant = mark_important
+
+function add_category(cat)
+    local val = cat
+    if type(cat) == 'table' and cat.value ~= nil then
+        val = cat.value
+    end
+    return { type = 'action_item', action = 'add_category', value = tostring(val) }
+end
+AddCategory = add_category
+categorize = add_category
+Categorize = add_category
+
+function add_label(lbl) return { type = 'action_item', action = 'add_label', value = lbl } end
+AddLabel = add_label
+apply_label = add_label
+ApplyLabel = add_label
+
+function add_labels(...)
+    local args = { ... }
+    if #args == 1 and type(args[1]) == 'table' then
+        return { type = 'action_item', action = 'add_labels', value = args[1] }
+    else
+        return { type = 'action_item', action = 'add_labels', value = args }
+    end
+end
+AddLabels = add_labels
+apply_labels = add_labels
+ApplyLabels = add_labels
+
+function forward_message(email) return { type = 'action_item', action = 'forward', value = tostring(email) } end
+ForwardMessage = forward_message
+forward = forward_message
+Forward = forward_message
+
+local ActionBuilder = {}
+ActionBuilder.__index = ActionBuilder
+
+function ActionBuilder:archive() table.insert(self.items, archive()); return self end
+ActionBuilder.Archive = ActionBuilder.archive
+function ActionBuilder:mark_unread() table.insert(self.items, mark_unread()); return self end
+ActionBuilder.MarkUnread = ActionBuilder.mark_unread
+ActionBuilder.mark_read = ActionBuilder.mark_unread
+ActionBuilder.MarkRead = ActionBuilder.mark_unread
+ActionBuilder.mark_as_read = ActionBuilder.mark_unread
+ActionBuilder.MarkAsRead = ActionBuilder.mark_unread
+ActionBuilder.read = ActionBuilder.mark_unread
+ActionBuilder.Read = ActionBuilder.mark_unread
+function ActionBuilder:star() table.insert(self.items, star()); return self end
+ActionBuilder.Star = ActionBuilder.star
+function ActionBuilder:delete() table.insert(self.items, delete()); return self end
+ActionBuilder.Delete = ActionBuilder.delete
+ActionBuilder.trash = ActionBuilder.delete
+ActionBuilder.Trash = ActionBuilder.delete
+function ActionBuilder:mark_important() table.insert(self.items, mark_important()); return self end
+ActionBuilder.MarkImportant = ActionBuilder.mark_important
+ActionBuilder.important = ActionBuilder.mark_important
+ActionBuilder.Important = ActionBuilder.mark_important
+function ActionBuilder:add_category(cat) table.insert(self.items, add_category(cat)); return self end
+ActionBuilder.AddCategory = ActionBuilder.add_category
+ActionBuilder.categorize = ActionBuilder.add_category
+ActionBuilder.Categorize = ActionBuilder.add_category
+function ActionBuilder:add_label(lbl) table.insert(self.items, add_label(lbl)); return self end
+ActionBuilder.AddLabel = ActionBuilder.add_label
+ActionBuilder.apply_label = ActionBuilder.add_label
+ActionBuilder.ApplyLabel = ActionBuilder.add_label
+function ActionBuilder:add_labels(...) table.insert(self.items, add_labels(...)); return self end
+ActionBuilder.AddLabels = ActionBuilder.add_labels
+ActionBuilder.apply_labels = ActionBuilder.add_labels
+ActionBuilder.ApplyLabels = ActionBuilder.add_labels
+function ActionBuilder:forward_message(email) table.insert(self.items, forward_message(email)); return self end
+ActionBuilder.ForwardMessage = ActionBuilder.forward_message
+ActionBuilder.forward = ActionBuilder.forward_message
+ActionBuilder.Forward = ActionBuilder.forward_message
+
+function ActionBuilder:build()
+    return { type = 'action', items = self.items }
+end
+
+function action(arg)
+    if arg == nil then
+        return setmetatable({ type = 'action_builder', items = {} }, ActionBuilder)
+    elseif type(arg) == 'table' then
+        return setmetatable({ type = 'action', definition = arg }, {
+            __index = arg
+        })
+    else
+        return { type = 'action', definition = { arg } }
+    end
+end
+Action = action
+
+function actions(...)
+    local args = { ... }
+    if #args == 1 and type(args[1]) == 'table' and args[1].type ~= 'action_item' and args[1].action == nil then
+        if args[1][1] ~= nil then
+            return { type = 'action', items = args[1] }
+        else
+            return setmetatable({ type = 'action', definition = args[1] }, {
+                __index = args[1]
+            })
+        end
+    else
+        return { type = 'action', items = args }
+    end
+end
+Actions = actions
+
+function filter(arg)
+    if arg == nil then
+        return setmetatable({ type = 'builder', conditions = {} }, FilterBuilder)
+    elseif type(arg) == 'table' then
+        return setmetatable({ type = 'rule', rule = arg }, {
+            __index = arg
+        })
+    else
+        return { query = arg }
+    end
 end
 Filter = filter
 ";
@@ -683,42 +834,109 @@ Filter = filter
         });
     }
 
+    public async Task<GmailFilter> LoadFilterFromScriptAsync(string script, LuaState? externalState = null)
+        => await LoadRuleFromScriptAsync(script, externalState);
+
+    public async Task<List<GmailRule>> LoadFiltersFromScriptAsync(string script, LuaState? externalState = null)
+        => await LoadRulesFromScriptAsync(script, externalState);
+
+    public async Task<GmailAction> LoadActionFromFileAsync(string filePath, LuaState? externalState = null)
+    {
+        if (!File.Exists(filePath))
+        {
+            throw new FileNotFoundException($"Action configuration file not found: {filePath}", filePath);
+        }
+
+        string script = await File.ReadAllTextAsync(filePath);
+        return await LoadActionFromScriptAsync(script, externalState);
+    }
+
+    public async Task<GmailAction> LoadActionFromScriptAsync(string script, LuaState? externalState = null)
+    {
+        var state = externalState ?? LuaState.Create();
+        state.OpenStandardLibraries();
+        RegisterHelpers(state);
+
+        await state.DoStringAsync(DslPrelude);
+
+        string preprocessed = PreprocessScript(script);
+        var results = await state.DoStringAsync(preprocessed);
+
+        if (results.Length > 0 && results[0].Type == LuaValueType.String)
+        {
+            return GmailActionParser.ParseActionString(results[0].Read<string>());
+        }
+
+        LuaTable? table = null;
+        if (results.Length > 0 && results[0].TryRead<LuaTable>(out var resTable))
+        {
+            table = resTable;
+        }
+        else if (state.Environment.TryGetValue("action", out var gAct) && gAct.TryRead<LuaTable>(out var aTable))
+        {
+            table = aTable;
+        }
+        else if (state.Environment.TryGetValue("actions", out var gActs) && gActs.TryRead<LuaTable>(out var asTable))
+        {
+            table = asTable;
+        }
+
+        if (table == null)
+        {
+            throw new LuaConfigException("Lua action script must return an action expression or define an 'action' table.");
+        }
+
+        if (table.TryGetValue("action", out var innerAct) && innerAct.TryRead<LuaTable>(out var innerActTable))
+        {
+            return GmailActionParser.ParseAction(innerActTable);
+        }
+        if (table.TryGetValue("actions", out var innerActs) && innerActs.TryRead<LuaTable>(out var innerActsTable))
+        {
+            return GmailActionParser.ParseAction(innerActsTable);
+        }
+
+        return GmailActionParser.ParseAction(table);
+    }
+
     private static List<GmailRule> ParseRulesFromRoot(LuaTable root, string? customDateFormat)
     {
         var rules = new List<GmailRule>();
 
-        // Check if root has a "rules" table: { rules = { ... } }
-        if (root.TryGetValue("rules", out var rulesVal) && rulesVal.TryRead<LuaTable>(out var rulesTable))
+        // Check if root has a "rules" or "filters" table: { rules = { ... } } or { filters = { ... } }
+        foreach (var key in new[] { "rules", "filters" })
         {
-            for (int i = 1; i <= rulesTable.ArrayLength; i++)
+            if (root.TryGetValue(key, out var rulesVal) && rulesVal.TryRead<LuaTable>(out var rulesTable))
             {
-                if (rulesTable[i].TryRead<LuaTable>(out var rTable))
+                for (int i = 1; i <= rulesTable.ArrayLength; i++)
                 {
-                    rules.Add(GmailFilterParser.ParseRule(rTable, customDateFormat));
+                    if (rulesTable[i].TryRead<LuaTable>(out var rTable))
+                    {
+                        rules.Add(GmailFilterParser.ParseRule(rTable, customDateFormat));
+                    }
                 }
-            }
-            foreach (var pair in rulesTable)
-            {
-                if (pair.Key.Type != LuaValueType.Number && pair.Value.TryRead<LuaTable>(out var rTable))
+                foreach (var pair in rulesTable)
                 {
-                    rules.Add(GmailFilterParser.ParseRule(rTable, customDateFormat));
+                    if (pair.Key.Type != LuaValueType.Number && pair.Value.TryRead<LuaTable>(out var rTable))
+                    {
+                        rules.Add(GmailFilterParser.ParseRule(rTable, customDateFormat));
+                    }
                 }
+                if (rules.Count > 0) return rules;
             }
-            if (rules.Count > 0) return rules;
         }
 
-        // Check if root is an operator or exact match
+        // Check if root is an operator, exact match, builder, or action
         if (root.TryGetValue("type", out var typeVal))
         {
             string t = typeVal.ToString();
-            if (t == "operator" || t == "exact" || t == "field" || t == "builder" || t == "has" || t == "is")
+            if (t is "operator" or "exact" or "field" or "builder" or "filter_builder" or "has" or "is" or "in" or "category" or "size" or "action" or "action_builder" or "action_item")
             {
                 rules.Add(GmailFilterParser.ParseRule(root, customDateFormat));
                 return rules;
             }
         }
 
-        // Check if root is an array of rules: { rule1, rule2 }
+        // Check if root is an array of rules/filters: { rule1, rule2 }
         if (root.ArrayLength > 0 && root[1].Type == LuaValueType.Table)
         {
             for (int i = 1; i <= root.ArrayLength; i++)

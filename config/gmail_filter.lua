@@ -43,7 +43,8 @@ return {
                 After("01-01-2026"),
                 Before("12-31-2026"),
                 Label("finance-invoices")
-            )
+            ),
+            action = actions(archive, add_category('Purchases'), add_label('Receipts'), forward_message('accounting@company.com'))
         },
 
         -- Rule 3: Archive Stale Engineering Announcements with Duration Filter
@@ -54,7 +55,8 @@ return {
                 delivered_to("oncall-alias@company.com"),
                 older_than("90d"),
                 Label("engineering")
-            )
+            ),
+            action = actions(archive, mark_read)
         },
 
         -- Rule 4: Recent Calendar Escalations via Header and newer_than
@@ -83,7 +85,8 @@ return {
                 From("director@company.com"),
                 Or(has_red_bang, has_yellow_bang),
                 newer_than("7d")
-            )
+            ),
+            action = actions(star, mark_important)
         },
 
         -- Rule 7: Follow-ups with Guillemets and Star Icons
@@ -141,7 +144,8 @@ return {
                 category_promotions,
                 larger("5M"),
                 smaller("25M")
-            )
+            ),
+            action = actions(delete)
         }
     }
 }

@@ -78,11 +78,16 @@ public static class Program
                 string canonicalQuery = rule.ToGmailQuery(explicitAnd: false);
                 string explicitAndQuery = rule.ToGmailQuery(explicitAnd: true);
 
+                string actionInfo = rule.Action != null && !rule.Action.IsEmpty
+                    ? $"\n\n[bold white]Action:[/] [cyan]{Markup.Escape(rule.Action.ToString())}[/]"
+                    : string.Empty;
+
                 var panel = new Panel(
                     new Markup(
                         $"[bold white]Gmail Search Query:[/] [bold green]{Markup.Escape(explicitAnd ? explicitAndQuery : canonicalQuery)}[/]\n\n" +
                         $"[dim]Canonical (Space-AND):[/] [yellow]{Markup.Escape(canonicalQuery)}[/]\n" +
-                        $"[dim]Explicit AND Keyword :[/] [yellow]{Markup.Escape(explicitAndQuery)}[/]"
+                        $"[dim]Explicit AND Keyword :[/] [yellow]{Markup.Escape(explicitAndQuery)}[/]" +
+                        actionInfo
                     ))
                 {
                     Header = new PanelHeader($"[bold cyan]{Markup.Escape(title)}[/]"),

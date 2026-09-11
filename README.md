@@ -226,6 +226,81 @@ return {
 
 ---
 
+### Action Language & System Labels
+
+VitaCernita provides a decoupled action language matching the [Gmail API labels and filter actions guide](https://developers.google.com/workspace/gmail/api/guides/labels). The search criteria and actions are decoupled and can be used together or independently.
+
+#### Supported Actions
+
+| Action | Gmail API Mapping | Description |
+|---|---|---|
+| `archive` | `removeLabelIds: ["INBOX"]` | Removes the `INBOX` system label (skip the inbox). |
+| `mark_unread` / `mark_read` | `removeLabelIds: ["UNREAD"]` | Removes the `UNREAD` system label (marks message as read). |
+| `star` | `addLabelIds: ["STARRED"]` | Adds the `STARRED` system label. |
+| `delete` / `trash` | `addLabelIds: ["TRASH"]` | Adds the `TRASH` system label (moves to trash). |
+| `mark_important` | `addLabelIds: ["IMPORTANT"]` | Adds the `IMPORTANT` system label. |
+| `add_category(cat)` | `addLabelIds: ["CATEGORY_*"]` | Applies one of 6 enumerated categories: `Primary` (`CATEGORY_PERSONAL`), `Purchases` (`CATEGORY_PURCHASES`), `Social` (`CATEGORY_SOCIAL`), `Updates` (`CATEGORY_UPDATES`), `Forums` (`CATEGORY_FORUMS`), `Promotions` (`CATEGORY_PROMOTIONS`). |
+| `add_label(lbl)` / `add_labels(...)` | `addLabelIds: [lbl]` | Adds custom user labels. Rejects empty strings and reserved system label names. |
+| `forward_message(email)` | `forward: email` | Forwards the message to a validated email address. |
+
+#### Action Syntax Styles
+
+**1. Functional Actions:**
+```lua
+return actions(
+    archive,
+    star,
+    mark_important,
+    add_category('Purchases'),
+    add_label('Receipts'),
+    forward_message('accounting@company.com')
+)
+```
+
+**2. Fluent ActionBuilder:**
+```lua
+return action()
+    :archive()
+    :star()
+    :mark_important()
+    :add_category('Purchases')
+    :add_label('Receipts')
+    :forward_message('accounting@company.com')
+    :build()
+```
+
+**3. Declarative Action Table:**
+```lua
+return action {
+    archive = true,
+    star = true,
+    mark_important = true,
+    add_category = 'Purchases',
+    add_label = 'Receipts',
+    forward = 'accounting@company.com'
+}
+```
+
+#### Combining Query and Action
+
+Filters combine search criteria and actions:
+```lua
+return filter {
+    query = { from = 'billing@stripe.com' },
+    action = actions(archive, add_category('Purchases'), add_label('Stripe'))
+}
+```
+
+Or using the fluent builder:
+```lua
+return filter()
+    :from('billing@stripe.com')
+    :actions(archive, add_category('Purchases'))
+    :build()
+```
+
+---
+
 ## Getting Started
 
 ### Build & Test
