@@ -35,7 +35,8 @@ public static class GmailFilterParser
         "has_spreadsheet", "spreadsheet",
         "has_presentation", "presentation",
         "has_youtube", "has_you_tube", "youtube", "you_tube",
-        "has_nouserlabels", "has_no_user_labels", "nouserlabels", "no_user_labels",
+        "has_user_labels", "has_userlabels", "user_labels", "userlabels",
+        "has_no_user_labels", "has_nouserlabels", "no_user_labels", "nouserlabels",
         "is_unread", "unread",
         "is_read", "read",
         "is_important", "important",
@@ -730,8 +731,8 @@ public static class GmailFilterParser
         }
         norm = norm.Replace('_', '-');
         if (norm.EndsWith("guillemets")) norm = norm[..^1];
-        if (norm is "user-labels") norm = "userlabels";
-        if (norm is "no-user-labels" or "no-userlabels" or "nouser-labels") norm = "nouserlabels";
+        if (norm is "user-labels" or "userlabels") norm = "userlabels";
+        if (norm is "no-user-labels" or "no-userlabels" or "nouser-labels" or "nouserlabels") norm = "nouserlabels";
         if (norm is "you-tube") norm = "youtube";
         return FilterValidator.CanonicalHasTargets.Contains(norm);
     }

@@ -61,8 +61,8 @@ All 12 Gmail star and status icons plus the general `is:starred` operator are su
 | `has_spreadsheet` / `has_spreadsheet()` / `spreadsheet` | `has:spreadsheet` | Messages with Google Sheets |
 | `has_presentation` / `has_presentation()` / `presentation` | `has:presentation` | Messages with Google Slides |
 | `has_youtube` / `has_youtube()` / `youtube` | `has:youtube` | Messages containing YouTube videos |
-| `has_userlabels` / `has_userlabels()` | `has:userlabels` | Messages with user-defined labels |
-| `has_nouserlabels` / `has_nouserlabels()` | `has:nouserlabels` | Messages without any user-defined labels |
+| `has_user_labels` / `has_user_labels()` / `user_labels` | `has:userlabels` | Messages with user-defined labels (alias: `has_userlabels`) |
+| `has_no_user_labels` / `has_no_user_labels()` / `no_user_labels` | `has:nouserlabels` | Messages without any user-defined labels (alias: `has_nouserlabels`) |
 
 ---
 

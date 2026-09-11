@@ -33,12 +33,24 @@ public class HasMediaAndDocumentOperatorsTests
     [InlineData("return has_youtube", "has:youtube")]
     [InlineData("return has_youtube()", "has:youtube")]
     [InlineData("return has('youtube')", "has:youtube")]
+    [InlineData("return has_user_labels", "has:userlabels")]
+    [InlineData("return has_user_labels()", "has:userlabels")]
+    [InlineData("return HasUserLabels", "has:userlabels")]
+    [InlineData("return user_labels", "has:userlabels")]
     [InlineData("return has_userlabels", "has:userlabels")]
     [InlineData("return has_userlabels()", "has:userlabels")]
     [InlineData("return has('userlabels')", "has:userlabels")]
+    [InlineData("return has('user_labels')", "has:userlabels")]
+    [InlineData("return has('user-labels')", "has:userlabels")]
+    [InlineData("return has_no_user_labels", "has:nouserlabels")]
+    [InlineData("return has_no_user_labels()", "has:nouserlabels")]
+    [InlineData("return HasNoUserLabels", "has:nouserlabels")]
+    [InlineData("return no_user_labels", "has:nouserlabels")]
     [InlineData("return has_nouserlabels", "has:nouserlabels")]
     [InlineData("return has_nouserlabels()", "has:nouserlabels")]
     [InlineData("return has('nouserlabels')", "has:nouserlabels")]
+    [InlineData("return has('no_user_labels')", "has:nouserlabels")]
+    [InlineData("return has('no-user-labels')", "has:nouserlabels")]
     public async Task Has_MediaAndMetadata_EmitsCorrectQuery(string luaScript, string expectedQuery)
     {
         var rule = await _loader.LoadRuleFromScriptAsync(luaScript);
@@ -90,6 +102,32 @@ return {
 ";
         var rule = await _loader.LoadRuleFromScriptAsync(lua);
         Assert.Equal("from:contracts@company.com has:attachment", rule.ToGmailQuery());
+    }
+
+    [Fact]
+    public async Task TableSyntax_UserLabels_EmitsHasUserLabels()
+    {
+        string lua = @"
+return {
+    from = 'contracts@company.com',
+    has_user_labels = true
+}
+";
+        var rule = await _loader.LoadRuleFromScriptAsync(lua);
+        Assert.Equal("from:contracts@company.com has:userlabels", rule.ToGmailQuery());
+    }
+
+    [Fact]
+    public async Task TableSyntax_NoUserLabels_EmitsHasNoUserLabels()
+    {
+        string lua = @"
+return {
+    from = 'inbox@company.com',
+    has_no_user_labels = true
+}
+";
+        var rule = await _loader.LoadRuleFromScriptAsync(lua);
+        Assert.Equal("from:inbox@company.com has:nouserlabels", rule.ToGmailQuery());
     }
 
     [Fact]
@@ -179,6 +217,28 @@ return filter()
 ";
         var rule = await _loader.LoadRuleFromScriptAsync(lua);
         Assert.Equal("from:admin@company.com has:attachment has:drive has:youtube", rule.ToGmailQuery());
+    }
+
+    [Fact]
+    public async Task FilterBuilder_UserLabels_ChainsCorrectly()
+    {
+        string lua = @"
+return filter()
+    :from('admin@company.com')
+    :has_user_labels()
+    :build()
+";
+        var rule = await _loader.LoadRuleFromScriptAsync(lua);
+        Assert.Equal("from:admin@company.com has:userlabels", rule.ToGmailQuery());
+
+        string luaNo = @"
+return filter()
+    :from('admin@company.com')
+    :has_no_user_labels()
+    :build()
+";
+        var ruleNo = await _loader.LoadRuleFromScriptAsync(luaNo);
+        Assert.Equal("from:admin@company.com has:nouserlabels", ruleNo.ToGmailQuery());
     }
 
     // =========================================================================

@@ -5,7 +5,7 @@
 -- - String matching fields: from, to, cc, bcc, subject, list, filename, delivered-to,
 --   rfc822msgid, header, label, exact match("phrase").
 -- - Star & Icon operators: has_yellow_star, has_red_bang, is_starred, etc.
--- - Media, Document & Label metadata: has_attachment, has_drive, has_document, has_userlabels, etc.
+-- - Media, Document & Label metadata: has_attachment, has_drive, has_document, has_user_labels, etc.
 -- - Status & State operators: is_unread, is_read, is_important, is_muted, is_snoozed, etc.
 -- - Location & Folder operators: in_inbox, in_archive, in_trash, in_spam, in_anywhere, etc.
 -- - Category operators: category_promotions, category_updates, category_social, category_primary, etc.
