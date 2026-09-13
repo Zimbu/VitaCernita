@@ -46,6 +46,7 @@ public class InitializeCommand : ICliCommand
         string? account = null;
         string? userId = null;
         string? token = null;
+        string? explicitConfigDir = null;
         bool useMock = false;
         bool force = false;
 
@@ -71,6 +72,9 @@ public class InitializeCommand : ICliCommand
                 case "--token":
                     if (i + 1 < args.Length) token = args[++i];
                     break;
+                case "--config-dir":
+                    if (i + 1 < args.Length) explicitConfigDir = args[++i];
+                    break;
                 case "--mock":
                 case "--fake-account":
                     useMock = true;
@@ -86,9 +90,11 @@ public class InitializeCommand : ICliCommand
             }
         }
 
+        string configDir = ConfigPathResolver.GetDefaultConfigDirectory(customConfigDir: explicitConfigDir);
+
         string targetPath = !string.IsNullOrWhiteSpace(explicitOutputPath)
-            ? ConfigPathResolver.ResolveConfigPath(explicitOutputPath)
-            : ConfigPathResolver.GetDefaultConfigPath();
+            ? ConfigPathResolver.ResolveConfigPath(explicitOutputPath, customConfigDir: explicitConfigDir)
+            : ConfigPathResolver.GetDefaultConfigPath(customConfigDir: explicitConfigDir);
 
         if (File.Exists(targetPath) && !force)
         {
@@ -100,7 +106,7 @@ public class InitializeCommand : ICliCommand
 
         if (connectToAccount)
         {
-            return await InitializeFromAccountAsync(targetPath, account, userId, token, useMock);
+            return await InitializeFromAccountAsync(targetPath, account, userId, token, useMock, configDir);
         }
 
         return await InitializeDefaultConfigAsync(targetPath);
@@ -111,7 +117,8 @@ public class InitializeCommand : ICliCommand
         string? account,
         string? userId,
         string? token,
-        bool useMock)
+        bool useMock,
+        string configDir)
     {
         string effectiveUser = !string.IsNullOrWhiteSpace(userId)
             ? userId
@@ -152,13 +159,28 @@ public class InitializeCommand : ICliCommand
         else
         {
             token ??= Environment.GetEnvironmentVariable("GMAIL_ACCESS_TOKEN");
-            if (string.IsNullOrWhiteSpace(token))
+            IGmailTokenProvider tokenProvider;
+
+            if (!string.IsNullOrWhiteSpace(token))
             {
-                _console.MarkupLine($"[bold red]Error:[/] Access token required to connect to Gmail account '[yellow]{Markup.Escape(effectiveUser)}[/]'. Provide [bold]--token <token>[/] or set the [bold]GMAIL_ACCESS_TOKEN[/] environment variable.");
-                return 1;
+                tokenProvider = new BearerTokenProvider(token);
+            }
+            else
+            {
+                var oauthProvider = new GoogleOAuthTokenProvider(configDir: configDir, user: effectiveUser);
+                if (oauthProvider.HasCachedToken())
+                {
+                    _console.MarkupLine($"Using cached Google OAuth token for [cyan]{Markup.Escape(effectiveUser)}[/]...");
+                    tokenProvider = oauthProvider;
+                }
+                else
+                {
+                    _console.MarkupLine($"[bold red]Error:[/] No active Google login session or access token found for account '[yellow]{Markup.Escape(effectiveUser)}[/]'.");
+                    _console.MarkupLine("Run [bold cyan]vitacernita login[/] to authenticate, or provide [bold]--token <token>[/].");
+                    return 1;
+                }
             }
 
-            var tokenProvider = new BearerTokenProvider(token);
             client = new HttpGmailApiClient(new HttpClient(), tokenProvider);
         }
 
@@ -282,6 +304,7 @@ public class InitializeCommand : ICliCommand
         _console.MarkupLine("  -a, --account <email>   Target Gmail account email address");
         _console.MarkupLine("  -u, --user <userId>     Target Gmail user ID (defaults to --account or 'me')");
         _console.MarkupLine("  -t, --token <token>     Bearer token for Gmail API (defaults to GMAIL_ACCESS_TOKEN)");
+        _console.MarkupLine("      --config-dir <dir>  Custom configuration directory (default: ~/.config/vitacernita)");
         _console.MarkupLine("      --mock              Connect to an in-memory mock account (for testing/dry-run)");
         _console.MarkupLine("  -f, --force             Overwrite destination file if it already exists");
         _console.MarkupLine("  -h, --help              Show this help message");

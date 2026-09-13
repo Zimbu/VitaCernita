@@ -39,6 +39,7 @@ public class TestCommand : ICliCommand
     public async Task<int> ExecuteAsync(string[] args)
     {
         string? explicitConfigPath = null;
+        string? explicitConfigDir = null;
         bool explicitAnd = false;
         bool runDiff = false;
         bool useMock = false;
@@ -52,6 +53,9 @@ public class TestCommand : ICliCommand
                 case "-c":
                 case "--config":
                     if (i + 1 < args.Length) explicitConfigPath = args[++i];
+                    break;
+                case "--config-dir":
+                    if (i + 1 < args.Length) explicitConfigDir = args[++i];
                     break;
                 case "--explicit-and":
                     explicitAnd = true;
@@ -86,7 +90,8 @@ public class TestCommand : ICliCommand
 
         _console.MarkupLine("[bold]Gmail Filter Configuration Engine (Lua DSL & C# Core)[/]\n");
 
-        string configPath = ConfigPathResolver.ResolveConfigPath(explicitConfigPath);
+        string configDir = ConfigPathResolver.GetDefaultConfigDirectory(customConfigDir: explicitConfigDir);
+        string configPath = ConfigPathResolver.ResolveConfigPath(explicitConfigPath, customConfigDir: explicitConfigDir);
 
         if (!File.Exists(configPath))
         {
@@ -187,7 +192,29 @@ public class TestCommand : ICliCommand
                 }
                 else
                 {
-                    var tokenProvider = new BearerTokenProvider(token);
+                    token ??= Environment.GetEnvironmentVariable("GMAIL_ACCESS_TOKEN");
+                    IGmailTokenProvider tokenProvider;
+
+                    if (!string.IsNullOrWhiteSpace(token))
+                    {
+                        tokenProvider = new BearerTokenProvider(token);
+                    }
+                    else
+                    {
+                        var oauthProvider = new GoogleOAuthTokenProvider(configDir: configDir, user: userId);
+                        if (oauthProvider.HasCachedToken())
+                        {
+                            _console.MarkupLine($"Using cached Google OAuth token for [cyan]{Markup.Escape(userId)}[/]...");
+                            tokenProvider = oauthProvider;
+                        }
+                        else
+                        {
+                            _console.MarkupLine($"[bold red]Error:[/] No active Google login session or access token found for account '[yellow]{Markup.Escape(userId)}[/]'.");
+                            _console.MarkupLine("Run [bold cyan]vitacernita login[/] to authenticate, or provide [bold]--token <token>[/].");
+                            return 1;
+                        }
+                    }
+
                     var client = new HttpGmailApiClient(new HttpClient(), tokenProvider);
                     currentSource = new ApiGmailSource(client, userId);
                 }
@@ -275,6 +302,7 @@ public class TestCommand : ICliCommand
         _console.MarkupLine("  Display configured labels, auto-reply, and filters or diff against target Gmail account (legacy mode).\n");
         _console.MarkupLine("[bold]Options:[/]");
         _console.MarkupLine("  -c, --config <path>     Path to the Lua configuration file (default: ~/.config/vitacernita/gmail.lua)");
+        _console.MarkupLine("      --config-dir <dir>  Custom configuration directory (default: ~/.config/vitacernita)");
         _console.MarkupLine("      --diff              Diff local configuration (labels, filters, auto-reply) against target Gmail account");
         _console.MarkupLine("      --dry-run           Alias for --diff; computes diffs and outputs the dry-run synchronization plan");
         _console.MarkupLine("      --sync-plan         Generate and display the ordered sync commands to make target match configuration");

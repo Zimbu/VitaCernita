@@ -39,6 +39,7 @@ Explore detailed documentation, comprehensive operator tables, and validation ru
 | [**Gmail Labels**](labels/README.md) | Custom mailbox label configuration & diffing | Label configuration matching `users.labels`, message list visibility, sidebar label list visibility, 102 predefined palette colors & aliases, label diff engine, dry-run reports, patch payloads. |
 | [**Auto-Reply (Vacation)**](autoreply/README.md) | Vacation responder configuration & diffing | Auto-reply configuration matching `VacationSettings`, subject, plain text & HTML bodies, contact & domain restrictions, start/end date ranges, Workspace domain validation, diffing. |
 | [**Gmail API & Sync**](api/README.md) | API client interface, fakes, and account diffing | `IGmailApiClient` interface, native Core .NET `HttpClient` implementation, `FakeGmailApiClient` in-memory mock, auth architecture, and CLI account diffing. |
+| [**OAuth & Authentication**](auth/README.md) | Google OAuth 2.0 setup & token management | Google Cloud Console setup (Desktop app requirement), `login`/`logout` commands, token cache (`credentials.json`, `tokens/`), and production isolation policies. |
 
 ---
 

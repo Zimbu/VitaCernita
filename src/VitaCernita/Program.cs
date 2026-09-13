@@ -16,6 +16,8 @@ public static class Program
         var dispatcher = new CommandDispatcher();
         dispatcher.Register(new TestCommand());
         dispatcher.Register(new InitializeCommand());
+        dispatcher.Register(new LoginCommand());
+        dispatcher.Register(new LogoutCommand());
         return dispatcher;
     }
 }

@@ -1,18 +1,24 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace VitaCernita.Core.Configuration;
 
 /// <summary>
-/// Resolves logical configuration file locations for VitaCernita across platforms,
-/// handling standard XDG directories, home path expansion, and local fallbacks.
+/// Resolves logical configuration and credential file locations for VitaCernita across platforms,
+/// handling standard XDG directories, home path expansion, environment overrides, and local fallbacks.
+/// Strictly isolates unit tests and test runs from live production (~/.config).
 /// </summary>
 public static class ConfigPathResolver
 {
     public const string DefaultConfigFileName = "gmail.lua";
+    public const string DefaultCredentialsFileName = "credentials.json";
+    public const string DefaultTokenFolderName = "tokens";
     public const string AppFolderName = "vitacernita";
+    public const string ConfigDirEnvVar = "VITACERNITA_CONFIG_DIR";
+    public const string TestModeEnvVar = "VITACERNITA_TEST_MODE";
 
     private static readonly string[] LocalSearchPaths = new[]
     {
@@ -22,28 +28,92 @@ public static class ConfigPathResolver
     };
 
     /// <summary>
-    /// Gets the default configuration file path for the current user and platform.
-    /// Priority:
-    /// - If customHome / customXdg are provided (useful for testing), use them.
-    /// - On Unix/macOS: $XDG_CONFIG_HOME/vitacernita/gmail.lua, or ~/.config/vitacernita/gmail.lua.
-    /// - On Windows: %APPDATA%/vitacernita/gmail.lua.
+    /// Detects whether code is running inside a unit test runner or test environment.
+    /// In test mode, resolving paths without an explicit configDir will NEVER touch or read ~/.config.
     /// </summary>
-    public static string GetDefaultConfigPath(string? customHome = null, string? customXdg = null)
+    public static bool IsTestEnvironment
     {
+        get
+        {
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable(TestModeEnvVar)) ||
+                !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(ConfigDirEnvVar)))
+            {
+                return true;
+            }
+
+            try
+            {
+                var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+                for (int i = 0; i < assemblies.Length; i++)
+                {
+                    var name = assemblies[i].GetName().Name;
+                    if (name != null && (
+                        name.StartsWith("VitaCernita.Tests", StringComparison.OrdinalIgnoreCase) ||
+                        name.StartsWith("xunit", StringComparison.OrdinalIgnoreCase) ||
+                        name.StartsWith("testhost", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch
+            {
+                // Fallback to false
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Gets the base configuration directory for VitaCernita.
+    /// Priority:
+    /// 1. customConfigDir parameter (if provided)
+    /// 2. VITACERNITA_CONFIG_DIR environment variable (used to isolate test runs from live production config)
+    /// 3. If in test environment: safe isolated temp directory (NEVER ~/.config)
+    /// 4. customXdg or $XDG_CONFIG_HOME / vitacernita
+    /// 5. customHome / .config / vitacernita
+    /// 6. On Windows: %APPDATA% / vitacernita
+    /// 7. On Unix/macOS: ~/.config / vitacernita
+    /// </summary>
+    public static string GetDefaultConfigDirectory(
+        string? customHome = null,
+        string? customXdg = null,
+        string? customConfigDir = null)
+    {
+        if (!string.IsNullOrWhiteSpace(customConfigDir))
+        {
+            return Path.GetFullPath(ExpandHome(customConfigDir.Trim(), customHome));
+        }
+
+        var envOverride = Environment.GetEnvironmentVariable(ConfigDirEnvVar);
+        if (!string.IsNullOrWhiteSpace(envOverride))
+        {
+            return Path.GetFullPath(ExpandHome(envOverride.Trim(), customHome));
+        }
+
+        // CRITICAL SAFETY GUARD: If running inside tests and no custom dir specified,
+        // use an isolated temp directory to protect ~/.config (live production)
+        if (IsTestEnvironment && string.IsNullOrEmpty(customHome) && string.IsNullOrEmpty(customXdg))
+        {
+            string isolatedTestDir = Path.Combine(Path.GetTempPath(), "vitacernita_test_isolated", AppFolderName);
+            return isolatedTestDir;
+        }
+
         if (!string.IsNullOrEmpty(customXdg))
         {
-            return Path.Combine(customXdg, AppFolderName, DefaultConfigFileName);
+            return Path.Combine(customXdg, AppFolderName);
         }
 
         if (!string.IsNullOrEmpty(customHome))
         {
-            return Path.Combine(customHome, ".config", AppFolderName, DefaultConfigFileName);
+            return Path.Combine(customHome, ".config", AppFolderName);
         }
 
         var xdgConfigHome = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
         if (!string.IsNullOrWhiteSpace(xdgConfigHome))
         {
-            return Path.Combine(xdgConfigHome, AppFolderName, DefaultConfigFileName);
+            return Path.Combine(xdgConfigHome, AppFolderName);
         }
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -51,12 +121,42 @@ public static class ConfigPathResolver
             var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             if (!string.IsNullOrWhiteSpace(appData))
             {
-                return Path.Combine(appData, AppFolderName, DefaultConfigFileName);
+                return Path.Combine(appData, AppFolderName);
             }
         }
 
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        return Path.Combine(home, ".config", AppFolderName, DefaultConfigFileName);
+        return Path.Combine(home, ".config", AppFolderName);
+    }
+
+    /// <summary>
+    /// Gets the default configuration file path (~/.config/vitacernita/gmail.lua).
+    /// </summary>
+    public static string GetDefaultConfigPath(
+        string? customHome = null,
+        string? customXdg = null,
+        string? customConfigDir = null)
+    {
+        var baseDir = GetDefaultConfigDirectory(customHome, customXdg, customConfigDir);
+        return Path.Combine(baseDir, DefaultConfigFileName);
+    }
+
+    /// <summary>
+    /// Gets the path to the cached client credentials file (~/.config/vitacernita/credentials.json).
+    /// </summary>
+    public static string GetCredentialsPath(string? configDir = null)
+    {
+        var baseDir = configDir ?? GetDefaultConfigDirectory();
+        return Path.Combine(baseDir, DefaultCredentialsFileName);
+    }
+
+    /// <summary>
+    /// Gets the path to the user token storage directory (~/.config/vitacernita/tokens/).
+    /// </summary>
+    public static string GetTokenStorageDirectory(string? configDir = null)
+    {
+        var baseDir = configDir ?? GetDefaultConfigDirectory();
+        return Path.Combine(baseDir, DefaultTokenFolderName);
     }
 
     /// <summary>
@@ -86,11 +186,14 @@ public static class ConfigPathResolver
     /// <summary>
     /// Returns the ordered candidate paths checked when resolving configuration without an explicit path.
     /// </summary>
-    public static IReadOnlyList<string> GetCandidatePaths(string? customHome = null, string? customXdg = null)
+    public static IReadOnlyList<string> GetCandidatePaths(
+        string? customHome = null,
+        string? customXdg = null,
+        string? customConfigDir = null)
     {
         var list = new List<string>
         {
-            GetDefaultConfigPath(customHome, customXdg)
+            GetDefaultConfigPath(customHome, customXdg, customConfigDir)
         };
 
         foreach (var local in LocalSearchPaths)
@@ -105,14 +208,18 @@ public static class ConfigPathResolver
     /// Resolves the configuration path. If an explicit path is provided, it is expanded and returned.
     /// Otherwise, candidates are searched in priority order. If none exist, the default path is returned.
     /// </summary>
-    public static string ResolveConfigPath(string? explicitPath = null, string? customHome = null, string? customXdg = null)
+    public static string ResolveConfigPath(
+        string? explicitPath = null,
+        string? customHome = null,
+        string? customXdg = null,
+        string? customConfigDir = null)
     {
         if (!string.IsNullOrWhiteSpace(explicitPath))
         {
             return Path.GetFullPath(ExpandHome(explicitPath.Trim(), customHome));
         }
 
-        var candidates = GetCandidatePaths(customHome, customXdg);
+        var candidates = GetCandidatePaths(customHome, customXdg, customConfigDir);
         foreach (var candidate in candidates)
         {
             var expanded = ExpandHome(candidate, customHome);
@@ -122,7 +229,7 @@ public static class ConfigPathResolver
             }
         }
 
-        return Path.GetFullPath(GetDefaultConfigPath(customHome, customXdg));
+        return Path.GetFullPath(GetDefaultConfigPath(customHome, customXdg, customConfigDir));
     }
 
     /// <summary>

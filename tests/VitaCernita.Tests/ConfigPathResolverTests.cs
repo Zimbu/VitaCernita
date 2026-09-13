@@ -92,4 +92,30 @@ public class ConfigPathResolverTests
             }
         }
     }
+
+    [Fact]
+    public void ConfigDirEnvOverride_IsolatesAllPathsFromLiveSystem()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), "vitacernita_isolated_" + Guid.NewGuid().ToString("N"));
+        string? orig = Environment.GetEnvironmentVariable(ConfigPathResolver.ConfigDirEnvVar);
+        try
+        {
+            Environment.SetEnvironmentVariable(ConfigPathResolver.ConfigDirEnvVar, tempDir);
+
+            string configDir = ConfigPathResolver.GetDefaultConfigDirectory();
+            string configPath = ConfigPathResolver.GetDefaultConfigPath();
+            string credsPath = ConfigPathResolver.GetCredentialsPath();
+            string tokenDir = ConfigPathResolver.GetTokenStorageDirectory();
+
+            Assert.Equal(Path.GetFullPath(tempDir), configDir);
+            Assert.Equal(Path.Combine(Path.GetFullPath(tempDir), "gmail.lua"), configPath);
+            Assert.Equal(Path.Combine(Path.GetFullPath(tempDir), "credentials.json"), credsPath);
+            Assert.Equal(Path.Combine(Path.GetFullPath(tempDir), "tokens"), tokenDir);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(ConfigPathResolver.ConfigDirEnvVar, orig);
+            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true);
+        }
+    }
 }

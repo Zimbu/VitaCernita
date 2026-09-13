@@ -64,8 +64,10 @@ public interface IGmailTokenProvider
    var provider = new BearerTokenProvider();
    ```
 
-2. **Google OAuth 2.0 PKCE / `Google.Apis.Auth`** (Optional Extension):
-   - For interactive desktop login, `Google.Apis.Auth` (`GoogleWebAuthorizationBroker`) can be plugged in behind `IGmailTokenProvider` without coupling the HTTP transport to Google's client SDK.
+2. **`GoogleOAuthTokenProvider`** (Built-in via `Google.Apis.Auth`):
+   - Fully automated Google OAuth 2.0 loopback browser flow with automatic background token refresh via refresh tokens.
+   - Caches credentials in `~/.config/vitacernita/credentials.json` and tokens in `~/.config/vitacernita/tokens/`.
+   - See [**OAuth & Authentication Guide**](../auth/README.md) for full setup instructions, desktop client configuration, and production isolation policies.
 
 ---
 
