@@ -102,7 +102,7 @@ public class GoogleOAuthTokenProvider : IGmailTokenProvider
         }
 
         ConfigPathResolver.EnsureDirectoryExists(Path.Combine(_tokenStorageDir, "dummy"));
-        ClientCredentialsManager.SecureFilePermissions(_tokenStorageDir);
+        ClientCredentialsManager.SecureFilePermissions(_tokenStorageDir, isDirectory: true);
 
         IDataStore dataStore = _dataStoreOverride ?? new FileDataStore(_tokenStorageDir, fullPath: true);
         var secrets = new ClientSecrets

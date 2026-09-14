@@ -223,15 +223,22 @@ public static class ClientCredentialsManager
     }
 
     /// <summary>
-    /// Applies 0600 (owner read/write only) permissions on Unix/Linux/macOS platforms.
+    /// Applies owner-only permissions on Unix/Linux/macOS platforms:
+    /// - For directories: 0700 (read, write, execute/traverse)
+    /// - For files: 0600 (read, write)
     /// </summary>
-    public static void SecureFilePermissions(string filePath)
+    public static void SecureFilePermissions(string path, bool? isDirectory = null)
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             try
             {
-                File.SetUnixFileMode(filePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+                bool isDir = isDirectory ?? Directory.Exists(path);
+                var mode = isDir
+                    ? UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
+                    : UnixFileMode.UserRead | UnixFileMode.UserWrite;
+
+                File.SetUnixFileMode(path, mode);
             }
             catch
             {

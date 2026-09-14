@@ -141,4 +141,27 @@ public class ClientCredentialsManagerTests
             if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true);
         }
     }
+
+    [Fact]
+    public void SecureFilePermissions_OnDirectory_AllowsFileCreationInsideIt()
+    {
+        string tempDir = CreateTempDir();
+        try
+        {
+            string subDir = Path.Combine(tempDir, "tokens");
+            Directory.CreateDirectory(subDir);
+
+            ClientCredentialsManager.SecureFilePermissions(subDir, isDirectory: true);
+
+            string fileInside = Path.Combine(subDir, "test_token_file");
+            File.WriteAllText(fileInside, "token-data");
+
+            Assert.True(File.Exists(fileInside));
+            Assert.Equal("token-data", File.ReadAllText(fileInside));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true);
+        }
+    }
 }
