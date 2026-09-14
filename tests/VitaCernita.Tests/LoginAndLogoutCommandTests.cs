@@ -84,6 +84,52 @@ public class LoginAndLogoutCommandTests
     }
 
     [Fact]
+    public async Task LoginCommand_WithNonExistentCredentialsFile_ReturnsErrorCode()
+    {
+        string tempDir = CreateTempDir();
+        try
+        {
+            string missingFile = Path.Combine(tempDir, "does_not_exist.json");
+            var cmd = new LoginCommand();
+            int exitCode = await cmd.ExecuteAsync(new[]
+            {
+                "--credentials", missingFile,
+                "--config-dir", tempDir
+            });
+
+            Assert.Equal(1, exitCode);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task LoginCommand_WithInvalidCredentialsFile_ReturnsErrorCode()
+    {
+        string tempDir = CreateTempDir();
+        try
+        {
+            string badFile = Path.Combine(tempDir, "invalid.json");
+            await File.WriteAllTextAsync(badFile, "{\"invalid\": 123}");
+
+            var cmd = new LoginCommand();
+            int exitCode = await cmd.ExecuteAsync(new[]
+            {
+                "--credentials", badFile,
+                "--config-dir", tempDir
+            });
+
+            Assert.Equal(1, exitCode);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task LogoutCommand_RemovesTokensAndOptionallyCredentials()
     {
         string tempDir = CreateTempDir();

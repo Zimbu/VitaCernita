@@ -87,7 +87,16 @@ public class LoginCommand : ICliCommand
 
         if (!string.IsNullOrWhiteSpace(explicitCredentialsFile))
         {
-            credentials = await ClientCredentialsManager.LoadCredentialsAsync(explicitCredentialsFile, configDir);
+            try
+            {
+                credentials = await ClientCredentialsManager.LoadCredentialsAsync(explicitCredentialsFile, configDir);
+            }
+            catch (Exception ex)
+            {
+                _console.MarkupLine($"[bold red]Error:[/] {Markup.Escape(ex.Message)}");
+                return 1;
+            }
+
             if (credentials == null || !credentials.IsValid)
             {
                 _console.MarkupLine($"[bold red]Error:[/] Could not parse valid client credentials from '[yellow]{Markup.Escape(explicitCredentialsFile)}[/]'.");
