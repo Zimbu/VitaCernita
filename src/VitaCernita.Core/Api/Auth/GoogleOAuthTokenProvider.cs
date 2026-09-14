@@ -63,13 +63,14 @@ public class GoogleOAuthTokenProvider : IGmailTokenProvider
     public bool HasCredentials => _credentials != null && _credentials.IsValid;
 
     /// <summary>
-    /// Checks whether a cached token exists on disk or in the data store for this user.
+    /// Checks whether a cached token exists on disk or in the data store for this user (or a default session).
     /// </summary>
     public bool HasCachedToken()
     {
         if (_dataStoreOverride != null) return false;
         if (!Directory.Exists(_tokenStorageDir)) return false;
-        return Directory.EnumerateFiles(_tokenStorageDir, $"*{_user}*").Any();
+        if (Directory.EnumerateFiles(_tokenStorageDir, $"*{_user}*").Any()) return true;
+        return Directory.EnumerateFiles(_tokenStorageDir, "*TokenResponse*").Any();
     }
 
     /// <summary>
@@ -118,10 +119,28 @@ public class GoogleOAuthTokenProvider : IGmailTokenProvider
 
         var receiver = _codeReceiver ?? new LocalServerCodeReceiver();
 
+        string effectiveUserKey = _user;
+        if (_dataStoreOverride == null && Directory.Exists(_tokenStorageDir))
+        {
+            if (!Directory.EnumerateFiles(_tokenStorageDir, $"*{_user}*").Any())
+            {
+                var fallbackFile = Directory.EnumerateFiles(_tokenStorageDir, "*TokenResponse*").FirstOrDefault();
+                if (fallbackFile != null)
+                {
+                    string fileName = Path.GetFileName(fallbackFile);
+                    int dashIdx = fileName.LastIndexOf('-');
+                    if (dashIdx >= 0 && dashIdx < fileName.Length - 1)
+                    {
+                        effectiveUserKey = fileName[(dashIdx + 1)..];
+                    }
+                }
+            }
+        }
+
         _cachedCredential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
             secrets,
             _scopes,
-            _user,
+            effectiveUserKey,
             cancellationToken,
             dataStore,
             receiver);

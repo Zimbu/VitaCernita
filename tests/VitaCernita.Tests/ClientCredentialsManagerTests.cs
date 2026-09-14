@@ -164,4 +164,28 @@ public class ClientCredentialsManagerTests
             if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true);
         }
     }
+
+    [Fact]
+    public async Task LoadCredentials_ExplicitPathDoesNotExist_ThrowsFileNotFoundException()
+    {
+        string nonExistent = Path.Combine(Path.GetTempPath(), $"missing_{Guid.NewGuid():N}.json");
+        await Assert.ThrowsAsync<FileNotFoundException>(() =>
+            ClientCredentialsManager.LoadCredentialsAsync(explicitFilePath: nonExistent));
+    }
+
+    [Fact]
+    public async Task LoadCredentials_ExplicitPathInvalidFormat_ThrowsFormatException()
+    {
+        string tempFile = Path.Combine(Path.GetTempPath(), $"invalid_{Guid.NewGuid():N}.json");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, "{ \"invalid\": true }");
+            await Assert.ThrowsAsync<FormatException>(() =>
+                ClientCredentialsManager.LoadCredentialsAsync(explicitFilePath: tempFile));
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
 }

@@ -31,15 +31,18 @@ public static class ClientCredentialsManager
         if (!string.IsNullOrWhiteSpace(explicitFilePath))
         {
             string expanded = ConfigPathResolver.ExpandHome(explicitFilePath.Trim());
-            if (File.Exists(expanded))
+            if (!File.Exists(expanded))
             {
-                string content = await File.ReadAllTextAsync(expanded);
-                var parsed = ParseCredentialsJson(content);
-                if (parsed != null && parsed.IsValid)
-                {
-                    return parsed;
-                }
+                throw new FileNotFoundException($"Google OAuth credentials file not found: {explicitFilePath}", expanded);
             }
+
+            string content = await File.ReadAllTextAsync(expanded);
+            var parsed = ParseCredentialsJson(content);
+            if (parsed == null || !parsed.IsValid)
+            {
+                throw new FormatException($"Invalid or unparseable client credentials format in: {explicitFilePath}");
+            }
+            return parsed;
         }
 
         if (ConfigPathResolver.IsTestEnvironment && string.IsNullOrWhiteSpace(configDir))
@@ -85,15 +88,18 @@ public static class ClientCredentialsManager
         if (!string.IsNullOrWhiteSpace(explicitFilePath))
         {
             string expanded = ConfigPathResolver.ExpandHome(explicitFilePath.Trim());
-            if (File.Exists(expanded))
+            if (!File.Exists(expanded))
             {
-                string content = File.ReadAllText(expanded);
-                var parsed = ParseCredentialsJson(content);
-                if (parsed != null && parsed.IsValid)
-                {
-                    return parsed;
-                }
+                throw new FileNotFoundException($"Google OAuth credentials file not found: {explicitFilePath}", expanded);
             }
+
+            string content = File.ReadAllText(expanded);
+            var parsed = ParseCredentialsJson(content);
+            if (parsed == null || !parsed.IsValid)
+            {
+                throw new FormatException($"Invalid or unparseable client credentials format in: {explicitFilePath}");
+            }
+            return parsed;
         }
 
         if (ConfigPathResolver.IsTestEnvironment && string.IsNullOrWhiteSpace(configDir))

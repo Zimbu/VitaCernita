@@ -192,11 +192,16 @@ public class TestCommand : ICliCommand
                 }
                 else
                 {
-                    token ??= Environment.GetEnvironmentVariable("GMAIL_ACCESS_TOKEN");
                     IGmailTokenProvider tokenProvider;
 
                     if (!string.IsNullOrWhiteSpace(token))
                     {
+                        if (token.Contains(".apps.googleusercontent.com", StringComparison.OrdinalIgnoreCase))
+                        {
+                            _console.MarkupLine("[bold red]Error:[/] The provided --token appears to be an OAuth Client ID, not an OAuth 2.0 access token.");
+                            _console.MarkupLine("OAuth 2.0 access tokens typically begin with 'ya29.' or are retrieved via [bold cyan]vitacernita login[/].");
+                            return 1;
+                        }
                         tokenProvider = new BearerTokenProvider(token);
                     }
                     else
@@ -205,18 +210,38 @@ public class TestCommand : ICliCommand
                         if (oauthProvider.HasCachedToken())
                         {
                             _console.MarkupLine($"Using cached Google OAuth token for [cyan]{Markup.Escape(userId)}[/]...");
+                            string? envToken = Environment.GetEnvironmentVariable("GMAIL_ACCESS_TOKEN");
+                            if (!string.IsNullOrWhiteSpace(envToken) && envToken.Contains(".apps.googleusercontent.com", StringComparison.OrdinalIgnoreCase))
+                            {
+                                _console.MarkupLine("[grey](Note: Ignoring GMAIL_ACCESS_TOKEN environment variable because it contains an OAuth Client ID instead of an access token.)[/]");
+                            }
                             tokenProvider = oauthProvider;
                         }
                         else
                         {
-                            _console.MarkupLine($"[bold red]Error:[/] No active Google login session or access token found for account '[yellow]{Markup.Escape(userId)}[/]'.");
-                            _console.MarkupLine("Run [bold cyan]vitacernita login[/] to authenticate, or provide [bold]--token <token>[/].");
-                            return 1;
+                            string? envToken = Environment.GetEnvironmentVariable("GMAIL_ACCESS_TOKEN");
+                            if (!string.IsNullOrWhiteSpace(envToken))
+                            {
+                                if (envToken.Contains(".apps.googleusercontent.com", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    _console.MarkupLine("[bold red]Error:[/] The GMAIL_ACCESS_TOKEN environment variable is set to an OAuth Client ID ('...apps.googleusercontent.com'), not an OAuth 2.0 access token.");
+                                    _console.MarkupLine("OAuth 2.0 access tokens typically begin with 'ya29.'. Run [bold cyan]unset GMAIL_ACCESS_TOKEN[/] in your terminal and authenticate using [bold cyan]vitacernita login[/].");
+                                    return 1;
+                                }
+
+                                tokenProvider = new BearerTokenProvider(envToken);
+                            }
+                            else
+                            {
+                                _console.MarkupLine($"[bold red]Error:[/] No active Google login session or access token found for account '[yellow]{Markup.Escape(userId)}[/]'.");
+                                _console.MarkupLine("Run [bold cyan]vitacernita login[/] to authenticate, or provide [bold]--token <token>[/].");
+                                return 1;
+                            }
                         }
                     }
 
                     var client = new HttpGmailApiClient(new HttpClient(), tokenProvider);
-                    currentSource = new ApiGmailSource(client, userId);
+                    currentSource = new ApiGmailSource(client, userId: "me", name: $"Gmail Account ({userId})");
                 }
 
                 var desiredSource = new LuaGmailSource(configPath);

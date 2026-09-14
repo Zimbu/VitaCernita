@@ -233,4 +233,53 @@ public class InitializeCommandTests
         Assert.Equal(0, exitCode1);
         Assert.Equal(0, exitCode2);
     }
+
+    [Fact]
+    public async Task Initialize_WithClientIdInTokenArg_ReturnsErrorCode()
+    {
+        string tempPath = GetTempConfigPath();
+        try
+        {
+            var cmd = new InitializeCommand();
+            int exitCode = await cmd.ExecuteAsync(new[]
+            {
+                "--output", tempPath,
+                "--account", "user@example.com",
+                "--token", "12345-fake.apps.googleusercontent.com"
+            });
+
+            Assert.Equal(1, exitCode);
+            Assert.False(File.Exists(tempPath));
+        }
+        finally
+        {
+            if (File.Exists(tempPath)) File.Delete(tempPath);
+        }
+    }
+
+    [Fact]
+    public async Task Initialize_WithClientIdInEnvVar_ReturnsErrorCode()
+    {
+        string tempPath = GetTempConfigPath();
+        string? originalToken = Environment.GetEnvironmentVariable("GMAIL_ACCESS_TOKEN");
+        try
+        {
+            Environment.SetEnvironmentVariable("GMAIL_ACCESS_TOKEN", "12345-fake.apps.googleusercontent.com");
+
+            var cmd = new InitializeCommand();
+            int exitCode = await cmd.ExecuteAsync(new[]
+            {
+                "--output", tempPath,
+                "--account", "user@example.com"
+            });
+
+            Assert.Equal(1, exitCode);
+            Assert.False(File.Exists(tempPath));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("GMAIL_ACCESS_TOKEN", originalToken);
+            if (File.Exists(tempPath)) File.Delete(tempPath);
+        }
+    }
 }
