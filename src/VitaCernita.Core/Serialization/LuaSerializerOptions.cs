@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using VitaCernita.Core.Labels;
 
 namespace VitaCernita.Core.Serialization;
 
@@ -39,4 +41,10 @@ public class LuaSerializerOptions
     /// Default is true.
     /// </summary>
     public bool OmitDefaultValues { get; set; } = true;
+
+    /// <summary>
+    /// Known Gmail labels used to resolve internal label IDs to human-readable label names
+    /// in filter actions (add_label, remove_label).
+    /// </summary>
+    public IEnumerable<GmailLabel>? KnownLabels { get; set; }
 }

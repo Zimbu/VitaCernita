@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using VitaCernita.Core.AutoReply.Diff;
 using VitaCernita.Core.Filters.Diff;
+using VitaCernita.Core.Labels;
 using VitaCernita.Core.Labels.Diff;
 
 namespace VitaCernita.Core.Sync;
@@ -50,4 +52,10 @@ public sealed class SyncPlanOptions
     /// Optional custom options for diffing auto-reply.
     /// </summary>
     public AutoReplyDiffOptions? AutoReplyOptions { get; set; }
+
+    /// <summary>
+    /// Known Gmail labels used to resolve internal label IDs to human-readable label names
+    /// when generating sync commands and filter API payloads.
+    /// </summary>
+    public IEnumerable<GmailLabel>? KnownLabels { get; set; }
 }

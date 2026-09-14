@@ -49,11 +49,20 @@ public static class GmailFilterDiffer
         // 2. Action
         if (options.ShouldCompareField("action"))
         {
-            bool actionEqual = Equals(current.Action, desired.Action);
+            var effectiveCurrentAction = current.Action;
+            var effectiveDesiredAction = desired.Action;
+
+            if (options.KnownLabels != null)
+            {
+                effectiveCurrentAction = effectiveCurrentAction?.WithResolvedLabels(options.KnownLabels, toId: false);
+                effectiveDesiredAction = effectiveDesiredAction?.WithResolvedLabels(options.KnownLabels, toId: false);
+            }
+
+            bool actionEqual = Equals(effectiveCurrentAction, effectiveDesiredAction);
             if (!actionEqual)
             {
-                string currentActStr = current.Action?.ToString() ?? "<none>";
-                string desiredActStr = desired.Action?.ToString() ?? "<none>";
+                string currentActStr = effectiveCurrentAction?.ToString() ?? "<none>";
+                string desiredActStr = effectiveDesiredAction?.ToString() ?? "<none>";
                 fieldDiffs.Add(new FilterFieldDiff("action", currentActStr, desiredActStr));
             }
         }

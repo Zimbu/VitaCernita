@@ -62,20 +62,12 @@ public static class GmailSourceDiffer
     /// <summary>
     /// Compares search filters from a current source against a desired source.
     /// </summary>
-    public static async Task<FilterSetDiff> DiffFiltersAsync(
+    public static Task<FilterSetDiff> DiffFiltersAsync(
         IGmailSource currentSource,
         IGmailSource desiredSource,
         FilterDiffOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (currentSource == null) throw new ArgumentNullException(nameof(currentSource));
-        if (desiredSource == null) throw new ArgumentNullException(nameof(desiredSource));
-
-        var current = await currentSource.GetFiltersAsync(cancellationToken);
-        var desired = await desiredSource.GetFiltersAsync(cancellationToken);
-
-        return GmailFilterDiffer.DiffSets(current, desired, options);
-    }
+        CancellationToken cancellationToken = default) =>
+        DiffFiltersAsync(currentSource, desiredSource, currentFilter: null, desiredFilter: null, options, cancellationToken);
 
     /// <summary>
     /// Compares subsets of filters using LINQ filter expressions on both sources before diffing.
@@ -97,7 +89,27 @@ public static class GmailSourceDiffer
         if (currentFilter != null) current = currentFilter(current);
         if (desiredFilter != null) desired = desiredFilter(desired);
 
-        return GmailFilterDiffer.DiffSets(current, desired, options);
+        var effectiveOptions = options ?? new FilterDiffOptions();
+        if (effectiveOptions.KnownLabels == null)
+        {
+            var currentLabels = await currentSource.GetLabelsAsync(cancellationToken);
+            var desiredLabels = await desiredSource.GetLabelsAsync(cancellationToken);
+            var combined = currentLabels.Concat(desiredLabels).ToList();
+            if (combined.Count > 0)
+            {
+                effectiveOptions = new FilterDiffOptions
+                {
+                    MatchBy = effectiveOptions.MatchBy,
+                    IncludeUnchanged = effectiveOptions.IncludeUnchanged,
+                    CompareName = effectiveOptions.CompareName,
+                    FieldsToCompare = effectiveOptions.FieldsToCompare,
+                    FieldsToIgnore = effectiveOptions.FieldsToIgnore,
+                    KnownLabels = combined
+                };
+            }
+        }
+
+        return GmailFilterDiffer.DiffSets(current, desired, effectiveOptions);
     }
 
     /// <summary>

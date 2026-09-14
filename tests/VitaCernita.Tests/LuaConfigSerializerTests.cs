@@ -119,6 +119,31 @@ public class LuaConfigSerializerTests
     }
 
     [Fact]
+    public async Task RoundTrip_Filter_WithAddAndRemoveLabel_PreservesBoth()
+    {
+        var filter = new GmailFilter(
+            id: "f_labels",
+            name: "Label Migrations",
+            query: new FieldCondition("from", "team@example.com"),
+            action: new GmailAction()
+                .Archive()
+                .AddCustomLabel("NewProject")
+                .RemoveCustomLabel("OldProject"));
+
+        string lua = _serializer.SerializeFilter(filter);
+
+        Assert.Contains("action = actions(archive, add_label(\"NewProject\"), remove_label(\"OldProject\"))", lua);
+
+        var reloaded = await _loader.LoadFilterFromScriptAsync(lua);
+        var diff = GmailFilterDiffer.Diff(filter, reloaded);
+
+        Assert.False(diff.HasChanges);
+        Assert.Equal(FilterDiffType.Unchanged, diff.DiffType);
+        Assert.Contains("NewProject", reloaded.Action!.CustomLabels);
+        Assert.Contains("OldProject", reloaded.Action!.CustomRemoveLabels);
+    }
+
+    [Fact]
     public async Task RoundTrip_ComplexBooleanQueryFilter()
     {
         var complexQuery = new AndCondition(new IQueryCondition[]

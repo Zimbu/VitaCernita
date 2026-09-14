@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using VitaCernita.Core.Actions.Validation;
+using VitaCernita.Core.Labels;
 
 namespace VitaCernita.Core.Actions;
 
@@ -20,6 +21,7 @@ public sealed class GmailAction : IEquatable<GmailAction>
 
     public bool IsArchive => RemoveLabelIds.Contains(SystemLabels.Inbox);
     public bool IsMarkUnread => RemoveLabelIds.Contains(SystemLabels.Unread);
+    public bool IsMarkRead => IsMarkUnread;
     public bool IsStarred => AddLabelIds.Contains(SystemLabels.Starred);
     public bool IsDelete => AddLabelIds.Contains(SystemLabels.Trash);
     public bool IsImportant => AddLabelIds.Contains(SystemLabels.Important);
@@ -30,6 +32,11 @@ public sealed class GmailAction : IEquatable<GmailAction>
         AddLabelIds.Where(l => !SystemLabels.IsSystemLabel(l))
                    .OrderBy(l => l, StringComparer.OrdinalIgnoreCase)
                    .ToList();
+
+    public IReadOnlyList<string> CustomRemoveLabels =>
+        RemoveLabelIds.Where(l => !SystemLabels.IsSystemLabel(l))
+                      .OrderBy(l => l, StringComparer.OrdinalIgnoreCase)
+                      .ToList();
 
     public GmailAction Archive()
     {
@@ -42,6 +49,8 @@ public sealed class GmailAction : IEquatable<GmailAction>
         RemoveLabelIds.Add(SystemLabels.Unread);
         return this;
     }
+
+    public GmailAction MarkRead() => MarkUnread();
 
     public GmailAction Star()
     {
@@ -75,26 +84,77 @@ public sealed class GmailAction : IEquatable<GmailAction>
         return this;
     }
 
+    public GmailAction RemoveCustomLabel(string label)
+    {
+        string valid = ActionValidator.ValidateRemoveLabel(label);
+        RemoveLabelIds.Add(valid);
+        return this;
+    }
+
     public GmailAction SetForward(string email)
     {
         Forward = ActionValidator.ValidateForwardEmail(email);
         return this;
     }
 
-    public Dictionary<string, object> ToDictionary()
+    /// <summary>
+    /// Returns a new GmailAction with label references resolved using the provided known labels.
+    /// If toId is true, resolves human-readable label names to label IDs.
+    /// If toId is false, resolves label IDs to human-readable label names.
+    /// </summary>
+    public GmailAction WithResolvedLabels(IEnumerable<GmailLabel>? knownLabels, bool toId = true)
     {
+        if (knownLabels == null) return this;
+
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var lbl in knownLabels)
+        {
+            if (string.IsNullOrEmpty(lbl.Name) || string.IsNullOrEmpty(lbl.Id)) continue;
+            if (toId)
+            {
+                map[lbl.Name] = lbl.Id;
+            }
+            else
+            {
+                map[lbl.Id] = lbl.Name;
+            }
+        }
+
+        if (map.Count == 0) return this;
+
+        var resolved = new GmailAction
+        {
+            Forward = Forward
+        };
+
+        foreach (var id in AddLabelIds)
+        {
+            resolved.AddLabelIds.Add(map.TryGetValue(id, out var mapped) ? mapped : id);
+        }
+
+        foreach (var id in RemoveLabelIds)
+        {
+            resolved.RemoveLabelIds.Add(map.TryGetValue(id, out var mapped) ? mapped : id);
+        }
+
+        return resolved;
+    }
+
+    public Dictionary<string, object> ToDictionary(IEnumerable<GmailLabel>? knownLabels = null)
+    {
+        var action = knownLabels != null ? WithResolvedLabels(knownLabels, toId: true) : this;
         var dict = new Dictionary<string, object>();
-        if (AddLabelIds.Count > 0)
+        if (action.AddLabelIds.Count > 0)
         {
-            dict["addLabelIds"] = AddLabelIds.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
+            dict["addLabelIds"] = action.AddLabelIds.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
         }
-        if (RemoveLabelIds.Count > 0)
+        if (action.RemoveLabelIds.Count > 0)
         {
-            dict["removeLabelIds"] = RemoveLabelIds.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
+            dict["removeLabelIds"] = action.RemoveLabelIds.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
         }
-        if (!string.IsNullOrWhiteSpace(Forward))
+        if (!string.IsNullOrWhiteSpace(action.Forward))
         {
-            dict["forward"] = Forward;
+            dict["forward"] = action.Forward;
         }
         return dict;
     }
@@ -223,6 +283,7 @@ public sealed class GmailAction : IEquatable<GmailAction>
         if (IsImportant) parts.Add("mark_important");
         if (Category != null) parts.Add($"category:{Category}");
         foreach (var cl in CustomLabels) parts.Add($"label:{cl}");
+        foreach (var rl in CustomRemoveLabels) parts.Add($"remove_label:{rl}");
         if (Forward != null) parts.Add($"forward:{Forward}");
         return parts.Count > 0 ? string.Join(", ", parts) : "(empty action)";
     }

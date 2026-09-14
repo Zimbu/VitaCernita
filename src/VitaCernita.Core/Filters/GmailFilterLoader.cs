@@ -593,6 +593,19 @@ AddLabels = add_labels
 apply_labels = add_labels
 ApplyLabels = add_labels
 
+function remove_label(lbl) return { type = 'action_item', action = 'remove_label', value = lbl } end
+RemoveLabel = remove_label
+
+function remove_labels(...)
+    local args = { ... }
+    if #args == 1 and type(args[1]) == 'table' then
+        return { type = 'action_item', action = 'remove_labels', value = args[1] }
+    else
+        return { type = 'action_item', action = 'remove_labels', value = args }
+    end
+end
+RemoveLabels = remove_labels
+
 function forward_message(email) return { type = 'action_item', action = 'forward', value = tostring(email) } end
 ForwardMessage = forward_message
 forward = forward_message
@@ -633,6 +646,10 @@ function ActionBuilder:add_labels(...) table.insert(self.items, add_labels(...))
 ActionBuilder.AddLabels = ActionBuilder.add_labels
 ActionBuilder.apply_labels = ActionBuilder.add_labels
 ActionBuilder.ApplyLabels = ActionBuilder.add_labels
+function ActionBuilder:remove_label(lbl) table.insert(self.items, remove_label(lbl)); return self end
+ActionBuilder.RemoveLabel = ActionBuilder.remove_label
+function ActionBuilder:remove_labels(...) table.insert(self.items, remove_labels(...)); return self end
+ActionBuilder.RemoveLabels = ActionBuilder.remove_labels
 function ActionBuilder:forward_message(email) table.insert(self.items, forward_message(email)); return self end
 ActionBuilder.ForwardMessage = ActionBuilder.forward_message
 ActionBuilder.forward = ActionBuilder.forward_message

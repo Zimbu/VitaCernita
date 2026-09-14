@@ -88,6 +88,25 @@ public static class ActionValidator
         return trimmed;
     }
 
+    public static string ValidateRemoveLabel(string rawLabel)
+    {
+        if (string.IsNullOrWhiteSpace(rawLabel))
+        {
+            throw new ActionValidationException("Label name cannot be empty or whitespace.");
+        }
+
+        string trimmed = rawLabel.Trim();
+        if (SystemLabels.IsSystemLabel(trimmed))
+        {
+            throw new ActionValidationException(
+                $"Cannot remove system label '{trimmed}' via remove_label. " +
+                "System labels must be managed using designated action operations " +
+                "(archive, mark_read).");
+        }
+
+        return trimmed;
+    }
+
     public static string ValidateForwardEmail(string rawEmail)
     {
         if (string.IsNullOrWhiteSpace(rawEmail))

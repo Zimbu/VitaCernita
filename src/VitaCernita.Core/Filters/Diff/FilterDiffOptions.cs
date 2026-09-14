@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using VitaCernita.Core.Labels;
 
 namespace VitaCernita.Core.Filters.Diff;
 
@@ -35,6 +36,12 @@ public sealed class FilterDiffOptions
     /// Optional blacklist of field names to ignore during comparison.
     /// </summary>
     public IReadOnlySet<string>? FieldsToIgnore { get; set; }
+
+    /// <summary>
+    /// Known Gmail labels used to resolve internal label IDs to human-readable label names (and vice-versa)
+    /// during filter action comparison.
+    /// </summary>
+    public IEnumerable<GmailLabel>? KnownLabels { get; set; }
 
     /// <summary>
     /// Determines whether a given configurable field should be compared based on the active options.

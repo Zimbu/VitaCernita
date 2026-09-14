@@ -231,7 +231,8 @@ public class InitializeCommand : ICliCommand
                     $"-- Initialized from Gmail Account: {effectiveUser}\n" +
                     $"-- Generated on: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC\n" +
                     $"-- =======================================================================",
-                IndentSpaces = 4
+                IndentSpaces = 4,
+                KnownLabels = labels
             };
 
             string luaContent = LuaConfigSerializer.Default.Serialize(labels, filters, autoReply, serializerOptions);

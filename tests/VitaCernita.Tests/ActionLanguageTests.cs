@@ -458,4 +458,100 @@ return {
     {
         Assert.Throws<ActionValidationException>(() => GmailActionParser.ParseActionString("invalid_action_name"));
     }
+
+    // =========================================================================
+    // 8. Remove Label Actions & Validation
+    // =========================================================================
+
+    [Theory]
+    [InlineData("return remove_label('OldProject')", "OldProject")]
+    [InlineData("return RemoveLabel('OldProject')", "OldProject")]
+    [InlineData("return action { remove_label = 'Archive2024' }", "Archive2024")]
+    [InlineData("return action():remove_label('Work'):build()", "Work")]
+    public async Task RemoveLabel_SingleCustomLabel_PopulatesRemoveLabelIds(string luaScript, string expectedLabel)
+    {
+        var action = await _loader.LoadActionFromScriptAsync(luaScript);
+
+        Assert.Contains(expectedLabel, action.RemoveLabelIds);
+        Assert.Contains(expectedLabel, action.CustomRemoveLabels);
+        Assert.False(action.IsArchive);
+        Assert.False(action.IsMarkUnread);
+    }
+
+    [Fact]
+    public async Task RemoveLabel_MultipleCustomLabels_ViaRemoveLabelsVarargs()
+    {
+        string lua = "return remove_labels('Work', 'Projects')";
+        var action = await _loader.LoadActionFromScriptAsync(lua);
+
+        Assert.Contains("Work", action.RemoveLabelIds);
+        Assert.Contains("Projects", action.RemoveLabelIds);
+        Assert.Equal(2, action.CustomRemoveLabels.Count);
+    }
+
+    [Fact]
+    public async Task RemoveLabel_MultipleCustomLabels_ViaRemoveLabelsTable()
+    {
+        string lua = "return remove_labels { 'OldA', 'OldB' }";
+        var action = await _loader.LoadActionFromScriptAsync(lua);
+
+        Assert.Contains("OldA", action.RemoveLabelIds);
+        Assert.Contains("OldB", action.RemoveLabelIds);
+    }
+
+    [Fact]
+    public async Task RemoveLabel_DeclarativeTable_SingleAndMultiple()
+    {
+        string lua = @"
+return action {
+    remove_labels = { 'Deprecated', 'Obsolete' }
+}
+";
+        var action = await _loader.LoadActionFromScriptAsync(lua);
+
+        Assert.Contains("Deprecated", action.RemoveLabelIds);
+        Assert.Contains("Obsolete", action.RemoveLabelIds);
+    }
+
+    [Fact]
+    public async Task RemoveLabel_ActionBuilder_ChainedRemoveLabels()
+    {
+        string lua = "return action():remove_label('Work'):remove_label('Urgent'):build()";
+        var action = await _loader.LoadActionFromScriptAsync(lua);
+
+        Assert.Contains("Work", action.RemoveLabelIds);
+        Assert.Contains("Urgent", action.RemoveLabelIds);
+    }
+
+    [Fact]
+    public async Task MultiAction_AddAndRemoveLabels_Together()
+    {
+        string lua = @"
+return actions(
+    archive,
+    add_label('Receipts'),
+    remove_label('Work')
+)
+";
+        var action = await _loader.LoadActionFromScriptAsync(lua);
+
+        Assert.True(action.IsArchive);
+        Assert.Contains("Receipts", action.CustomLabels);
+        Assert.Contains("Work", action.CustomRemoveLabels);
+    }
+
+    [Theory]
+    [InlineData("return remove_label('')")]
+    [InlineData("return remove_label('   ')")]
+    [InlineData("return remove_label('INBOX')")]
+    [InlineData("return remove_label('Inbox')")]
+    [InlineData("return remove_label('STARRED')")]
+    [InlineData("return remove_label('TRASH')")]
+    [InlineData("return remove_label('UNREAD')")]
+    [InlineData("return remove_label('IMPORTANT')")]
+    [InlineData("return remove_label('CATEGORY_PERSONAL')")]
+    public async Task Validation_InvalidRemoveLabel_ThrowsActionValidationException(string luaScript)
+    {
+        await Assert.ThrowsAsync<ActionValidationException>(() => _loader.LoadActionFromScriptAsync(luaScript));
+    }
 }

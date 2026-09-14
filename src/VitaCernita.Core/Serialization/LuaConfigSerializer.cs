@@ -126,7 +126,7 @@ public class LuaConfigSerializer
 
         if (hasFilters)
         {
-            sections.Add(FormatFiltersSection(filterList, indentLevel: 1, options));
+            sections.Add(FormatFiltersSection(filterList, indentLevel: 1, options, labelList));
         }
 
         if (hasAutoReply && autoReply != null)
@@ -213,14 +213,14 @@ public class LuaConfigSerializer
     /// <summary>
     /// Serializes a single filter definition into a Functional DSL script (`return filter { ... }`).
     /// </summary>
-    public string SerializeFilter(GmailFilter filter, LuaSerializerOptions? options = null)
+    public string SerializeFilter(GmailFilter filter, LuaSerializerOptions? options = null, IEnumerable<GmailLabel>? knownLabels = null)
     {
         if (filter == null) throw new ArgumentNullException(nameof(filter));
         options ??= new LuaSerializerOptions();
 
         var sb = new StringBuilder();
         AppendHeader(sb, options);
-        sb.AppendLine($"return {FormatFilterBlock(filter, indentLevel: 0, options)}");
+        sb.AppendLine($"return {FormatFilterBlock(filter, indentLevel: 0, options, knownLabels)}");
         return sb.ToString();
     }
 
@@ -241,11 +241,11 @@ public class LuaConfigSerializer
     /// <summary>
     /// Serializes an individual action definition into Functional DSL syntax (`actions(...)`).
     /// </summary>
-    public string SerializeAction(GmailAction action, LuaSerializerOptions? options = null)
+    public string SerializeAction(GmailAction action, LuaSerializerOptions? options = null, IEnumerable<GmailLabel>? knownLabels = null)
     {
         if (action == null) throw new ArgumentNullException(nameof(action));
         options ??= new LuaSerializerOptions();
-        return FormatAction(action, options);
+        return FormatAction(action, options, knownLabels);
     }
 
     // =========================================================================
@@ -273,7 +273,11 @@ public class LuaConfigSerializer
         return $"{indent}labels = {{\n{string.Join(",\n", blocks)}\n{indent}}}";
     }
 
-    private static string FormatFiltersSection(IReadOnlyList<GmailFilter> filters, int indentLevel, LuaSerializerOptions options)
+    private static string FormatFiltersSection(
+        IReadOnlyList<GmailFilter> filters,
+        int indentLevel,
+        LuaSerializerOptions options,
+        IEnumerable<GmailLabel>? knownLabels = null)
     {
         var indent = Indent(indentLevel, options);
         if (filters.Count == 0)
@@ -281,7 +285,7 @@ public class LuaConfigSerializer
             return $"{indent}filters = {{}}";
         }
 
-        var blocks = filters.Select(f => FormatFilterBlock(f, indentLevel + 1, options));
+        var blocks = filters.Select(f => FormatFilterBlock(f, indentLevel + 1, options, knownLabels));
         return $"{indent}filters = {{\n{string.Join(",\n", blocks)}\n{indent}}}";
     }
 
@@ -325,7 +329,11 @@ public class LuaConfigSerializer
         return $"{indent}label {{\n{string.Join(",\n", lines)}\n{indent}}}";
     }
 
-    public static string FormatFilterBlock(GmailFilter filter, int indentLevel, LuaSerializerOptions options)
+    public static string FormatFilterBlock(
+        GmailFilter filter,
+        int indentLevel,
+        LuaSerializerOptions options,
+        IEnumerable<GmailLabel>? knownLabels = null)
     {
         var indent = Indent(indentLevel, options);
         var childIndent = Indent(indentLevel + 1, options);
@@ -349,7 +357,7 @@ public class LuaConfigSerializer
 
         if (filter.Action != null && !filter.Action.IsEmpty)
         {
-            string actionStr = FormatAction(filter.Action, options);
+            string actionStr = FormatAction(filter.Action, options, knownLabels);
             lines.Add($"{childIndent}action = {actionStr}");
         }
 
@@ -611,10 +619,19 @@ public class LuaConfigSerializer
         return $"Or(\n{string.Join(",\n", childStrings)}\n{parentIndent})";
     }
 
-    public static string FormatAction(GmailAction action, LuaSerializerOptions options)
+    public static string FormatAction(
+        GmailAction action,
+        LuaSerializerOptions options,
+        IEnumerable<GmailLabel>? knownLabels = null)
     {
+        var effectiveLabels = knownLabels ?? options.KnownLabels;
+        var idToName = effectiveLabels?
+            .Where(l => !string.IsNullOrEmpty(l.Id) && !string.IsNullOrEmpty(l.Name))
+            .ToDictionary(l => l.Id!, l => l.Name, StringComparer.OrdinalIgnoreCase);
+
         var items = new List<string>();
 
+        // Prefer concise DSL commands for system label additions/removals
         if (action.IsArchive) items.Add("archive");
         if (action.IsMarkUnread) items.Add("mark_read");
         if (action.IsStarred) items.Add("star");
@@ -627,9 +644,18 @@ public class LuaConfigSerializer
             items.Add($"add_category(\"{cat}\")");
         }
 
+        // Custom labels to add: resolve ID to human-readable Name if known
         foreach (var cl in action.CustomLabels)
         {
-            items.Add($"add_label(\"{EscapeLuaString(cl)}\")");
+            string labelName = (idToName != null && idToName.TryGetValue(cl, out var resolved)) ? resolved : cl;
+            items.Add($"add_label(\"{EscapeLuaString(labelName)}\")");
+        }
+
+        // Custom labels to remove: resolve ID to human-readable Name if known
+        foreach (var rl in action.CustomRemoveLabels)
+        {
+            string labelName = (idToName != null && idToName.TryGetValue(rl, out var resolved)) ? resolved : rl;
+            items.Add($"remove_label(\"{EscapeLuaString(labelName)}\")");
         }
 
         if (!string.IsNullOrWhiteSpace(action.Forward))

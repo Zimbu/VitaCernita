@@ -51,12 +51,14 @@ public static class GmailSyncPlanner
             }
         }
 
+        var effectiveLabels = options.KnownLabels ?? options.FilterOptions?.KnownLabels;
+
         // 3. Filters to Update (matching filters by ID that have altered query or action)
         if (options.IncludeFilters && filterDiff != null)
         {
             foreach (var item in filterDiff.Modifications)
             {
-                commands.Add(UpdateFilterCommand.FromDiff(item));
+                commands.Add(UpdateFilterCommand.FromDiff(item, knownLabels: effectiveLabels));
             }
         }
 
@@ -67,7 +69,7 @@ public static class GmailSyncPlanner
             {
                 if (item.DesiredFilter != null)
                 {
-                    commands.Add(CreateFilterCommand.FromDiff(item));
+                    commands.Add(CreateFilterCommand.FromDiff(item, knownLabels: effectiveLabels));
                 }
             }
         }
@@ -134,6 +136,13 @@ public static class GmailSyncPlanner
         {
             desiredSource = right;
             currentSource = left;
+        }
+
+        if (options.KnownLabels == null)
+        {
+            var currentLabels = await currentSource.GetLabelsAsync(cancellationToken);
+            var desiredLabels = await desiredSource.GetLabelsAsync(cancellationToken);
+            options.KnownLabels = currentLabels.Concat(desiredLabels).ToList();
         }
 
         LabelSetDiff? labelDiff = null;

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using VitaCernita.Core.Actions;
+using VitaCernita.Core.Labels;
 using VitaCernita.Core.Queries;
 
 namespace VitaCernita.Core.Filters;
@@ -56,8 +57,20 @@ public class GmailFilter : IEquatable<GmailFilter>
 
     /// <summary>
     /// Formats this filter into a dictionary matching the Gmail API filter resource specification.
+    /// <summary>
+    /// Returns a new GmailFilter with label references in its action resolved using the provided known labels.
     /// </summary>
-    public Dictionary<string, object> ToDictionary(bool explicitAnd = false)
+    public GmailFilter WithResolvedLabels(IEnumerable<GmailLabel>? knownLabels, bool toId = true)
+    {
+        if (knownLabels == null) return this;
+        var newAction = Action?.WithResolvedLabels(knownLabels, toId);
+        return new GmailFilter(Id, Query, newAction, Name);
+    }
+
+    public Dictionary<string, object> ToDictionary(bool explicitAnd = false) =>
+        ToDictionary(knownLabels: null, explicitAnd);
+
+    public Dictionary<string, object> ToDictionary(IEnumerable<GmailLabel>? knownLabels, bool explicitAnd = false)
     {
         var dict = new Dictionary<string, object>();
         if (!string.IsNullOrWhiteSpace(Id))
@@ -76,7 +89,7 @@ public class GmailFilter : IEquatable<GmailFilter>
 
         if (Action != null && !Action.IsEmpty)
         {
-            dict["action"] = Action.ToDictionary();
+            dict["action"] = Action.ToDictionary(knownLabels);
         }
 
         return dict;

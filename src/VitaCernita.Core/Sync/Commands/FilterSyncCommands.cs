@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using VitaCernita.Core.Filters;
 using VitaCernita.Core.Filters.Diff;
+using VitaCernita.Core.Labels;
 
 namespace VitaCernita.Core.Sync.Commands;
 
@@ -16,7 +17,7 @@ public sealed class CreateFilterCommand : SyncCommandBase
     public GmailFilter Filter { get; }
     public string? FilterName => Filter.Name;
 
-    public CreateFilterCommand(GmailFilter filter, string? commandId = null)
+    public CreateFilterCommand(GmailFilter filter, string? commandId = null, IEnumerable<GmailLabel>? knownLabels = null)
         : base(
             commandId,
             SyncResourceType.Filter,
@@ -25,16 +26,16 @@ public sealed class CreateFilterCommand : SyncCommandBase
             targetId: null,
             description: FormatDescription(filter!),
             detailedDescription: FormatDetailedDescription(filter!),
-            payload: filter?.ToDictionary())
+            payload: filter?.ToDictionary(knownLabels))
     {
         Filter = filter ?? throw new ArgumentNullException(nameof(filter));
     }
 
-    public static CreateFilterCommand FromDiff(FilterDiff diff, string? commandId = null)
+    public static CreateFilterCommand FromDiff(FilterDiff diff, string? commandId = null, IEnumerable<GmailLabel>? knownLabels = null)
     {
         if (diff == null) throw new ArgumentNullException(nameof(diff));
         if (diff.DesiredFilter == null) throw new InvalidOperationException("Cannot create filter without a desired filter specification.");
-        return new CreateFilterCommand(diff.DesiredFilter, commandId);
+        return new CreateFilterCommand(diff.DesiredFilter, commandId, knownLabels);
     }
 
     private static string FormatDescription(GmailFilter filter)
@@ -73,7 +74,8 @@ public sealed class UpdateFilterCommand : SyncCommandBase
         GmailFilter currentFilter,
         GmailFilter desiredFilter,
         IReadOnlyList<FilterFieldDiff> fieldDifferences,
-        string? commandId = null)
+        string? commandId = null,
+        IEnumerable<GmailLabel>? knownLabels = null)
         : base(
             commandId,
             SyncResourceType.Filter,
@@ -82,21 +84,21 @@ public sealed class UpdateFilterCommand : SyncCommandBase
             targetId: filterId ?? throw new ArgumentNullException(nameof(filterId)),
             description: FormatDescription(filterId, desiredFilter, fieldDifferences),
             detailedDescription: FormatDetailedDescription(filterId, desiredFilter, currentFilter, fieldDifferences),
-            payload: desiredFilter?.ToDictionary())
+            payload: desiredFilter?.ToDictionary(knownLabels))
     {
         CurrentFilter = currentFilter ?? throw new ArgumentNullException(nameof(currentFilter));
         DesiredFilter = desiredFilter ?? throw new ArgumentNullException(nameof(desiredFilter));
         FieldDifferences = fieldDifferences ?? Array.Empty<FilterFieldDiff>();
     }
 
-    public static UpdateFilterCommand FromDiff(FilterDiff diff, string? commandId = null)
+    public static UpdateFilterCommand FromDiff(FilterDiff diff, string? commandId = null, IEnumerable<GmailLabel>? knownLabels = null)
     {
         if (diff == null) throw new ArgumentNullException(nameof(diff));
         string id = diff.Id ?? diff.CurrentFilter?.Id ?? throw new InvalidOperationException("Cannot update filter without a valid ID.");
         if (diff.CurrentFilter == null) throw new InvalidOperationException("Cannot update filter without current filter state.");
         if (diff.DesiredFilter == null) throw new InvalidOperationException("Cannot update filter without desired filter state.");
 
-        return new UpdateFilterCommand(id, diff.CurrentFilter, diff.DesiredFilter, diff.FieldDifferences, commandId);
+        return new UpdateFilterCommand(id, diff.CurrentFilter, diff.DesiredFilter, diff.FieldDifferences, commandId, knownLabels);
     }
 
     private static string FormatDescription(string filterId, GmailFilter? desired, IReadOnlyList<FilterFieldDiff>? diffs)

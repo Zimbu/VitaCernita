@@ -20,6 +20,7 @@ public static class GmailActionParser
         "mark_important", "important",
         "add_category", "categorize",
         "add_label", "add_labels", "apply_label", "apply_labels",
+        "remove_label", "remove_labels",
         "forward", "forward_message"
     };
 
@@ -194,6 +195,28 @@ public static class GmailActionParser
             }
         }
 
+        foreach (var key in new[] { "remove_label", "remove_labels" })
+        {
+            if (table.TryGetValue(key, out var remVal))
+            {
+                if (remVal.Type == LuaValueType.String)
+                {
+                    action.RemoveCustomLabel(remVal.Read<string>());
+                }
+                else if (remVal.TryRead<LuaTable>(out var remTable))
+                {
+                    for (int i = 1; i <= remTable.ArrayLength; i++)
+                    {
+                        if (remTable[i].Type == LuaValueType.String)
+                        {
+                            action.RemoveCustomLabel(remTable[i].Read<string>());
+                        }
+                    }
+                }
+                break;
+            }
+        }
+
         foreach (var key in new[] { "forward", "forward_message" })
         {
             if (table.TryGetValue(key, out var fwdVal) && fwdVal.Type == LuaValueType.String)
@@ -283,6 +306,33 @@ public static class GmailActionParser
                         {
                             if (lsTbl[i].Type == LuaValueType.String)
                                 action.AddCustomLabel(lsTbl[i].Read<string>());
+                        }
+                    }
+                    break;
+                case "remove_label":
+                    if (itemTable.TryGetValue("value", out var rlVal))
+                    {
+                        if (rlVal.Type == LuaValueType.String)
+                        {
+                            action.RemoveCustomLabel(rlVal.Read<string>());
+                        }
+                        else if (rlVal.TryRead<LuaTable>(out var rlTbl))
+                        {
+                            for (int i = 1; i <= rlTbl.ArrayLength; i++)
+                            {
+                                if (rlTbl[i].Type == LuaValueType.String)
+                                    action.RemoveCustomLabel(rlTbl[i].Read<string>());
+                            }
+                        }
+                    }
+                    break;
+                case "remove_labels":
+                    if (itemTable.TryGetValue("value", out var rlsVal) && rlsVal.TryRead<LuaTable>(out var rlsTbl))
+                    {
+                        for (int i = 1; i <= rlsTbl.ArrayLength; i++)
+                        {
+                            if (rlsTbl[i].Type == LuaValueType.String)
+                                action.RemoveCustomLabel(rlsTbl[i].Read<string>());
                         }
                     }
                     break;
