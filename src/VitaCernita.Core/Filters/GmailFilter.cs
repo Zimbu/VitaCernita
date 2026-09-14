@@ -102,41 +102,16 @@ public class GmailFilter : IEquatable<GmailFilter>
 
         if (element.TryGetProperty("criteria", out var critProp) && critProp.ValueKind == System.Text.Json.JsonValueKind.Object)
         {
-            var parts = new List<string>();
-            if (critProp.TryGetProperty("query", out var qProp) && !string.IsNullOrWhiteSpace(qProp.GetString()))
-            {
-                parts.Add(qProp.GetString()!);
-            }
-            if (critProp.TryGetProperty("from", out var fromProp) && !string.IsNullOrWhiteSpace(fromProp.GetString()))
-            {
-                parts.Add($"from:{fromProp.GetString()}");
-            }
-            if (critProp.TryGetProperty("to", out var toProp) && !string.IsNullOrWhiteSpace(toProp.GetString()))
-            {
-                parts.Add($"to:{toProp.GetString()}");
-            }
-            if (critProp.TryGetProperty("subject", out var subProp) && !string.IsNullOrWhiteSpace(subProp.GetString()))
-            {
-                parts.Add($"subject:{subProp.GetString()}");
-            }
-            if (critProp.TryGetProperty("negatedQuery", out var negProp) && !string.IsNullOrWhiteSpace(negProp.GetString()))
-            {
-                parts.Add($"-({negProp.GetString()})");
-            }
-            if (critProp.TryGetProperty("hasAttachment", out var attProp) && attProp.ValueKind == System.Text.Json.JsonValueKind.True)
-            {
-                parts.Add("has:attachment");
-            }
-            if (critProp.TryGetProperty("size", out var szProp) && szProp.TryGetInt64(out var sz))
-            {
-                string comparison = critProp.TryGetProperty("sizeComparison", out var scProp) ? (scProp.GetString() ?? "larger") : "larger";
-                parts.Add($"{comparison}:{sz}");
-            }
+            string? q = critProp.TryGetProperty("query", out var qProp) && !string.IsNullOrWhiteSpace(qProp.GetString()) ? qProp.GetString() : null;
+            string? from = critProp.TryGetProperty("from", out var fromProp) && !string.IsNullOrWhiteSpace(fromProp.GetString()) ? fromProp.GetString() : null;
+            string? to = critProp.TryGetProperty("to", out var toProp) && !string.IsNullOrWhiteSpace(toProp.GetString()) ? toProp.GetString() : null;
+            string? subject = critProp.TryGetProperty("subject", out var subProp) && !string.IsNullOrWhiteSpace(subProp.GetString()) ? subProp.GetString() : null;
+            string? negated = critProp.TryGetProperty("negatedQuery", out var negProp) && !string.IsNullOrWhiteSpace(negProp.GetString()) ? negProp.GetString() : null;
+            bool hasAtt = critProp.TryGetProperty("hasAttachment", out var attProp) && attProp.ValueKind == System.Text.Json.JsonValueKind.True;
+            long? sz = critProp.TryGetProperty("size", out var szProp) && szProp.TryGetInt64(out var szVal) ? szVal : null;
+            string? sc = critProp.TryGetProperty("sizeComparison", out var scProp) ? scProp.GetString() : null;
 
-            if (parts.Count > 0)
-            {
-                query = new RawQueryCondition(string.Join(" ", parts));
-            }
+            query = GmailQueryTextParser.ParseFilterCriteria(q, from, to, subject, negated, hasAtt, sz, sc);
         }
 
         if (element.TryGetProperty("action", out var actProp) && actProp.ValueKind == System.Text.Json.JsonValueKind.Object)
@@ -165,27 +140,16 @@ public class GmailFilter : IEquatable<GmailFilter>
             }
             else if (critVal is IReadOnlyDictionary<string, object?> cd)
             {
-                var parts = new List<string>();
-                if (cd.TryGetValue("query", out var q) && q != null && !string.IsNullOrWhiteSpace(q.ToString()))
-                {
-                    parts.Add(q.ToString()!);
-                }
-                if (cd.TryGetValue("from", out var from) && from != null && !string.IsNullOrWhiteSpace(from.ToString()))
-                {
-                    parts.Add($"from:{from}");
-                }
-                if (cd.TryGetValue("to", out var to) && to != null && !string.IsNullOrWhiteSpace(to.ToString()))
-                {
-                    parts.Add($"to:{to}");
-                }
-                if (cd.TryGetValue("subject", out var sub) && sub != null && !string.IsNullOrWhiteSpace(sub.ToString()))
-                {
-                    parts.Add($"subject:{sub}");
-                }
-                if (parts.Count > 0)
-                {
-                    query = new RawQueryCondition(string.Join(" ", parts));
-                }
+                string? q = cd.TryGetValue("query", out var qObj) ? qObj?.ToString() : null;
+                string? from = cd.TryGetValue("from", out var fromObj) ? fromObj?.ToString() : null;
+                string? to = cd.TryGetValue("to", out var toObj) ? toObj?.ToString() : null;
+                string? subject = cd.TryGetValue("subject", out var subObj) ? subObj?.ToString() : null;
+                string? negated = cd.TryGetValue("negatedQuery", out var negObj) ? negObj?.ToString() : null;
+                bool hasAtt = cd.TryGetValue("hasAttachment", out var attObj) && (attObj is true || attObj?.ToString()?.Equals("true", StringComparison.OrdinalIgnoreCase) == true);
+                long? sz = cd.TryGetValue("size", out var szObj) && long.TryParse(szObj?.ToString(), out var szVal) ? szVal : null;
+                string? sc = cd.TryGetValue("sizeComparison", out var scObj) ? scObj?.ToString() : null;
+
+                query = GmailQueryTextParser.ParseFilterCriteria(q, from, to, subject, negated, hasAtt, sz, sc);
             }
         }
 
