@@ -98,7 +98,7 @@ public class FilterDiffer : IResourceDiffer<GmailFilter, FilterDiffOptions>
     /// <summary>
     /// Computes the differences between a set of current filters and a set of desired filters.
     /// </summary>
-    public static FilterSetDiff DiffSets(
+    public static ResourceSetDiff<GmailFilter> DiffSets(
         IEnumerable<GmailFilter>? current,
         IEnumerable<GmailFilter>? desired,
         FilterDiffOptions? options = null)
@@ -137,7 +137,7 @@ public class FilterDiffer : IResourceDiffer<GmailFilter, FilterDiffOptions>
             }
         }
 
-        return new FilterSetDiff(results);
+        return new ResourceSetDiff<GmailFilter>(results);
     }
 
     private static GmailFilter? FindMatch(
@@ -213,7 +213,7 @@ public class FilterDiffer : IResourceDiffer<GmailFilter, FilterDiffOptions>
     /// <summary>
     /// Overload for comparing collections of filter dictionaries directly.
     /// </summary>
-    public static FilterSetDiff DiffSets(
+    public static ResourceSetDiff<GmailFilter> DiffSets(
         IEnumerable<IReadOnlyDictionary<string, object?>>? currentDicts,
         IEnumerable<IReadOnlyDictionary<string, object?>>? desiredDicts,
         FilterDiffOptions? options = null)
@@ -226,7 +226,7 @@ public class FilterDiffer : IResourceDiffer<GmailFilter, FilterDiffOptions>
     /// <summary>
     /// Compares the current filters from a Gmail API users.settings.filters.list JSON response string against desired filters.
     /// </summary>
-    public static FilterSetDiff DiffApiListResponse(
+    public static ResourceSetDiff<GmailFilter> DiffApiListResponse(
         string currentFiltersJson,
         IEnumerable<GmailFilter>? desired,
         FilterDiffOptions? options = null)
@@ -257,16 +257,16 @@ public static class GmailFilterDiffer
     public static ResourceDiff<GmailFilter> Diff(GmailFilter? current, GmailFilter? desired, FilterDiffOptions? options = null) =>
         FilterDiffer.Diff(current, desired, options);
 
-    public static FilterSetDiff DiffSets(IEnumerable<GmailFilter>? current, IEnumerable<GmailFilter>? desired, FilterDiffOptions? options = null) =>
+    public static ResourceSetDiff<GmailFilter> DiffSets(IEnumerable<GmailFilter>? current, IEnumerable<GmailFilter>? desired, FilterDiffOptions? options = null) =>
         FilterDiffer.DiffSets(current, desired, options);
 
     public static ResourceDiff<GmailFilter> Diff(IReadOnlyDictionary<string, object?>? currentDict, IReadOnlyDictionary<string, object?>? desiredDict, FilterDiffOptions? options = null) =>
         FilterDiffer.Diff(currentDict, desiredDict, options);
 
-    public static FilterSetDiff DiffSets(IEnumerable<IReadOnlyDictionary<string, object?>>? currentDicts, IEnumerable<IReadOnlyDictionary<string, object?>>? desiredDicts, FilterDiffOptions? options = null) =>
+    public static ResourceSetDiff<GmailFilter> DiffSets(IEnumerable<IReadOnlyDictionary<string, object?>>? currentDicts, IEnumerable<IReadOnlyDictionary<string, object?>>? desiredDicts, FilterDiffOptions? options = null) =>
         FilterDiffer.DiffSets(currentDicts, desiredDicts, options);
 
-    public static FilterSetDiff DiffApiListResponse(string currentFiltersJson, IEnumerable<GmailFilter>? desired, FilterDiffOptions? options = null) =>
+    public static ResourceSetDiff<GmailFilter> DiffApiListResponse(string currentFiltersJson, IEnumerable<GmailFilter>? desired, FilterDiffOptions? options = null) =>
         FilterDiffer.DiffApiListResponse(currentFiltersJson, desired, options);
 
     public static ResourceDiff<GmailFilter> DiffJson(string? currentJson, string? desiredJson, FilterDiffOptions? options = null) =>

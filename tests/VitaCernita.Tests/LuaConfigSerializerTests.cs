@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using VitaCernita.Core.Actions;
 using VitaCernita.Core.AutoReply;
+using VitaCernita.Core.Diffing;
 using VitaCernita.Core.Diffing.AutoReply;
 using VitaCernita.Core.Filters;
 using VitaCernita.Core.Diffing.Filters;
@@ -49,7 +50,7 @@ public class LuaConfigSerializerTests
         var diff = GmailLabelDiffer.Diff(original, reloaded);
 
         Assert.False(diff.HasChanges);
-        Assert.Equal(LabelDiffType.Unchanged, diff.DiffType);
+        Assert.Equal(DiffKind.Unchanged, diff.DiffType);
     }
 
     [Fact]
@@ -115,7 +116,7 @@ public class LuaConfigSerializerTests
         var diff = GmailFilterDiffer.Diff(filter, reloaded);
 
         Assert.False(diff.HasChanges);
-        Assert.Equal(FilterDiffType.Unchanged, diff.DiffType);
+        Assert.Equal(DiffKind.Unchanged, diff.DiffType);
     }
 
     [Fact]
@@ -138,7 +139,7 @@ public class LuaConfigSerializerTests
         var diff = GmailFilterDiffer.Diff(filter, reloaded);
 
         Assert.False(diff.HasChanges);
-        Assert.Equal(FilterDiffType.Unchanged, diff.DiffType);
+        Assert.Equal(DiffKind.Unchanged, diff.DiffType);
         Assert.Contains("NewProject", reloaded.Action!.CustomLabels);
         Assert.Contains("OldProject", reloaded.Action!.CustomRemoveLabels);
     }
@@ -307,7 +308,7 @@ public class LuaConfigSerializerTests
 
         var diff = AutoReplyDiffer.Diff(autoReply, reloaded);
         Assert.False(diff.HasChanges);
-        Assert.Equal(AutoReplyDiffType.Unchanged, diff.DiffType);
+        Assert.Equal(DiffKind.Unchanged, diff.DiffType);
     }
 
     [Fact]

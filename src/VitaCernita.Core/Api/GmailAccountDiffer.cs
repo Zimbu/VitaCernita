@@ -21,7 +21,7 @@ public static class GmailAccountDiffer
     /// <summary>
     /// Compares desired labels against the target Gmail account.
     /// </summary>
-    public static Task<LabelSetDiff> DiffLabelsAsync(
+    public static Task<ResourceSetDiff<GmailLabel>> DiffLabelsAsync(
         IGmailApiClient client,
         IEnumerable<GmailLabel> desiredLabels,
         LabelDiffOptions? options = null,
@@ -37,7 +37,7 @@ public static class GmailAccountDiffer
     /// <summary>
     /// Loads labels from a Lua script and compares them against the target Gmail account.
     /// </summary>
-    public static Task<LabelSetDiff> DiffLabelsFromScriptAsync(
+    public static Task<ResourceSetDiff<GmailLabel>> DiffLabelsFromScriptAsync(
         IGmailApiClient client,
         string luaScript,
         LabelDiffOptions? options = null,
@@ -53,7 +53,7 @@ public static class GmailAccountDiffer
     /// <summary>
     /// Loads labels from a Lua file and compares them against the target Gmail account.
     /// </summary>
-    public static Task<LabelSetDiff> DiffLabelsFromFileAsync(
+    public static Task<ResourceSetDiff<GmailLabel>> DiffLabelsFromFileAsync(
         IGmailApiClient client,
         string filePath,
         LabelDiffOptions? options = null,
@@ -69,7 +69,7 @@ public static class GmailAccountDiffer
     /// <summary>
     /// Compares desired filters against the target Gmail account.
     /// </summary>
-    public static Task<FilterSetDiff> DiffFiltersAsync(
+    public static Task<ResourceSetDiff<GmailFilter>> DiffFiltersAsync(
         IGmailApiClient client,
         IEnumerable<GmailFilter> desiredFilters,
         FilterDiffOptions? options = null,
@@ -85,7 +85,7 @@ public static class GmailAccountDiffer
     /// <summary>
     /// Loads filters from a Lua script and compares them against the target Gmail account.
     /// </summary>
-    public static Task<FilterSetDiff> DiffFiltersFromScriptAsync(
+    public static Task<ResourceSetDiff<GmailFilter>> DiffFiltersFromScriptAsync(
         IGmailApiClient client,
         string luaScript,
         FilterDiffOptions? options = null,
@@ -101,7 +101,7 @@ public static class GmailAccountDiffer
     /// <summary>
     /// Loads filters from a Lua file and compares them against the target Gmail account.
     /// </summary>
-    public static Task<FilterSetDiff> DiffFiltersFromFileAsync(
+    public static Task<ResourceSetDiff<GmailFilter>> DiffFiltersFromFileAsync(
         IGmailApiClient client,
         string filePath,
         FilterDiffOptions? options = null,

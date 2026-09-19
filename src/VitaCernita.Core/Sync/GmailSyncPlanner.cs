@@ -7,6 +7,8 @@ using VitaCernita.Core.Diffing;
 using VitaCernita.Core.Diffing.AutoReply;
 using VitaCernita.Core.Diffing.Filters;
 using VitaCernita.Core.Diffing.Labels;
+using VitaCernita.Core.Filters;
+using VitaCernita.Core.Labels;
 using VitaCernita.Core.Sources;
 using VitaCernita.Core.Sync.Commands;
 
@@ -23,8 +25,8 @@ public static class GmailSyncPlanner
     /// Commands are structured to make the target (right) side match the reference (left) side.
     /// </summary>
     public static SyncPlan BuildPlan(
-        LabelSetDiff? labelDiff,
-        FilterSetDiff? filterDiff,
+        ResourceSetDiff<GmailLabel>? labelDiff,
+        ResourceSetDiff<GmailFilter>? filterDiff,
         ResourceDiff<VitaCernita.Core.AutoReply.AutoReply>? autoReplyDiff,
         SyncPlanOptions? options = null)
     {
@@ -139,7 +141,7 @@ public static class GmailSyncPlanner
             currentSource = left;
         }
 
-        LabelSetDiff? labelDiff = null;
+        ResourceSetDiff<GmailLabel>? labelDiff = null;
         if (options.IncludeLabels)
         {
             labelDiff = await GmailSourceDiffer.DiffLabelsAsync(
@@ -149,7 +151,7 @@ public static class GmailSyncPlanner
                 cancellationToken);
         }
 
-        FilterSetDiff? filterDiff = null;
+        ResourceSetDiff<GmailFilter>? filterDiff = null;
         if (options.IncludeFilters)
         {
             filterDiff = await GmailSourceDiffer.DiffFiltersAsync(
@@ -159,7 +161,7 @@ public static class GmailSyncPlanner
                 cancellationToken);
         }
 
-        AutoReplyDiff? autoReplyDiff = null;
+        ResourceDiff<VitaCernita.Core.AutoReply.AutoReply>? autoReplyDiff = null;
         if (options.IncludeAutoReply)
         {
             autoReplyDiff = await GmailSourceDiffer.DiffAutoReplyAsync(

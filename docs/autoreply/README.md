@@ -203,7 +203,7 @@ var diff = await GmailSourceDiffer.DiffAutoReplyAsync(
     desiredSource,
     new AutoReplyDiffOptions { TargetAccount = "alice@company.com" });
 
-Console.WriteLine(diff.ToDryRunReport());
+Console.WriteLine(DryRunReportGenerator.CreateAutoReplyReport(diff));
 ```
 
 Sample output:

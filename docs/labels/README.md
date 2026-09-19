@@ -176,15 +176,15 @@ The diff engine is decoupled and serves two primary use cases:
 
 ### Comparison Models & Objects
 
-- [`GmailLabelDiffer`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Labels/Diff/GmailLabelDiffer.cs): Static methods `Diff(...)`, `DiffSets(...)`, `DiffApiListResponse(...)`, and `DiffJson(...)`.
-- [`LabelDiff`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Labels/Diff/LabelDiff.cs): Difference for an individual label (`DiffType`: `Unchanged`, `Added`, `Removed`, `Modified`).
-- [`LabelFieldDiff`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Labels/Diff/LabelFieldDiff.cs): Change details for a specific field (`FieldName`, `CurrentValue`, `DesiredValue`).
-- [`LabelSetDiff`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Labels/Diff/LabelSetDiff.cs): Aggregated diff across label collections with `Creations`, `Deletions`, `Modifications`, and `Unchanged`.
-- [`LabelDiffOptions`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Labels/Diff/LabelDiffOptions.cs): Options controlling matching strategies and selective field filtering.
+- [`GmailLabelDiffer`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Diffing/Labels/LabelDiffer.cs): Static methods `Diff(...)`, `DiffSets(...)`, `DiffApiListResponse(...)`, and `DiffJson(...)`.
+- [`ResourceDiff<GmailLabel>`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Diffing/ResourceDiff.cs): Difference for an individual label (`DiffType`: `Unchanged`, `Added`, `Removed`, `Modified`).
+- [`FieldDiff`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Diffing/FieldDiff.cs): Change details for a specific field (`FieldName`, `CurrentValue`, `DesiredValue`).
+- [`ResourceSetDiff<GmailLabel>`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Diffing/ResourceSetDiff.cs): Aggregated diff across label collections with `Creations`, `Deletions`, `Modifications`, and `Unchanged`.
+- [`LabelDiffOptions`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Diffing/Labels/LabelDiffOptions.cs): Options controlling matching strategies and selective field filtering.
 
 ### Diff Options & Selective Comparison
 
-[`LabelDiffOptions`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Labels/Diff/LabelDiffOptions.cs) provides fine-grained control:
+[`LabelDiffOptions`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Diffing/Labels/LabelDiffOptions.cs) provides fine-grained control:
 
 | Option | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
@@ -198,8 +198,9 @@ The diff engine is decoupled and serves two primary use cases:
 ### Example 1: Diffing Against Gmail API `users.labels.list` Response
 
 ```csharp
+using VitaCernita.Core.Diffing;
 using VitaCernita.Core.Labels;
-using VitaCernita.Core.Labels.Diff;
+using VitaCernita.Core.Reporting;
 
 // Load desired labels from Lua configuration
 var loader = new GmailLabelLoader();
@@ -209,11 +210,11 @@ List<GmailLabel> desiredLabels = await loader.LoadLabelsFromFileAsync("labels.lu
 string apiJsonResponse = await gmailClient.ListLabelsRawJsonAsync();
 
 // Compute diff (automatically filters out system labels like INBOX, SENT, TRASH)
-LabelSetDiff diff = GmailLabelDiffer.DiffApiListResponse(apiJsonResponse, desiredLabels);
+ResourceSetDiff<GmailLabel> diff = GmailLabelDiffer.DiffApiListResponse(apiJsonResponse, desiredLabels);
 
 // Display dry-run summary & report
 Console.WriteLine(diff.ToSummaryString());
-Console.WriteLine(diff.ToDryRunReport());
+Console.WriteLine(DryRunReportGenerator.CreateLabelReport(diff));
 ```
 
 ### Example 2: Programmatic Execution / Synchronization

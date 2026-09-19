@@ -122,7 +122,7 @@ public class LabelDiffer : IResourceDiffer<GmailLabel, LabelDiffOptions>
     /// <summary>
     /// Computes the differences between a set of current labels and a set of desired labels.
     /// </summary>
-    public static LabelSetDiff DiffSets(
+    public static ResourceSetDiff<GmailLabel> DiffSets(
         IEnumerable<GmailLabel>? current,
         IEnumerable<GmailLabel>? desired,
         LabelDiffOptions? options = null)
@@ -161,7 +161,7 @@ public class LabelDiffer : IResourceDiffer<GmailLabel, LabelDiffOptions>
             }
         }
 
-        return new LabelSetDiff(results);
+        return new ResourceSetDiff<GmailLabel>(results);
     }
 
     private static GmailLabel? FindMatch(
@@ -221,7 +221,7 @@ public class LabelDiffer : IResourceDiffer<GmailLabel, LabelDiffOptions>
     /// <summary>
     /// Overload for comparing collections of label dictionaries directly.
     /// </summary>
-    public static LabelSetDiff DiffSets(
+    public static ResourceSetDiff<GmailLabel> DiffSets(
         IEnumerable<IReadOnlyDictionary<string, object?>>? currentDicts,
         IEnumerable<IReadOnlyDictionary<string, object?>>? desiredDicts,
         LabelDiffOptions? options = null)
@@ -235,7 +235,7 @@ public class LabelDiffer : IResourceDiffer<GmailLabel, LabelDiffOptions>
     /// Compares the current labels from a Gmail API users.labels.list JSON response string against desired labels.
     /// Filters out system labels by default (onlyUserLabels = true).
     /// </summary>
-    public static LabelSetDiff DiffApiListResponse(
+    public static ResourceSetDiff<GmailLabel> DiffApiListResponse(
         string currentLabelsJson,
         IEnumerable<GmailLabel>? desired,
         LabelDiffOptions? options = null,
@@ -248,7 +248,7 @@ public class LabelDiffer : IResourceDiffer<GmailLabel, LabelDiffOptions>
     /// <summary>
     /// Compares the current labels from a Gmail API users.labels.list JSON response string against desired dictionaries.
     /// </summary>
-    public static LabelSetDiff DiffApiListResponse(
+    public static ResourceSetDiff<GmailLabel> DiffApiListResponse(
         string currentLabelsJson,
         IEnumerable<IReadOnlyDictionary<string, object?>>? desiredDicts,
         LabelDiffOptions? options = null,
@@ -280,19 +280,19 @@ public static class GmailLabelDiffer
     public static ResourceDiff<GmailLabel> Diff(GmailLabel? current, GmailLabel? desired, LabelDiffOptions? options = null) =>
         LabelDiffer.Diff(current, desired, options);
 
-    public static LabelSetDiff DiffSets(IEnumerable<GmailLabel>? current, IEnumerable<GmailLabel>? desired, LabelDiffOptions? options = null) =>
+    public static ResourceSetDiff<GmailLabel> DiffSets(IEnumerable<GmailLabel>? current, IEnumerable<GmailLabel>? desired, LabelDiffOptions? options = null) =>
         LabelDiffer.DiffSets(current, desired, options);
 
     public static ResourceDiff<GmailLabel> Diff(IReadOnlyDictionary<string, object?>? currentDict, IReadOnlyDictionary<string, object?>? desiredDict, LabelDiffOptions? options = null) =>
         LabelDiffer.Diff(currentDict, desiredDict, options);
 
-    public static LabelSetDiff DiffSets(IEnumerable<IReadOnlyDictionary<string, object?>>? currentDicts, IEnumerable<IReadOnlyDictionary<string, object?>>? desiredDicts, LabelDiffOptions? options = null) =>
+    public static ResourceSetDiff<GmailLabel> DiffSets(IEnumerable<IReadOnlyDictionary<string, object?>>? currentDicts, IEnumerable<IReadOnlyDictionary<string, object?>>? desiredDicts, LabelDiffOptions? options = null) =>
         LabelDiffer.DiffSets(currentDicts, desiredDicts, options);
 
-    public static LabelSetDiff DiffApiListResponse(string currentLabelsJson, IEnumerable<GmailLabel>? desired, LabelDiffOptions? options = null, bool onlyUserLabels = true) =>
+    public static ResourceSetDiff<GmailLabel> DiffApiListResponse(string currentLabelsJson, IEnumerable<GmailLabel>? desired, LabelDiffOptions? options = null, bool onlyUserLabels = true) =>
         LabelDiffer.DiffApiListResponse(currentLabelsJson, desired, options, onlyUserLabels);
 
-    public static LabelSetDiff DiffApiListResponse(string currentLabelsJson, IEnumerable<IReadOnlyDictionary<string, object?>>? desiredDicts, LabelDiffOptions? options = null, bool onlyUserLabels = true) =>
+    public static ResourceSetDiff<GmailLabel> DiffApiListResponse(string currentLabelsJson, IEnumerable<IReadOnlyDictionary<string, object?>>? desiredDicts, LabelDiffOptions? options = null, bool onlyUserLabels = true) =>
         LabelDiffer.DiffApiListResponse(currentLabelsJson, desiredDicts, options, onlyUserLabels);
 
     public static ResourceDiff<GmailLabel> DiffJson(string? currentJson, string? desiredJson, LabelDiffOptions? options = null) =>

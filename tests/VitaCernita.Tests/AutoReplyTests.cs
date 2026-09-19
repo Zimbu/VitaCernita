@@ -7,6 +7,7 @@ using Xunit;
 using VitaCernita.Core.Api;
 using VitaCernita.Core.Api.Fakes;
 using VitaCernita.Core.AutoReply;
+using VitaCernita.Core.Diffing;
 using VitaCernita.Core.Diffing.AutoReply;
 using VitaCernita.Core.AutoReply.Validation;
 using VitaCernita.Core.Filters;
@@ -454,7 +455,7 @@ public class AutoReplyTests
     public void AutoReplyDiffer_BothNull_ReturnsUnchanged()
     {
         var diff = AutoReplyDiffer.Diff(null, null);
-        Assert.Equal(AutoReplyDiffType.Unchanged, diff.DiffType);
+        Assert.Equal(DiffKind.Unchanged, diff.DiffType);
         Assert.False(diff.HasChanges);
     }
 
@@ -465,7 +466,7 @@ public class AutoReplyTests
         var desired = new AutoReply(true, "Away", "Body", null, false, false, 100, 200);
 
         var diff = AutoReplyDiffer.Diff(current, desired);
-        Assert.Equal(AutoReplyDiffType.Unchanged, diff.DiffType);
+        Assert.Equal(DiffKind.Unchanged, diff.DiffType);
         Assert.False(diff.HasChanges);
         Assert.Empty(diff.FieldDifferences);
     }
@@ -476,7 +477,7 @@ public class AutoReplyTests
         var desired = new AutoReply(true, "Away", "Body");
         var diff = AutoReplyDiffer.Diff(null, desired);
 
-        Assert.Equal(AutoReplyDiffType.Added, diff.DiffType);
+        Assert.Equal(DiffKind.Added, diff.DiffType);
         Assert.True(diff.HasChanges);
         Assert.Equal(desired, diff.Desired);
     }
@@ -488,7 +489,7 @@ public class AutoReplyTests
         var desired = new AutoReply(false, "Away", "Body");
 
         var diff = AutoReplyDiffer.Diff(current, desired);
-        Assert.Equal(AutoReplyDiffType.Disabled, diff.DiffType);
+        Assert.Equal(DiffKind.Disabled, diff.DiffType);
         Assert.True(diff.HasChanges);
     }
 
@@ -500,7 +501,7 @@ public class AutoReplyTests
 
         var diff = AutoReplyDiffer.Diff(current, desired);
 
-        Assert.Equal(AutoReplyDiffType.Modified, diff.DiffType);
+        Assert.Equal(DiffKind.Modified, diff.DiffType);
         Assert.True(diff.HasChanges);
         Assert.Equal(3, diff.FieldDifferences.Count);
         Assert.Contains(diff.FieldDifferences, f => f.FieldName == "responseSubject" && (string)f.CurrentValue! == "Old Subject" && (string)f.DesiredValue! == "New Subject");
@@ -517,7 +518,7 @@ public class AutoReplyTests
         var options = new AutoReplyDiffOptions { IgnoreUnsetDesiredFields = true };
         var diff = AutoReplyDiffer.Diff(current, desired, options);
 
-        Assert.Equal(AutoReplyDiffType.Unchanged, diff.DiffType);
+        Assert.Equal(DiffKind.Unchanged, diff.DiffType);
         Assert.Empty(diff.FieldDifferences);
     }
 
@@ -533,9 +534,6 @@ public class AutoReplyTests
         Assert.NotNull(diff.AccountError);
         Assert.Contains("only valid for Google Workspace accounts", diff.AccountError);
         Assert.Contains("user@gmail.com", diff.AccountError);
-
-        string report = diff.ToDryRunReport();
-        Assert.Contains("[ERROR]", report);
     }
 
     [Fact]
@@ -552,18 +550,6 @@ public class AutoReplyTests
 
         var ex = Assert.Throws<AutoReplyValidationException>(() => AutoReplyDiffer.Diff(current, desired, options));
         Assert.Contains("only valid for Google Workspace users", ex.Message);
-    }
-
-    [Fact]
-    public void AutoReplyDiffer_ToDryRunReport_OutputsReadableSummary()
-    {
-        var desired = new AutoReply(true, "Holiday", "Away until next week");
-        var diff = AutoReplyDiffer.Diff(null, desired);
-
-        string report = diff.ToDryRunReport();
-        Assert.Contains("+ Enable Auto-Reply", report);
-        Assert.Contains("Holiday", report);
-        Assert.Contains("Away until next week", report);
     }
 
     #endregion
@@ -639,7 +625,7 @@ public class AutoReplyTests
 
         var diff = await GmailSourceDiffer.DiffAutoReplyAsync(currentSource, desiredSource);
 
-        Assert.Equal(AutoReplyDiffType.Modified, diff.DiffType);
+        Assert.Equal(DiffKind.Modified, diff.DiffType);
         Assert.True(diff.HasChanges);
         Assert.Equal(2, diff.FieldDifferences.Count);
         Assert.Contains(diff.FieldDifferences, f => f.FieldName == "responseSubject");
@@ -659,7 +645,7 @@ public class AutoReplyTests
             currentFilter: q => q.Where(ar => ar.EnableAutoReply),
             desiredFilter: q => q.Where(ar => ar.EnableAutoReply));
 
-        Assert.Equal(AutoReplyDiffType.Modified, diff.DiffType);
+        Assert.Equal(DiffKind.Modified, diff.DiffType);
     }
 
     [Fact]
@@ -671,7 +657,7 @@ public class AutoReplyTests
         var desired = new AutoReply(true, "Away", "Body");
         var diff = await GmailAccountDiffer.DiffAutoReplyAsync(fake, desired, userId: "me");
 
-        Assert.Equal(AutoReplyDiffType.Added, diff.DiffType);
+        Assert.Equal(DiffKind.Added, diff.DiffType);
         Assert.True(diff.HasChanges);
     }
 

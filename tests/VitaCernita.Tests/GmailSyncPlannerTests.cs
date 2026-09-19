@@ -316,7 +316,7 @@ public class GmailSyncPlannerTests
     }
 
     [Fact]
-    public void ToDryRunReport_FormatsCleanReadableReport()
+    public void SyncPlan_ToSummaryString_FormatsExpectedCounts()
     {
         var label = new GmailLabel("Receipts", messageListVisibility: "show");
         var cmd1 = new CreateLabelCommand(label);
@@ -325,16 +325,12 @@ public class GmailSyncPlannerTests
         var desiredFilter = new GmailFilter("f_1", new FieldCondition("from", "a@b.com"), new GmailAction().Star().Archive());
         var cmd2 = new UpdateFilterCommand("f_1", currentFilter, desiredFilter, new[]
         {
-            new FilterFieldDiff("action", "star", "archive, star")
+            new FieldDiff("action", "star", "archive, star")
         });
 
         var plan = new SyncPlan(new ISyncCommand[] { cmd1, cmd2 });
-        string report = plan.ToDryRunReport();
+        string summary = plan.ToSummaryString();
 
-        Assert.Contains("VitaCernita Synchronization Plan (Dry Run)", report);
-        Assert.Contains("Planned Execution Steps (Dependency-Safe Order):", report);
-        Assert.Contains("1. [+] Create Label 'Receipts'", report);
-        Assert.Contains("2. [~] Update Filter (ID: f_1): 1 change(s)", report);
-        Assert.Contains("action: 'star' -> 'archive, star'", report);
+        Assert.Equal("Sync Plan (Make Right match Left): 2 commands (1 create, 1 update, 0 delete).", summary);
     }
 }

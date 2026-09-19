@@ -185,12 +185,12 @@ using VitaCernita.Core.Sources;
 // 1. Agnostic Diff: Live account vs Local Lua
 IGmailSource current = new ApiGmailSource(gmailClient, "user@company.com");
 IGmailSource desired = new LuaGmailSource("config/gmail_filter.lua");
-LabelSetDiff diff = await GmailSourceDiffer.DiffLabelsAsync(current, desired);
+ResourceSetDiff<GmailLabel> diff = await GmailSourceDiffer.DiffLabelsAsync(current, desired);
 
 // 2. Cross-Account Migration: Account A vs Account B
 IGmailSource staging = new ApiGmailSource(stagingClient, "staging@corp.com");
 IGmailSource prod = new ApiGmailSource(prodClient, "prod@corp.com");
-LabelSetDiff syncDiff = await GmailSourceDiffer.DiffLabelsAsync(staging, prod);
+ResourceSetDiff<GmailLabel> syncDiff = await GmailSourceDiffer.DiffLabelsAsync(staging, prod);
 ```
 
 ### Arbitrary Subsets via LINQ Predicates
@@ -227,7 +227,7 @@ var diff = await GmailAccountDiffer.DiffLabelsFromFileAsync(client, "config/gmai
 
 // Output summary & dry-run report
 Console.WriteLine(diff.ToSummaryString());
-Console.WriteLine(diff.ToDryRunReport());
+Console.WriteLine(DryRunReportGenerator.CreateLabelReport(diff));
 ```
 
 ---

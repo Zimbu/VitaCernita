@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
+using VitaCernita.Core.Diffing;
 using VitaCernita.Core.Labels;
 using VitaCernita.Core.Diffing.Labels;
 using VitaCernita.Core.Operations.Translators;
@@ -31,7 +32,7 @@ public class GmailLabelDiffTests
         GmailLabel? current = null;
         GmailLabel? desired = null;
         var diff = GmailLabelDiffer.Diff(current, desired);
-        Assert.Equal(LabelDiffType.Unchanged, diff.DiffType);
+        Assert.Equal(DiffKind.Unchanged, diff.DiffType);
         Assert.False(diff.HasChanges);
         Assert.Empty(diff.FieldDifferences);
     }
@@ -42,7 +43,7 @@ public class GmailLabelDiffTests
         var desired = MakeLabel("Receipts", messageListVisibility: "show", textColor: "#ffffff", bgColor: "#000000");
         var diff = GmailLabelDiffer.Diff(null, desired);
 
-        Assert.Equal(LabelDiffType.Added, diff.DiffType);
+        Assert.Equal(DiffKind.Added, diff.DiffType);
         Assert.True(diff.HasChanges);
         Assert.Equal("Receipts", diff.Name);
         Assert.Null(diff.Current);
@@ -61,7 +62,7 @@ public class GmailLabelDiffTests
         var current = MakeLabel("OldLabel", id: "Label_123");
         var diff = GmailLabelDiffer.Diff(current, null);
 
-        Assert.Equal(LabelDiffType.Removed, diff.DiffType);
+        Assert.Equal(DiffKind.Removed, diff.DiffType);
         Assert.True(diff.HasChanges);
         Assert.Equal("OldLabel", diff.Name);
         Assert.Equal("Label_123", diff.GetDeleteId());
@@ -77,7 +78,7 @@ public class GmailLabelDiffTests
 
         var diff = GmailLabelDiffer.Diff(current, desired);
 
-        Assert.Equal(LabelDiffType.Unchanged, diff.DiffType);
+        Assert.Equal(DiffKind.Unchanged, diff.DiffType);
         Assert.False(diff.HasChanges);
         Assert.Empty(diff.FieldDifferences);
         Assert.Empty(diff.GetPatchPayload());
@@ -91,7 +92,7 @@ public class GmailLabelDiffTests
 
         var diff = GmailLabelDiffer.Diff(current, desired);
 
-        Assert.Equal(LabelDiffType.Modified, diff.DiffType);
+        Assert.Equal(DiffKind.Modified, diff.DiffType);
         Assert.True(diff.HasChanges);
         Assert.Equal(2, diff.FieldDifferences.Count);
 
@@ -111,7 +112,7 @@ public class GmailLabelDiffTests
 
         var diff = GmailLabelDiffer.Diff(current, desired);
 
-        Assert.Equal(LabelDiffType.Modified, diff.DiffType);
+        Assert.Equal(DiffKind.Modified, diff.DiffType);
         Assert.Single(diff.FieldDifferences);
         Assert.Equal("color", diff.FieldDifferences[0].FieldName);
 
@@ -131,7 +132,7 @@ public class GmailLabelDiffTests
 
         var diff = GmailLabelDiffer.Diff(current, desired);
 
-        Assert.Equal(LabelDiffType.Modified, diff.DiffType);
+        Assert.Equal(DiffKind.Modified, diff.DiffType);
         Assert.Single(diff.FieldDifferences);
         Assert.Equal("name", diff.FieldDifferences[0].FieldName);
         Assert.Equal("OldName", diff.FieldDifferences[0].CurrentValue);
@@ -151,7 +152,7 @@ public class GmailLabelDiffTests
         var options = new LabelDiffOptions { IgnoreUnsetDesiredFields = true };
         var diff = GmailLabelDiffer.Diff(current, desired, options);
 
-        Assert.Equal(LabelDiffType.Unchanged, diff.DiffType);
+        Assert.Equal(DiffKind.Unchanged, diff.DiffType);
         Assert.False(diff.HasChanges);
         Assert.Empty(diff.FieldDifferences);
     }
@@ -165,7 +166,7 @@ public class GmailLabelDiffTests
         var options = new LabelDiffOptions { IgnoreUnsetDesiredFields = false };
         var diff = GmailLabelDiffer.Diff(current, desired, options);
 
-        Assert.Equal(LabelDiffType.Modified, diff.DiffType);
+        Assert.Equal(DiffKind.Modified, diff.DiffType);
         Assert.Equal(2, diff.FieldDifferences.Count);
     }
 
@@ -182,7 +183,7 @@ public class GmailLabelDiffTests
         };
         var diff = GmailLabelDiffer.Diff(current, desired, options);
 
-        Assert.Equal(LabelDiffType.Modified, diff.DiffType);
+        Assert.Equal(DiffKind.Modified, diff.DiffType);
         Assert.Single(diff.FieldDifferences);
         Assert.Equal("messageListVisibility", diff.FieldDifferences[0].FieldName);
 
@@ -204,7 +205,7 @@ public class GmailLabelDiffTests
         };
         var diff = GmailLabelDiffer.Diff(current, desired, options);
 
-        Assert.Equal(LabelDiffType.Modified, diff.DiffType);
+        Assert.Equal(DiffKind.Modified, diff.DiffType);
         Assert.Single(diff.FieldDifferences);
         Assert.Equal("messageListVisibility", diff.FieldDifferences[0].FieldName);
     }
@@ -223,7 +224,7 @@ public class GmailLabelDiffTests
         var diff = GmailLabelDiffer.Diff(current, desired, options);
 
         // Since only bgColor changed and we're only comparing textColor, should be unchanged
-        Assert.Equal(LabelDiffType.Unchanged, diff.DiffType);
+        Assert.Equal(DiffKind.Unchanged, diff.DiffType);
     }
 
     [Fact]
@@ -372,7 +373,7 @@ public class GmailLabelDiffTests
 
         var diff = GmailLabelDiffer.Diff(currentDict, desiredDict);
 
-        Assert.Equal(LabelDiffType.Modified, diff.DiffType);
+        Assert.Equal(DiffKind.Modified, diff.DiffType);
         Assert.Equal("L99", diff.Id);
         Assert.Equal("hide", diff.GetPatchPayload()["messageListVisibility"]);
     }
@@ -385,7 +386,7 @@ public class GmailLabelDiffTests
 
         var diff = GmailLabelDiffer.DiffJson(currentJson, desiredJson);
 
-        Assert.Equal(LabelDiffType.Modified, diff.DiffType);
+        Assert.Equal(DiffKind.Modified, diff.DiffType);
         Assert.Equal("L55", diff.Id);
         Assert.Equal("hide", diff.GetPatchPayload()["messageListVisibility"]);
     }
@@ -469,7 +470,7 @@ public class GmailLabelDiffTests
     }
 
     [Fact]
-    public void DryRunReport_FormatsSummaryAndDetailsProperly()
+    public void SummaryString_OutputsExpectedCounts()
     {
         var current = new List<GmailLabel>
         {
@@ -487,16 +488,6 @@ public class GmailLabelDiffTests
 
         string summary = diffSet.ToSummaryString();
         Assert.Equal("Summary: 1 to create, 1 to update, 1 to delete, 0 unchanged.", summary);
-
-        string report = diffSet.ToDryRunReport();
-        Assert.Contains("VitaCernita Label Diff Report (Dry Run)", report);
-        Assert.Contains("[+] Create (1):", report);
-        Assert.Contains("+ 'FreshTag'", report);
-        Assert.Contains("[~] Update (1):", report);
-        Assert.Contains("~ 'Updates' (ID: L_UPD):", report);
-        Assert.Contains("messageListVisibility: show -> hide", report);
-        Assert.Contains("[-] Delete (1):", report);
-        Assert.Contains("- 'DeprecatedTag' (ID: L_DEP)", report);
     }
 
     [Fact]
@@ -541,24 +532,24 @@ public class GmailLabelDiffTests
     }
 
     [Fact]
-    public void LabelFieldDiff_ToString_FormatsCorrectly()
+    public void FieldDiff_ToString_FormatsCorrectly()
     {
-        var diff1 = new LabelFieldDiff("messageListVisibility", "show", "hide");
+        var diff1 = new FieldDiff("messageListVisibility", "show", "hide");
         Assert.Equal("messageListVisibility: show -> hide", diff1.ToString());
 
-        var diff2 = new LabelFieldDiff("color", null, new LabelColor("#ffffff", "#000000"));
+        var diff2 = new FieldDiff("color", null, new LabelColor("#ffffff", "#000000"));
         Assert.Equal("color: <unset> -> [#ffffff / #000000]", diff2.ToString());
 
-        var diff3 = new LabelFieldDiff("color", new LabelColor("#ffffff", "#000000"), null);
+        var diff3 = new FieldDiff("color", new LabelColor("#ffffff", "#000000"), null);
         Assert.Equal("color: [#ffffff / #000000] -> <unset>", diff3.ToString());
     }
 
     [Fact]
-    public void LabelFieldDiff_EqualsAndHashCode()
+    public void FieldDiff_EqualsAndHashCode()
     {
-        var d1 = new LabelFieldDiff("name", "A", "B");
-        var d2 = new LabelFieldDiff("name", "A", "B");
-        var d3 = new LabelFieldDiff("name", "A", "C");
+        var d1 = new FieldDiff("name", "A", "B");
+        var d2 = new FieldDiff("name", "A", "B");
+        var d3 = new FieldDiff("name", "A", "C");
 
         Assert.Equal(d1, d2);
         Assert.NotEqual(d1, d3);
@@ -568,20 +559,20 @@ public class GmailLabelDiffTests
     [Fact]
     public void LabelDiff_ToString_FormatsAllTypes()
     {
-        var added = new ResourceDiff<GmailLabel>(LabelDiffType.Added, null, MakeLabel("TagA"), identifier: "TagA");
+        var added = new ResourceDiff<GmailLabel>(DiffKind.Added, null, MakeLabel("TagA"), identifier: "TagA");
         Assert.Contains("+ Label 'TagA' (Create)", added.ToString());
 
-        var removed = new ResourceDiff<GmailLabel>(LabelDiffType.Removed, MakeLabel("TagB", id: "ID_B"), null, identifier: "TagB", id: "ID_B");
+        var removed = new ResourceDiff<GmailLabel>(DiffKind.Removed, MakeLabel("TagB", id: "ID_B"), null, identifier: "TagB", id: "ID_B");
         Assert.Contains("- Label 'TagB' (Delete, ID: ID_B)", removed.ToString());
 
-        var modified = new ResourceDiff<GmailLabel>(LabelDiffType.Modified, MakeLabel("TagC", id: "ID_C"), MakeLabel("TagC"), new[]
+        var modified = new ResourceDiff<GmailLabel>(DiffKind.Modified, MakeLabel("TagC", id: "ID_C"), MakeLabel("TagC"), new[]
         {
-            new LabelFieldDiff("messageListVisibility", "show", "hide")
+            new FieldDiff("messageListVisibility", "show", "hide")
         }, identifier: "TagC", id: "ID_C");
         Assert.Contains("~ Label 'TagC'", modified.ToString());
         Assert.Contains("messageListVisibility: show -> hide", modified.ToString());
 
-        var unchanged = new ResourceDiff<GmailLabel>(LabelDiffType.Unchanged, MakeLabel("TagD", id: "ID_D"), MakeLabel("TagD", id: "ID_D"), identifier: "TagD", id: "ID_D");
+        var unchanged = new ResourceDiff<GmailLabel>(DiffKind.Unchanged, MakeLabel("TagD", id: "ID_D"), MakeLabel("TagD", id: "ID_D"), identifier: "TagD", id: "ID_D");
         Assert.Contains("Label 'TagD' (Unchanged)", unchanged.ToString());
     }
 
@@ -594,7 +585,7 @@ public class GmailLabelDiffTests
         var options = new LabelDiffOptions { CaseInsensitiveNameMatch = false };
         var diff = GmailLabelDiffer.Diff(current, desired, options);
 
-        Assert.Equal(LabelDiffType.Modified, diff.DiffType);
+        Assert.Equal(DiffKind.Modified, diff.DiffType);
         Assert.Single(diff.FieldDifferences);
         Assert.Equal("name", diff.FieldDifferences[0].FieldName);
     }

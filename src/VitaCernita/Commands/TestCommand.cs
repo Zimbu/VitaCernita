@@ -15,6 +15,7 @@ using VitaCernita.Core.Configuration;
 using VitaCernita.Core.Filters;
 using VitaCernita.Core.Labels;
 using VitaCernita.Core.Queries;
+using VitaCernita.Core.Reporting;
 using VitaCernita.Core.Sources;
 using VitaCernita.Core.Sync;
 
@@ -249,26 +250,15 @@ public class TestCommand : ICliCommand
 
                 _console.MarkupLine($"[bold cyan]Diffing '{Markup.Escape(currentSource.Name)}' against '{Markup.Escape(desiredSource.Name)}'...[/]\n");
                 var labelDiff = await GmailSourceDiffer.DiffLabelsAsync(currentSource, desiredSource);
-                _console.WriteLine(labelDiff.ToDryRunReport());
-
                 var filterDiff = await GmailSourceDiffer.DiffFiltersAsync(currentSource, desiredSource);
-                _console.WriteLine();
-                _console.WriteLine(filterDiff.ToDryRunReport());
-
                 var autoReplyDiff = await GmailSourceDiffer.DiffAutoReplyAsync(
                     currentSource,
                     desiredSource,
                     new AutoReplyDiffOptions { TargetAccount = userId });
 
-                if (autoReplyDiff.HasChanges || autoReplyDiff.AccountError != null || config.AutoReply != null)
-                {
-                    _console.WriteLine();
-                    _console.WriteLine(autoReplyDiff.ToDryRunReport());
-                }
-
                 var syncPlan = GmailSyncPlanner.BuildPlan(labelDiff, filterDiff, autoReplyDiff);
-                _console.WriteLine();
-                _console.WriteLine(syncPlan.ToDryRunReport());
+                var report = DryRunReportGenerator.CreateReport(labelDiff, filterDiff, autoReplyDiff, syncPlan);
+                _console.WriteLine(report);
 
                 return 0;
             }

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using VitaCernita.Cli.Commands;
 using VitaCernita.Core.Actions;
 using VitaCernita.Core.Api.Fakes;
+using VitaCernita.Core.Diffing;
 using VitaCernita.Core.Filters;
 using VitaCernita.Core.Diffing.Filters;
 using VitaCernita.Core.Labels;
@@ -184,7 +185,7 @@ public class ActionLabelResolutionTests
         var diff = GmailFilterDiffer.Diff(current, desired, options);
 
         Assert.False(diff.HasChanges);
-        Assert.Equal(FilterDiffType.Unchanged, diff.DiffType);
+        Assert.Equal(DiffKind.Unchanged, diff.DiffType);
     }
 
     [Fact]
@@ -205,7 +206,7 @@ public class ActionLabelResolutionTests
         var diff = GmailFilterDiffer.Diff(current, desired, options);
 
         Assert.True(diff.HasChanges);
-        Assert.Equal(FilterDiffType.Modified, diff.DiffType);
+        Assert.Equal(DiffKind.Modified, diff.DiffType);
 
         var actionDiff = diff.FieldDifferences.FirstOrDefault(d => d.FieldName == "action");
         Assert.NotNull(actionDiff);
@@ -256,9 +257,9 @@ public class ActionLabelResolutionTests
             action: new GmailAction().Archive().AddCustomLabel("Receipts").RemoveCustomLabel("Work"),
             name: "Client Invoices");
 
-        var filterDiff = new FilterSetDiff(new[]
+        var filterDiff = new ResourceSetDiff<GmailFilter>(new[]
         {
-            new FilterDiff(FilterDiffType.Added, null, desiredFilter, identifier: "Client Invoices")
+            new ResourceDiff<GmailFilter>(DiffKind.Added, null, desiredFilter, identifier: "Client Invoices")
         });
 
         var plan = GmailSyncPlanner.BuildPlan(

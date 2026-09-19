@@ -2,9 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using VitaCernita.Core.Diffing;
 using VitaCernita.Core.Diffing.AutoReply;
 using VitaCernita.Core.Diffing.Filters;
 using VitaCernita.Core.Diffing.Labels;
+using VitaCernita.Core.Filters;
+using VitaCernita.Core.Labels;
 
 namespace VitaCernita.Core.Sync;
 
@@ -17,8 +20,8 @@ public sealed class SyncPlan
 {
     public IReadOnlyList<ISyncCommand> Commands { get; }
     public SyncDirection Direction { get; }
-    public LabelSetDiff? LabelDiff { get; }
-    public FilterSetDiff? FilterDiff { get; }
+    public ResourceSetDiff<GmailLabel>? LabelDiff { get; }
+    public ResourceSetDiff<GmailFilter>? FilterDiff { get; }
     public ResourceDiff<VitaCernita.Core.AutoReply.AutoReply>? AutoReplyDiff { get; }
 
     public bool IsEmpty => Commands.Count == 0;
@@ -39,8 +42,8 @@ public sealed class SyncPlan
     public SyncPlan(
         IEnumerable<ISyncCommand> commands,
         SyncDirection direction = SyncDirection.MakeRightMatchLeft,
-        LabelSetDiff? labelDiff = null,
-        FilterSetDiff? filterDiff = null,
+        ResourceSetDiff<GmailLabel>? labelDiff = null,
+        ResourceSetDiff<GmailFilter>? filterDiff = null,
         ResourceDiff<VitaCernita.Core.AutoReply.AutoReply>? autoReplyDiff = null)
     {
         Commands = (commands ?? Array.Empty<ISyncCommand>()).ToList();
@@ -57,52 +60,6 @@ public sealed class SyncPlan
             : "Make Left match Right";
 
         return $"Sync Plan ({dirStr}): {TotalCommands} commands ({TotalCreations} create, {TotalUpdates} update, {TotalDeletions} delete).";
-    }
-
-    /// <summary>
-    /// Generates a comprehensive, human-readable dry-run report of all planned execution commands.
-    /// </summary>
-    public string ToDryRunReport()
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("======================================================================");
-        sb.AppendLine("VitaCernita Synchronization Plan (Dry Run)");
-        sb.AppendLine("======================================================================");
-        sb.AppendLine(ToSummaryString());
-
-        sb.AppendLine($"  - Labels    : {LabelCommands.Count(c => c.ActionType == SyncActionType.Create)} create, {LabelCommands.Count(c => c.ActionType == SyncActionType.Update)} update, {LabelCommands.Count(c => c.ActionType == SyncActionType.Delete)} delete");
-        sb.AppendLine($"  - Filters   : {FilterCommands.Count(c => c.ActionType == SyncActionType.Create)} create, {FilterCommands.Count(c => c.ActionType == SyncActionType.Update)} update, {FilterCommands.Count(c => c.ActionType == SyncActionType.Delete)} delete");
-        sb.AppendLine($"  - Auto-Reply: {AutoReplyCommands.Count} action(s)");
-        sb.AppendLine();
-
-        if (IsEmpty)
-        {
-            sb.AppendLine("  No changes required. Configurations are completely in sync.");
-            sb.AppendLine("======================================================================");
-            return sb.ToString();
-        }
-
-        sb.AppendLine("Planned Execution Steps (Dependency-Safe Order):");
-        for (int i = 0; i < Commands.Count; i++)
-        {
-            var cmd = Commands[i];
-            sb.AppendLine($"  {i + 1,2}. {cmd.ToDryRunString()}");
-            if (cmd.DetailedDescription != cmd.Description)
-            {
-                var lines = cmd.DetailedDescription.Split('\n');
-                for (int l = 1; l < lines.Length; l++)
-                {
-                    string line = lines[l].TrimEnd();
-                    if (!string.IsNullOrWhiteSpace(line))
-                    {
-                        sb.AppendLine($"         {line}");
-                    }
-                }
-            }
-        }
-
-        sb.AppendLine("======================================================================");
-        return sb.ToString();
     }
 
     public override string ToString() => ToSummaryString();

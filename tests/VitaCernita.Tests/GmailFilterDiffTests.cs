@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using VitaCernita.Core.Actions;
+using VitaCernita.Core.Diffing;
 using VitaCernita.Core.Filters;
 using VitaCernita.Core.Diffing.Filters;
 using VitaCernita.Core.Operations.Translators;
@@ -16,7 +17,7 @@ public class GmailFilterDiffTests
     public void Diff_BothNull_ReturnsUnchanged()
     {
         var diff = GmailFilterDiffer.Diff((GmailFilter?)null, (GmailFilter?)null);
-        Assert.Equal(FilterDiffType.Unchanged, diff.DiffType);
+        Assert.Equal(DiffKind.Unchanged, diff.DiffType);
         Assert.False(diff.HasChanges);
     }
 
@@ -29,7 +30,7 @@ public class GmailFilterDiffTests
             action: new GmailAction().Archive().Star());
 
         var diff = GmailFilterDiffer.Diff(null, desired);
-        Assert.Equal(FilterDiffType.Added, diff.DiffType);
+        Assert.Equal(DiffKind.Added, diff.DiffType);
         Assert.True(diff.HasChanges);
         Assert.Equal("filter_new", diff.Id);
         Assert.NotNull(diff.GetCreatePayload());
@@ -44,7 +45,7 @@ public class GmailFilterDiffTests
             action: new GmailAction().Delete());
 
         var diff = GmailFilterDiffer.Diff(current, null);
-        Assert.Equal(FilterDiffType.Removed, diff.DiffType);
+        Assert.Equal(DiffKind.Removed, diff.DiffType);
         Assert.True(diff.HasChanges);
         Assert.Equal("filter_old", diff.Id);
         Assert.Equal("filter_old", diff.GetDeleteId());
@@ -64,7 +65,7 @@ public class GmailFilterDiffTests
             action: new GmailAction().MarkImportant());
 
         var diff = GmailFilterDiffer.Diff(current, desired);
-        Assert.Equal(FilterDiffType.Unchanged, diff.DiffType);
+        Assert.Equal(DiffKind.Unchanged, diff.DiffType);
         Assert.False(diff.HasChanges);
         Assert.Empty(diff.FieldDifferences);
     }
@@ -84,7 +85,7 @@ public class GmailFilterDiffTests
             action: new GmailAction().Star().Archive());
 
         var diff = GmailFilterDiffer.Diff(current, desired);
-        Assert.Equal(FilterDiffType.Modified, diff.DiffType);
+        Assert.Equal(DiffKind.Modified, diff.DiffType);
         Assert.True(diff.HasChanges);
         Assert.Single(diff.FieldDifferences);
         Assert.Equal("action", diff.FieldDifferences[0].FieldName);
@@ -104,7 +105,7 @@ public class GmailFilterDiffTests
             action: new GmailAction().Archive());
 
         var diff = GmailFilterDiffer.Diff(current, desired);
-        Assert.Equal(FilterDiffType.Modified, diff.DiffType);
+        Assert.Equal(DiffKind.Modified, diff.DiffType);
         Assert.True(diff.HasChanges);
         Assert.Single(diff.FieldDifferences);
         Assert.Equal("query", diff.FieldDifferences[0].FieldName);
@@ -124,7 +125,7 @@ public class GmailFilterDiffTests
             action: new GmailAction().Delete());
 
         var diff = GmailFilterDiffer.Diff(current, desired);
-        Assert.Equal(FilterDiffType.Modified, diff.DiffType);
+        Assert.Equal(DiffKind.Modified, diff.DiffType);
         Assert.Equal(2, diff.FieldDifferences.Count);
     }
 
@@ -267,7 +268,7 @@ public class GmailFilterDiffTests
     }
 
     [Fact]
-    public void ToDryRunReport_OutputsFormattedSummary()
+    public void SummaryString_OutputsExpectedCounts()
     {
         var currentFilters = new List<GmailFilter>
         {
@@ -282,15 +283,9 @@ public class GmailFilterDiffTests
         };
 
         var setDiff = GmailFilterDiffer.DiffSets(currentFilters, desiredFilters);
-        string report = setDiff.ToDryRunReport();
+        string summary = setDiff.ToSummaryString();
 
-        Assert.Contains("VitaCernita Filter Diff Report (Dry Run)", report);
-        Assert.Contains("[+] Create (1)", report);
-        Assert.Contains("[~] Update (1)", report);
-        Assert.Contains("[-] Delete (1)", report);
-        Assert.Contains("f_new", report);
-        Assert.Contains("f_1", report);
-        Assert.Contains("f_del", report);
+        Assert.Equal("Summary: 1 to create, 1 to update, 1 to delete, 0 unchanged.", summary);
     }
 
     [Fact]

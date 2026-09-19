@@ -21,7 +21,7 @@ public static class GmailSourceDiffer
     /// <summary>
     /// Compares labels from a current source against a desired source.
     /// </summary>
-    public static async Task<LabelSetDiff> DiffLabelsAsync(
+    public static async Task<ResourceSetDiff<GmailLabel>> DiffLabelsAsync(
         IGmailSource currentSource,
         IGmailSource desiredSource,
         LabelDiffOptions? options = null,
@@ -39,7 +39,7 @@ public static class GmailSourceDiffer
     /// <summary>
     /// Compares subsets of labels using LINQ filter expressions on both sources before diffing.
     /// </summary>
-    public static async Task<LabelSetDiff> DiffLabelsAsync(
+    public static async Task<ResourceSetDiff<GmailLabel>> DiffLabelsAsync(
         IGmailSource currentSource,
         IGmailSource desiredSource,
         Func<IQueryable<GmailLabel>, IQueryable<GmailLabel>>? currentFilter,
@@ -62,7 +62,7 @@ public static class GmailSourceDiffer
     /// <summary>
     /// Compares search filters from a current source against a desired source.
     /// </summary>
-    public static Task<FilterSetDiff> DiffFiltersAsync(
+    public static Task<ResourceSetDiff<GmailFilter>> DiffFiltersAsync(
         IGmailSource currentSource,
         IGmailSource desiredSource,
         FilterDiffOptions? options = null,
@@ -72,7 +72,7 @@ public static class GmailSourceDiffer
     /// <summary>
     /// Compares subsets of filters using LINQ filter expressions on both sources before diffing.
     /// </summary>
-    public static async Task<FilterSetDiff> DiffFiltersAsync(
+    public static async Task<ResourceSetDiff<GmailFilter>> DiffFiltersAsync(
         IGmailSource currentSource,
         IGmailSource desiredSource,
         Func<IQueryable<GmailFilter>, IQueryable<GmailFilter>>? currentFilter,

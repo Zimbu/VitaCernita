@@ -39,35 +39,10 @@ public class ResourceSetDiff<T>
         Differences = (differences ?? Array.Empty<ResourceDiff<T>>()).ToList();
     }
 
-    /// <summary>
-    /// Generates a standardized, human-readable summary of all changes suitable for CLI dry-run output.
-    /// </summary>
-    public virtual string ToDryRunReport(string resourceTitle = "Resource")
+    public string ToSummaryString()
     {
-        var sb = new StringBuilder();
-        sb.AppendLine($"VitaCernita {resourceTitle} Diff Report (Dry Run):");
-        sb.AppendLine($"  [+] Create ({TotalCreations})");
-        foreach (var c in Creations)
-        {
-            sb.AppendLine($"      + {c.Identifier ?? c.Id ?? "<item>"}");
-        }
-
-        sb.AppendLine($"  [~] Update ({TotalModifications})");
-        foreach (var m in Modifications)
-        {
-            string fieldSummary = m.FieldDifferences.Count > 0
-                ? $" ({m.FieldDifferences.Count} field(s) changed: {string.Join(", ", m.FieldDifferences.Select(f => f.FieldName))})"
-                : "";
-            sb.AppendLine($"      ~ {m.Identifier ?? m.Id ?? "<item>"}{fieldSummary}");
-        }
-
-        sb.AppendLine($"  [-] Delete ({TotalDeletions})");
-        foreach (var d in Deletions)
-        {
-            sb.AppendLine($"      - {d.Identifier ?? d.Id ?? "<item>"}");
-        }
-
-        sb.AppendLine($"  [=] Unchanged ({TotalUnchanged})");
-        return sb.ToString().TrimEnd();
+        return $"Summary: {TotalCreations} to create, {TotalModifications} to update, {TotalDeletions} to delete, {TotalUnchanged} unchanged.";
     }
+
+    public override string ToString() => ToSummaryString();
 }
