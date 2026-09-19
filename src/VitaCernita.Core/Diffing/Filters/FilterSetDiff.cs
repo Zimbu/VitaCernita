@@ -2,29 +2,23 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using VitaCernita.Core.Filters;
 
-namespace VitaCernita.Core.Filters.Diff;
+namespace VitaCernita.Core.Diffing.Filters;
 
 /// <summary>
-/// Represents the complete diff result between a set of current Gmail filters and a set of desired filters.
-/// Suitable for both programmatic synchronization planning and human-readable dry-run reporting.
+/// Represents the computed differences between two collections of Gmail filters.
 /// </summary>
-public sealed class FilterSetDiff
+public sealed class FilterSetDiff : ResourceSetDiff<GmailFilter>
 {
-    public IReadOnlyList<FilterDiff> Differences { get; }
-
-    public IReadOnlyList<FilterDiff> Creations => Differences.Where(d => d.DiffType == FilterDiffType.Added).ToList();
-    public IReadOnlyList<FilterDiff> Deletions => Differences.Where(d => d.DiffType == FilterDiffType.Removed).ToList();
-    public IReadOnlyList<FilterDiff> Modifications => Differences.Where(d => d.DiffType == FilterDiffType.Modified).ToList();
-    public IReadOnlyList<FilterDiff> Unchanged => Differences.Where(d => d.DiffType == FilterDiffType.Unchanged).ToList();
-
-    public bool HasDifferences => Creations.Count > 0 || Deletions.Count > 0 || Modifications.Count > 0;
-    public int TotalCreations => Creations.Count;
-    public int TotalDeletions => Deletions.Count;
-    public int TotalModifications => Modifications.Count;
-    public int TotalUnchanged => Unchanged.Count;
+    public new IReadOnlyList<FilterDiff> Differences { get; }
+    public new IReadOnlyList<FilterDiff> Creations => Differences.Where(d => d.DiffType == DiffKind.Added).ToList();
+    public new IReadOnlyList<FilterDiff> Deletions => Differences.Where(d => d.DiffType == DiffKind.Removed).ToList();
+    public new IReadOnlyList<FilterDiff> Modifications => Differences.Where(d => d.DiffType == DiffKind.Modified).ToList();
+    public new IReadOnlyList<FilterDiff> Unchanged => Differences.Where(d => d.DiffType == DiffKind.Unchanged).ToList();
 
     public FilterSetDiff(IEnumerable<FilterDiff>? differences)
+        : base((differences ?? Array.Empty<FilterDiff>()).Cast<ResourceDiff<GmailFilter>>())
     {
         Differences = (differences ?? Array.Empty<FilterDiff>()).ToList();
     }
@@ -51,7 +45,7 @@ public sealed class FilterSetDiff
             sb.AppendLine($"[+] Create ({TotalCreations}):");
             foreach (var item in Creations)
             {
-                string nameStr = !string.IsNullOrWhiteSpace(item.Name) ? $" '{item.Name}'" : "";
+                string nameStr = !string.IsNullOrWhiteSpace(item.Identifier) ? $" '{item.Identifier}'" : "";
                 string idStr = item.Id != null ? $" (ID: {item.Id})" : "";
                 string queryStr = item.DesiredFilter?.ToGmailQuery() ?? "<none>";
                 string actionStr = item.DesiredFilter?.Action?.ToString() ?? "<none>";
@@ -67,7 +61,7 @@ public sealed class FilterSetDiff
             sb.AppendLine($"[~] Update ({TotalModifications}):");
             foreach (var item in Modifications)
             {
-                string nameStr = !string.IsNullOrWhiteSpace(item.Name) ? $" '{item.Name}'" : "";
+                string nameStr = !string.IsNullOrWhiteSpace(item.Identifier) ? $" '{item.Identifier}'" : "";
                 string idStr = item.Id != null ? $" (ID: {item.Id})" : "";
                 sb.AppendLine($"  ~ Filter{nameStr}{idStr}:");
                 foreach (var fieldDiff in item.FieldDifferences)
@@ -83,7 +77,7 @@ public sealed class FilterSetDiff
             sb.AppendLine($"[-] Delete ({TotalDeletions}):");
             foreach (var item in Deletions)
             {
-                string nameStr = !string.IsNullOrWhiteSpace(item.Name) ? $" '{item.Name}'" : "";
+                string nameStr = !string.IsNullOrWhiteSpace(item.Identifier) ? $" '{item.Identifier}'" : "";
                 string idStr = item.Id != null ? $" (ID: {item.Id})" : "";
                 string queryStr = item.CurrentFilter?.ToGmailQuery() ?? "<none>";
                 sb.AppendLine($"  - Filter{nameStr}{idStr}: query '{queryStr}'");
@@ -96,7 +90,7 @@ public sealed class FilterSetDiff
             sb.AppendLine($"[=] Unchanged ({TotalUnchanged}):");
             foreach (var item in Unchanged)
             {
-                string nameStr = !string.IsNullOrWhiteSpace(item.Name) ? $" '{item.Name}'" : "";
+                string nameStr = !string.IsNullOrWhiteSpace(item.Identifier) ? $" '{item.Identifier}'" : "";
                 string idStr = item.Id != null ? $" (ID: {item.Id})" : "";
                 sb.AppendLine($"  = Filter{nameStr}{idStr}");
             }

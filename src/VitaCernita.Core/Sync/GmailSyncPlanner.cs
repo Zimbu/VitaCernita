@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using VitaCernita.Core.Api;
-using VitaCernita.Core.AutoReply.Diff;
-using VitaCernita.Core.Filters.Diff;
-using VitaCernita.Core.Labels.Diff;
+using VitaCernita.Core.Diffing;
+using VitaCernita.Core.Diffing.AutoReply;
+using VitaCernita.Core.Diffing.Filters;
+using VitaCernita.Core.Diffing.Labels;
 using VitaCernita.Core.Sources;
 using VitaCernita.Core.Sync.Commands;
 
@@ -95,7 +96,7 @@ public static class GmailSyncPlanner
         // 7. Auto-Reply Updates
         if (options.IncludeAutoReply && autoReplyDiff != null && autoReplyDiff.HasChanges)
         {
-            if (autoReplyDiff.DiffType == AutoReplyDiffType.Disabled && !options.AllowDeletions)
+            if (autoReplyDiff.DiffType == DiffKind.Disabled && !options.AllowDeletions)
             {
                 // Disabling auto-reply is skipped if deletions/removals are not allowed
             }
@@ -138,32 +139,63 @@ public static class GmailSyncPlanner
             currentSource = left;
         }
 
-        if (options.KnownLabels == null)
-        {
-            var currentLabels = await currentSource.GetLabelsAsync(cancellationToken);
-            var desiredLabels = await desiredSource.GetLabelsAsync(cancellationToken);
-            options.KnownLabels = currentLabels.Concat(desiredLabels).ToList();
-        }
-
         LabelSetDiff? labelDiff = null;
         if (options.IncludeLabels)
         {
-            labelDiff = await GmailSourceDiffer.DiffLabelsAsync(currentSource, desiredSource, options.LabelOptions, cancellationToken);
+            labelDiff = await GmailSourceDiffer.DiffLabelsAsync(
+                currentSource,
+                desiredSource,
+                options.LabelOptions,
+                cancellationToken);
         }
 
         FilterSetDiff? filterDiff = null;
         if (options.IncludeFilters)
         {
-            filterDiff = await GmailSourceDiffer.DiffFiltersAsync(currentSource, desiredSource, options.FilterOptions, cancellationToken);
+            filterDiff = await GmailSourceDiffer.DiffFiltersAsync(
+                currentSource,
+                desiredSource,
+                options.FilterOptions,
+                cancellationToken);
         }
 
         AutoReplyDiff? autoReplyDiff = null;
         if (options.IncludeAutoReply)
         {
-            autoReplyDiff = await GmailSourceDiffer.DiffAutoReplyAsync(currentSource, desiredSource, options.AutoReplyOptions, cancellationToken);
+            autoReplyDiff = await GmailSourceDiffer.DiffAutoReplyAsync(
+                currentSource,
+                desiredSource,
+                options.AutoReplyOptions,
+                cancellationToken);
         }
 
         return BuildPlan(labelDiff, filterDiff, autoReplyDiff, options);
+    }
+
+    /// <summary>
+    /// Compares a local Lua configuration against a live Gmail account via IGmailApiClient
+    /// and builds a synchronization plan to apply the Lua settings to the remote account.
+    /// </summary>
+    public static async Task<SyncPlan> BuildPlanFromLuaAsync(
+        IGmailApiClient client,
+        string luaSourceCodeOrPath,
+        bool isFilePath = false,
+        SyncPlanOptions? options = null,
+        string userId = "me",
+        CancellationToken cancellationToken = default)
+    {
+        if (client == null) throw new ArgumentNullException(nameof(client));
+        if (string.IsNullOrWhiteSpace(luaSourceCodeOrPath)) throw new ArgumentNullException(nameof(luaSourceCodeOrPath));
+
+        var remoteSource = new ApiGmailSource(client, userId);
+        var luaSource = isFilePath
+            ? new LuaGmailSource(luaSourceCodeOrPath)
+            : LuaGmailSource.FromScript(luaSourceCodeOrPath);
+
+        options ??= new SyncPlanOptions();
+        options.Direction = SyncDirection.MakeRightMatchLeft;
+
+        return await BuildPlanAsync(luaSource, remoteSource, options, cancellationToken);
     }
 
     /// <summary>
@@ -176,10 +208,7 @@ public static class GmailSyncPlanner
         string userId = "me",
         CancellationToken cancellationToken = default)
     {
-        if (client == null) throw new ArgumentNullException(nameof(client));
-        var currentSource = new ApiGmailSource(client, userId);
-        var desiredSource = LuaGmailSource.FromScript(luaScript);
-        return BuildPlanAsync(desiredSource, currentSource, options, cancellationToken);
+        return BuildPlanFromLuaAsync(client, luaScript, isFilePath: false, options, userId, cancellationToken);
     }
 
     /// <summary>
@@ -192,9 +221,6 @@ public static class GmailSyncPlanner
         string userId = "me",
         CancellationToken cancellationToken = default)
     {
-        if (client == null) throw new ArgumentNullException(nameof(client));
-        var currentSource = new ApiGmailSource(client, userId);
-        var desiredSource = new LuaGmailSource(filePath);
-        return BuildPlanAsync(desiredSource, currentSource, options, cancellationToken);
+        return BuildPlanFromLuaAsync(client, filePath, isFilePath: true, options, userId, cancellationToken);
     }
 }

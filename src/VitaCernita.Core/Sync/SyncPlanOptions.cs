@@ -1,8 +1,8 @@
 using System.Collections.Generic;
-using VitaCernita.Core.AutoReply.Diff;
-using VitaCernita.Core.Filters.Diff;
+using VitaCernita.Core.Diffing.AutoReply;
+using VitaCernita.Core.Diffing.Filters;
+using VitaCernita.Core.Diffing.Labels;
 using VitaCernita.Core.Labels;
-using VitaCernita.Core.Labels.Diff;
 
 namespace VitaCernita.Core.Sync;
 

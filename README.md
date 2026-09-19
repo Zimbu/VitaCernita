@@ -41,11 +41,11 @@ VitaCernita is built upon three decoupled pillars:
    - The composite resource combining an optional `id`, a search `query` (criteria), and an `action`.
    - Exports directly to Google Gmail API payload format via `filter.ToDictionary()`.
 
-4. **Label & Label Differ** ([`GmailLabel`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Labels/GmailLabel.cs), [`GmailLabelDiffer`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Labels/Diff/GmailLabelDiffer.cs)):
+4. **Label & Label Differ** ([`GmailLabel`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Labels/GmailLabel.cs), [`LabelDiffer`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Diffing/Labels/LabelDiffer.cs)):
    - Custom mailbox labels configured with display `name`, visibility settings, and palette colors matching the Gmail API `users.labels` REST resource.
-   - Built-in label diffing engine compares desired labels against active Gmail accounts with selective field comparison, API patch payloads, and dry-run reporting.
+   - Built-in label diffing engine compares desired labels against active Gmail accounts with selective field comparison and dry-run reporting.
 
-5. **Auto-Reply (Vacation Responder)** ([`AutoReply`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/AutoReply/AutoReply.cs), [`AutoReplyDiffer`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/AutoReply/Diff/AutoReplyDiffer.cs)):
+5. **Auto-Reply (Vacation Responder)** ([`AutoReply`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/AutoReply/AutoReply.cs), [`AutoReplyDiffer`](file:///home/zimbu/Work/VitaCernita/src/VitaCernita.Core/Diffing/AutoReply/AutoReplyDiffer.cs)):
    - Gmail vacation responder settings matching the official Gmail API `VacationSettings` REST resource.
    - Configures subject, plain text and HTML bodies, contact restriction, start and end date ranges, and Google Workspace-specific domain restriction checks.
    - Built-in differ and dry-run reporting integrate with LINQ queryable sources and CLI.

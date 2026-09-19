@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace VitaCernita.Core.AutoReply.Diff;
+namespace VitaCernita.Core.Diffing.AutoReply;
 
 /// <summary>
 /// Configuration options controlling how AutoReply settings are compared.

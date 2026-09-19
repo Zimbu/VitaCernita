@@ -2,29 +2,23 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using VitaCernita.Core.Labels;
 
-namespace VitaCernita.Core.Labels.Diff;
+namespace VitaCernita.Core.Diffing.Labels;
 
 /// <summary>
-/// Represents the complete diff result between a set of current Gmail labels and a set of desired labels.
-/// Suitable for both programmatic command dispatching and dry-run reporting.
+/// Represents the computed differences between two collections of Gmail labels.
 /// </summary>
-public sealed class LabelSetDiff
+public sealed class LabelSetDiff : ResourceSetDiff<GmailLabel>
 {
-    public IReadOnlyList<LabelDiff> Differences { get; }
-
-    public IReadOnlyList<LabelDiff> Creations => Differences.Where(d => d.DiffType == LabelDiffType.Added).ToList();
-    public IReadOnlyList<LabelDiff> Deletions => Differences.Where(d => d.DiffType == LabelDiffType.Removed).ToList();
-    public IReadOnlyList<LabelDiff> Modifications => Differences.Where(d => d.DiffType == LabelDiffType.Modified).ToList();
-    public IReadOnlyList<LabelDiff> Unchanged => Differences.Where(d => d.DiffType == LabelDiffType.Unchanged).ToList();
-
-    public bool HasDifferences => Creations.Count > 0 || Deletions.Count > 0 || Modifications.Count > 0;
-    public int TotalCreations => Creations.Count;
-    public int TotalDeletions => Deletions.Count;
-    public int TotalModifications => Modifications.Count;
-    public int TotalUnchanged => Unchanged.Count;
+    public new IReadOnlyList<LabelDiff> Differences { get; }
+    public new IReadOnlyList<LabelDiff> Creations => Differences.Where(d => d.DiffType == DiffKind.Added).ToList();
+    public new IReadOnlyList<LabelDiff> Deletions => Differences.Where(d => d.DiffType == DiffKind.Removed).ToList();
+    public new IReadOnlyList<LabelDiff> Modifications => Differences.Where(d => d.DiffType == DiffKind.Modified).ToList();
+    public new IReadOnlyList<LabelDiff> Unchanged => Differences.Where(d => d.DiffType == DiffKind.Unchanged).ToList();
 
     public LabelSetDiff(IEnumerable<LabelDiff> differences)
+        : base((differences ?? Array.Empty<LabelDiff>()).Cast<ResourceDiff<GmailLabel>>())
     {
         Differences = (differences ?? Array.Empty<LabelDiff>()).ToList();
     }

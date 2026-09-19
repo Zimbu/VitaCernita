@@ -1,15 +1,27 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using VitaCernita.Core.Filters;
 
-namespace VitaCernita.Core.Filters.Diff;
+namespace VitaCernita.Core.Diffing.Filters;
 
 /// <summary>
 /// Provides diffing capabilities between existing Gmail filters (e.g. from the Gmail API)
 /// and desired Gmail filter specifications (e.g. from Lua configuration).
+/// Implements pure model comparison without Gmail API transport or execution dependencies.
 /// </summary>
-public static class GmailFilterDiffer
+public class FilterDiffer : IResourceDiffer<GmailFilter, FilterDiffOptions>
 {
+    public static readonly FilterDiffer Instance = new();
+
+    ResourceDiff<GmailFilter> IResourceDiffer<GmailFilter, FilterDiffOptions>.Diff(
+        GmailFilter? current, GmailFilter? desired, FilterDiffOptions? options) =>
+        Diff(current, desired, options);
+
+    ResourceSetDiff<GmailFilter> IResourceDiffer<GmailFilter, FilterDiffOptions>.DiffSets(
+        IEnumerable<GmailFilter> current, IEnumerable<GmailFilter> desired, FilterDiffOptions? options) =>
+        DiffSets(current, desired, options);
+
     /// <summary>
     /// Computes the difference between a single current filter and a desired filter specification.
     /// </summary>
@@ -19,20 +31,20 @@ public static class GmailFilterDiffer
 
         if (current == null && desired == null)
         {
-            return new FilterDiff(null, null, FilterDiffType.Unchanged, null, null);
+            return new FilterDiff(null, null, DiffKind.Unchanged, null, null);
         }
 
         if (current == null)
         {
-            return new FilterDiff(desired!.Id, desired.Name, FilterDiffType.Added, null, desired);
+            return new FilterDiff(desired!.Id, desired.Name, DiffKind.Added, null, desired);
         }
 
         if (desired == null)
         {
-            return new FilterDiff(current.Id, current.Name, FilterDiffType.Removed, current, null);
+            return new FilterDiff(current.Id, current.Name, DiffKind.Removed, current, null);
         }
 
-        var fieldDiffs = new List<FilterFieldDiff>();
+        var fieldDiffs = new List<FieldDiff>();
 
         // 1. Query / Search criteria
         if (options.ShouldCompareField("query"))
@@ -42,7 +54,7 @@ public static class GmailFilterDiffer
 
             if (!string.Equals(currentQuery, desiredQuery, StringComparison.Ordinal))
             {
-                fieldDiffs.Add(new FilterFieldDiff("query", currentQuery, desiredQuery));
+                fieldDiffs.Add(new FieldDiff("query", currentQuery, desiredQuery));
             }
         }
 
@@ -63,7 +75,7 @@ public static class GmailFilterDiffer
             {
                 string currentActStr = effectiveCurrentAction?.ToString() ?? "<none>";
                 string desiredActStr = effectiveDesiredAction?.ToString() ?? "<none>";
-                fieldDiffs.Add(new FilterFieldDiff("action", currentActStr, desiredActStr));
+                fieldDiffs.Add(new FieldDiff("action", currentActStr, desiredActStr));
             }
         }
 
@@ -72,11 +84,11 @@ public static class GmailFilterDiffer
         {
             if (!string.Equals(current.Name, desired.Name, StringComparison.OrdinalIgnoreCase))
             {
-                fieldDiffs.Add(new FilterFieldDiff("name", current.Name, desired.Name));
+                fieldDiffs.Add(new FieldDiff("name", current.Name, desired.Name));
             }
         }
 
-        var diffType = fieldDiffs.Count > 0 ? FilterDiffType.Modified : FilterDiffType.Unchanged;
+        var diffType = fieldDiffs.Count > 0 ? DiffKind.Modified : DiffKind.Unchanged;
         string? id = current.Id ?? desired.Id;
         string? name = desired.Name ?? current.Name;
 
@@ -106,7 +118,7 @@ public static class GmailFilterDiffer
             {
                 matchedCurrent.Add(matched);
                 var diff = Diff(matched, desiredFilter, options);
-                if (diff.DiffType != FilterDiffType.Unchanged || options.IncludeUnchanged)
+                if (diff.DiffType != DiffKind.Unchanged || options.IncludeUnchanged)
                 {
                     results.Add(diff);
                 }
@@ -235,4 +247,28 @@ public static class GmailFilterDiffer
         var desired = !string.IsNullOrWhiteSpace(desiredJson) ? GmailFilter.FromJson(desiredJson) : null;
         return Diff(current, desired, options);
     }
+}
+
+/// <summary>
+/// Alias for backward compatibility.
+/// </summary>
+public static class GmailFilterDiffer
+{
+    public static FilterDiff Diff(GmailFilter? current, GmailFilter? desired, FilterDiffOptions? options = null) =>
+        FilterDiffer.Diff(current, desired, options);
+
+    public static FilterSetDiff DiffSets(IEnumerable<GmailFilter>? current, IEnumerable<GmailFilter>? desired, FilterDiffOptions? options = null) =>
+        FilterDiffer.DiffSets(current, desired, options);
+
+    public static FilterDiff Diff(IReadOnlyDictionary<string, object?>? currentDict, IReadOnlyDictionary<string, object?>? desiredDict, FilterDiffOptions? options = null) =>
+        FilterDiffer.Diff(currentDict, desiredDict, options);
+
+    public static FilterSetDiff DiffSets(IEnumerable<IReadOnlyDictionary<string, object?>>? currentDicts, IEnumerable<IReadOnlyDictionary<string, object?>>? desiredDicts, FilterDiffOptions? options = null) =>
+        FilterDiffer.DiffSets(currentDicts, desiredDicts, options);
+
+    public static FilterSetDiff DiffApiListResponse(string currentFiltersJson, IEnumerable<GmailFilter>? desired, FilterDiffOptions? options = null) =>
+        FilterDiffer.DiffApiListResponse(currentFiltersJson, desired, options);
+
+    public static FilterDiff DiffJson(string? currentJson, string? desiredJson, FilterDiffOptions? options = null) =>
+        FilterDiffer.DiffJson(currentJson, desiredJson, options);
 }

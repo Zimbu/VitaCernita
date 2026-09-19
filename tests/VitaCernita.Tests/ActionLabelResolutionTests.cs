@@ -7,7 +7,7 @@ using VitaCernita.Cli.Commands;
 using VitaCernita.Core.Actions;
 using VitaCernita.Core.Api.Fakes;
 using VitaCernita.Core.Filters;
-using VitaCernita.Core.Filters.Diff;
+using VitaCernita.Core.Diffing.Filters;
 using VitaCernita.Core.Labels;
 using VitaCernita.Core.Queries;
 using VitaCernita.Core.Serialization;

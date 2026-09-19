@@ -20,7 +20,15 @@
     <Using Include="VitaCernita.Core.Queries.Validation" />
     <Using Include="VitaCernita.Core.Labels" />
     <Using Include="VitaCernita.Core.Labels.Validation" />
-    <Using Include="VitaCernita.Core.Labels.Diff" />
+    <Using Include="VitaCernita.Core.Diffing" />
+    <Using Include="VitaCernita.Core.Diffing.Labels" />
+    <Using Include="VitaCernita.Core.Diffing.Filters" />
+    <Using Include="VitaCernita.Core.Diffing.AutoReply" />
+    <Using Include="VitaCernita.Core.Operations" />
+    <Using Include="VitaCernita.Core.Operations.Labels" />
+    <Using Include="VitaCernita.Core.Operations.Filters" />
+    <Using Include="VitaCernita.Core.Operations.AutoReply" />
+    <Using Include="VitaCernita.Core.Operations.Translators" />
     <Using Include="VitaCernita.Core.Api" />
     <Using Include="VitaCernita.Core.Api.Auth" />
     <Using Include="VitaCernita.Core.Api.Fakes" />

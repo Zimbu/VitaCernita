@@ -1,42 +1,28 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using AutoReplyModel = VitaCernita.Core.AutoReply.AutoReply;
 
-namespace VitaCernita.Core.AutoReply.Diff;
+namespace VitaCernita.Core.Diffing.AutoReply;
 
 /// <summary>
 /// Represents the computed difference between current and desired AutoReply (VacationSettings) configurations.
+/// Pure model representation decoupled from Gmail API transport or payload mechanics.
 /// </summary>
-public sealed class AutoReplyDiff
+public sealed class AutoReplyDiff : ResourceDiff<AutoReplyModel>
 {
-    public AutoReplyDiffType DiffType { get; }
-    public AutoReply? CurrentAutoReply { get; }
-    public AutoReply? DesiredAutoReply { get; }
-    public IReadOnlyList<AutoReplyFieldDiff> FieldDifferences { get; }
-    public string? AccountError { get; set; }
-
-    public bool HasChanges => DiffType != AutoReplyDiffType.Unchanged;
+    public AutoReplyModel? CurrentAutoReply => Current;
+    public AutoReplyModel? DesiredAutoReply => Desired;
+    public string? AccountError => Error;
 
     public AutoReplyDiff(
-        AutoReplyDiffType diffType,
-        AutoReply? currentAutoReply,
-        AutoReply? desiredAutoReply,
-        IReadOnlyList<AutoReplyFieldDiff>? fieldDifferences = null,
+        DiffKind diffType,
+        AutoReplyModel? currentAutoReply,
+        AutoReplyModel? desiredAutoReply,
+        IReadOnlyList<FieldDiff>? fieldDifferences = null,
         string? accountError = null)
+        : base(diffType, currentAutoReply, desiredAutoReply, fieldDifferences, identifier: "AutoReply", id: null, error: accountError)
     {
-        DiffType = diffType;
-        CurrentAutoReply = currentAutoReply;
-        DesiredAutoReply = desiredAutoReply;
-        FieldDifferences = fieldDifferences ?? Array.Empty<AutoReplyFieldDiff>();
-        AccountError = accountError;
-    }
-
-    /// <summary>
-    /// Generates a payload suitable for PUT users.settings.updateVacation.
-    /// </summary>
-    public Dictionary<string, object>? GetUpdatePayload()
-    {
-        return DesiredAutoReply?.ToDictionary();
     }
 
     /// <summary>
@@ -54,7 +40,7 @@ public sealed class AutoReplyDiff
 
         switch (DiffType)
         {
-            case AutoReplyDiffType.Unchanged:
+            case DiffKind.Unchanged:
                 sb.AppendLine("  Status: Unchanged");
                 if (DesiredAutoReply != null && DesiredAutoReply.EnableAutoReply)
                 {
@@ -62,7 +48,7 @@ public sealed class AutoReplyDiff
                 }
                 break;
 
-            case AutoReplyDiffType.Added:
+            case DiffKind.Added:
                 sb.AppendLine("  Status: + Enable Auto-Reply (Create / Turn On)");
                 if (DesiredAutoReply != null)
                 {
@@ -80,7 +66,7 @@ public sealed class AutoReplyDiff
                 }
                 break;
 
-            case AutoReplyDiffType.Disabled:
+            case DiffKind.Disabled:
                 sb.AppendLine("  Status: - Turn Off Auto-Reply");
                 if (CurrentAutoReply != null && !string.IsNullOrWhiteSpace(CurrentAutoReply.ResponseSubject))
                 {
@@ -88,7 +74,7 @@ public sealed class AutoReplyDiff
                 }
                 break;
 
-            case AutoReplyDiffType.Modified:
+            case DiffKind.Modified:
                 sb.AppendLine($"  Status: ~ Update Auto-Reply ({FieldDifferences.Count} change(s)):");
                 foreach (var field in FieldDifferences)
                 {
@@ -104,9 +90,9 @@ public sealed class AutoReplyDiff
     {
         return DiffType switch
         {
-            AutoReplyDiffType.Added => "+ AutoReply (Enable)",
-            AutoReplyDiffType.Disabled => "- AutoReply (Disable)",
-            AutoReplyDiffType.Modified => $"~ AutoReply ({FieldDifferences.Count} change(s): {string.Join(", ", FieldDifferences)})",
+            DiffKind.Added => "+ AutoReply (Enable)",
+            DiffKind.Disabled => "- AutoReply (Disable)",
+            DiffKind.Modified => $"~ AutoReply ({FieldDifferences.Count} change(s): {string.Join(", ", FieldDifferences)})",
             _ => "  AutoReply (Unchanged)"
         };
     }

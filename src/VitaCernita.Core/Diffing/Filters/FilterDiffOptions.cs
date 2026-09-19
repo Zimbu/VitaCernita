@@ -1,31 +1,33 @@
 using System;
 using System.Collections.Generic;
+using VitaCernita.Core.Labels;
 
-namespace VitaCernita.Core.Labels.Diff;
+namespace VitaCernita.Core.Diffing.Filters;
 
 /// <summary>
-/// Options controlling label comparison and field filtering.
+/// Options controlling filter comparison, matching strategy, and field filtering.
 /// </summary>
-public sealed class LabelDiffOptions
+public sealed class FilterDiffOptions
 {
     /// <summary>
-    /// Strategy used to pair labels between the current and desired sets.
+    /// Strategy used to pair filters between the current and desired configurations.
+    /// Default is <see cref="FilterMatchKey.IdThenQuery"/>.
     /// </summary>
-    public LabelMatchKey MatchBy { get; set; } = LabelMatchKey.Name;
+    public FilterMatchKey MatchBy { get; set; } = FilterMatchKey.IdThenQuery;
 
     /// <summary>
-    /// When matching by name, whether the comparison should ignore case differences. Default is true.
+    /// Whether to include unchanged filters in the diff result collection. Default is true.
     /// </summary>
-    public bool CaseInsensitiveNameMatch { get; set; } = true;
+    public bool IncludeUnchanged { get; set; } = true;
 
     /// <summary>
-    /// If true, fields that are null/unset in the desired configuration are ignored and not treated as deletions/changes.
-    /// Useful for partial patch scenarios.
+    /// Whether to compare the optional human-readable name of filters. Default is false,
+    /// because Gmail API filters are anonymous server-side and only identify by ID.
     /// </summary>
-    public bool IgnoreUnsetDesiredFields { get; set; } = false;
+    public bool CompareName { get; set; } = false;
 
     /// <summary>
-    /// Optional whitelist of field names to compare (e.g., 'messageListVisibility', 'color').
+    /// Optional whitelist of field names to compare (e.g., 'query', 'action').
     /// If null or empty, all configurable fields are compared.
     /// </summary>
     public IReadOnlySet<string>? FieldsToCompare { get; set; }
@@ -36,9 +38,10 @@ public sealed class LabelDiffOptions
     public IReadOnlySet<string>? FieldsToIgnore { get; set; }
 
     /// <summary>
-    /// Whether to include unchanged labels in the diff result collection. Default is true.
+    /// Known Gmail labels used to resolve internal label IDs to human-readable label names (and vice-versa)
+    /// during filter action comparison.
     /// </summary>
-    public bool IncludeUnchanged { get; set; } = true;
+    public IEnumerable<GmailLabel>? KnownLabels { get; set; }
 
     /// <summary>
     /// Determines whether a given configurable field should be compared based on the active options.
@@ -53,7 +56,7 @@ public sealed class LabelDiffOptions
             {
                 string ignoredCanonical = CanonicalizeFieldName(ignored);
                 if (string.Equals(ignoredCanonical, canonical, StringComparison.OrdinalIgnoreCase) ||
-                    (ignoredCanonical == "color" && canonical.StartsWith("color.", StringComparison.OrdinalIgnoreCase)))
+                    (ignoredCanonical == "action" && canonical.StartsWith("action.", StringComparison.OrdinalIgnoreCase)))
                 {
                     return false;
                 }
@@ -66,8 +69,7 @@ public sealed class LabelDiffOptions
             {
                 string allowedCanonical = CanonicalizeFieldName(allowed);
                 if (string.Equals(allowedCanonical, canonical, StringComparison.OrdinalIgnoreCase) ||
-                    (allowedCanonical == "color" && canonical.StartsWith("color.", StringComparison.OrdinalIgnoreCase)) ||
-                    (canonical == "color" && (allowedCanonical == "color.textcolor" || allowedCanonical == "color.backgroundcolor")))
+                    (allowedCanonical == "action" && canonical.StartsWith("action.", StringComparison.OrdinalIgnoreCase)))
                 {
                     return true;
                 }
@@ -83,12 +85,8 @@ public sealed class LabelDiffOptions
         string lower = name.Trim().ToLowerInvariant().Replace("_", "");
         return lower switch
         {
-            "name" => "name",
-            "messagelistvisibility" => "messagelistvisibility",
-            "labellistvisibility" => "labellistvisibility",
-            "color" => "color",
-            "textcolor" => "color.textcolor",
-            "backgroundcolor" => "color.backgroundcolor",
+            "criteria" => "query",
+            "condition" => "query",
             _ => lower
         };
     }

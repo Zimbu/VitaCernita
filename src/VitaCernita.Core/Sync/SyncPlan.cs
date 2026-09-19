@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using VitaCernita.Core.AutoReply.Diff;
-using VitaCernita.Core.Filters.Diff;
-using VitaCernita.Core.Labels.Diff;
+using VitaCernita.Core.Diffing.AutoReply;
+using VitaCernita.Core.Diffing.Filters;
+using VitaCernita.Core.Diffing.Labels;
 
 namespace VitaCernita.Core.Sync;
 
@@ -69,10 +69,6 @@ public sealed class SyncPlan
         sb.AppendLine("VitaCernita Synchronization Plan (Dry Run)");
         sb.AppendLine("======================================================================");
         sb.AppendLine(ToSummaryString());
-
-        int labelCount = LabelCommands.Count;
-        int filterCount = FilterCommands.Count;
-        int autoReplyCount = AutoReplyCommands.Count;
 
         sb.AppendLine($"  - Labels    : {LabelCommands.Count(c => c.ActionType == SyncActionType.Create)} create, {LabelCommands.Count(c => c.ActionType == SyncActionType.Update)} update, {LabelCommands.Count(c => c.ActionType == SyncActionType.Delete)} delete");
         sb.AppendLine($"  - Filters   : {FilterCommands.Count(c => c.ActionType == SyncActionType.Create)} create, {FilterCommands.Count(c => c.ActionType == SyncActionType.Update)} update, {FilterCommands.Count(c => c.ActionType == SyncActionType.Delete)} delete");

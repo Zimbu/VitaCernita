@@ -8,7 +8,8 @@ using VitaCernita.Core.Api;
 using VitaCernita.Core.Api.Fakes;
 using VitaCernita.Core.Filters;
 using VitaCernita.Core.Labels;
-using VitaCernita.Core.Labels.Diff;
+using VitaCernita.Core.Diffing.Labels;
+using VitaCernita.Core.Operations.Translators;
 using VitaCernita.Core.Queries;
 using VitaCernita.Core.Sources;
 

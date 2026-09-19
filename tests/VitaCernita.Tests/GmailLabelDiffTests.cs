@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
 using VitaCernita.Core.Labels;
-using VitaCernita.Core.Labels.Diff;
+using VitaCernita.Core.Diffing.Labels;
+using VitaCernita.Core.Operations.Translators;
 
 namespace VitaCernita.Tests;
 

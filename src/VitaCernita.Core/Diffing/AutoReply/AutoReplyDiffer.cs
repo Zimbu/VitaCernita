@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using VitaCernita.Core.AutoReply.Validation;
+using AutoReplyModel = VitaCernita.Core.AutoReply.AutoReply;
 
-namespace VitaCernita.Core.AutoReply.Diff;
+namespace VitaCernita.Core.Diffing.AutoReply;
 
 /// <summary>
 /// Compares current Gmail AutoReply (VacationSettings) configurations against desired configurations.
+/// Implements pure model comparison without Gmail API transport or execution dependencies.
 /// </summary>
 public static class AutoReplyDiffer
 {
@@ -13,8 +15,8 @@ public static class AutoReplyDiffer
     /// Computes the difference between an existing AutoReply setting and a desired AutoReply specification.
     /// </summary>
     public static AutoReplyDiff Diff(
-        AutoReply? current,
-        AutoReply? desired,
+        AutoReplyModel? current,
+        AutoReplyModel? desired,
         AutoReplyDiffOptions? options = null)
     {
         options ??= new AutoReplyDiffOptions();
@@ -39,29 +41,29 @@ public static class AutoReplyDiffer
 
         if (current == null && desired == null)
         {
-            return new AutoReplyDiff(AutoReplyDiffType.Unchanged, null, null, accountError: accountError);
+            return new AutoReplyDiff(DiffKind.Unchanged, null, null, accountError: accountError);
         }
 
         if (current == null)
         {
-            var diffType = desired!.EnableAutoReply ? AutoReplyDiffType.Added : AutoReplyDiffType.Unchanged;
+            var diffType = desired!.EnableAutoReply ? DiffKind.Added : DiffKind.Unchanged;
             return new AutoReplyDiff(diffType, null, desired, accountError: accountError);
         }
 
         if (desired == null)
         {
-            var diffType = current.EnableAutoReply ? AutoReplyDiffType.Disabled : AutoReplyDiffType.Unchanged;
+            var diffType = current.EnableAutoReply ? DiffKind.Disabled : DiffKind.Unchanged;
             return new AutoReplyDiff(diffType, current, null, accountError: accountError);
         }
 
-        var fieldDiffs = new List<AutoReplyFieldDiff>();
+        var fieldDiffs = new List<FieldDiff>();
 
         // 1. EnableAutoReply
         if (options.ShouldCompareField("enableAutoReply"))
         {
             if (current.EnableAutoReply != desired.EnableAutoReply)
             {
-                fieldDiffs.Add(new AutoReplyFieldDiff("enableAutoReply", current.EnableAutoReply, desired.EnableAutoReply));
+                fieldDiffs.Add(new FieldDiff("enableAutoReply", current.EnableAutoReply, desired.EnableAutoReply));
             }
         }
 
@@ -74,7 +76,7 @@ public static class AutoReplyDiffer
                 string desSub = desired.ResponseSubject ?? string.Empty;
                 if (!string.Equals(curSub, desSub, StringComparison.Ordinal))
                 {
-                    fieldDiffs.Add(new AutoReplyFieldDiff("responseSubject", current.ResponseSubject, desired.ResponseSubject));
+                    fieldDiffs.Add(new FieldDiff("responseSubject", current.ResponseSubject, desired.ResponseSubject));
                 }
             }
         }
@@ -88,7 +90,7 @@ public static class AutoReplyDiffer
                 string desPlain = desired.ResponseBodyPlainText ?? string.Empty;
                 if (!string.Equals(curPlain, desPlain, StringComparison.Ordinal))
                 {
-                    fieldDiffs.Add(new AutoReplyFieldDiff("responseBodyPlainText", current.ResponseBodyPlainText, desired.ResponseBodyPlainText));
+                    fieldDiffs.Add(new FieldDiff("responseBodyPlainText", current.ResponseBodyPlainText, desired.ResponseBodyPlainText));
                 }
             }
         }
@@ -102,7 +104,7 @@ public static class AutoReplyDiffer
                 string desHtml = desired.ResponseBodyHtml ?? string.Empty;
                 if (!string.Equals(curHtml, desHtml, StringComparison.Ordinal))
                 {
-                    fieldDiffs.Add(new AutoReplyFieldDiff("responseBodyHtml", current.ResponseBodyHtml, desired.ResponseBodyHtml));
+                    fieldDiffs.Add(new FieldDiff("responseBodyHtml", current.ResponseBodyHtml, desired.ResponseBodyHtml));
                 }
             }
         }
@@ -112,7 +114,7 @@ public static class AutoReplyDiffer
         {
             if (current.RestrictToContacts != desired.RestrictToContacts)
             {
-                fieldDiffs.Add(new AutoReplyFieldDiff("restrictToContacts", current.RestrictToContacts, desired.RestrictToContacts));
+                fieldDiffs.Add(new FieldDiff("restrictToContacts", current.RestrictToContacts, desired.RestrictToContacts));
             }
         }
 
@@ -121,7 +123,7 @@ public static class AutoReplyDiffer
         {
             if (current.RestrictToDomain != desired.RestrictToDomain)
             {
-                fieldDiffs.Add(new AutoReplyFieldDiff("restrictToDomain", current.RestrictToDomain, desired.RestrictToDomain));
+                fieldDiffs.Add(new FieldDiff("restrictToDomain", current.RestrictToDomain, desired.RestrictToDomain));
             }
         }
 
@@ -132,7 +134,7 @@ public static class AutoReplyDiffer
             {
                 if (current.StartTime != desired.StartTime)
                 {
-                    fieldDiffs.Add(new AutoReplyFieldDiff("startTime", current.StartTime, desired.StartTime));
+                    fieldDiffs.Add(new FieldDiff("startTime", current.StartTime, desired.StartTime));
                 }
             }
         }
@@ -144,27 +146,27 @@ public static class AutoReplyDiffer
             {
                 if (current.EndTime != desired.EndTime)
                 {
-                    fieldDiffs.Add(new AutoReplyFieldDiff("endTime", current.EndTime, desired.EndTime));
+                    fieldDiffs.Add(new FieldDiff("endTime", current.EndTime, desired.EndTime));
                 }
             }
         }
 
-        AutoReplyDiffType overallDiff;
+        DiffKind overallDiff;
         if (!current.EnableAutoReply && desired.EnableAutoReply)
         {
-            overallDiff = AutoReplyDiffType.Added;
+            overallDiff = DiffKind.Added;
         }
         else if (current.EnableAutoReply && !desired.EnableAutoReply)
         {
-            overallDiff = AutoReplyDiffType.Disabled;
+            overallDiff = DiffKind.Disabled;
         }
         else if (fieldDiffs.Count > 0)
         {
-            overallDiff = AutoReplyDiffType.Modified;
+            overallDiff = DiffKind.Modified;
         }
         else
         {
-            overallDiff = AutoReplyDiffType.Unchanged;
+            overallDiff = DiffKind.Unchanged;
         }
 
         return new AutoReplyDiff(overallDiff, current, desired, fieldDiffs, accountError: accountError);
@@ -178,8 +180,8 @@ public static class AutoReplyDiffer
         IReadOnlyDictionary<string, object?>? desiredDict,
         AutoReplyDiffOptions? options = null)
     {
-        var current = currentDict != null ? AutoReply.FromDictionary(currentDict) : null;
-        var desired = desiredDict != null ? AutoReply.FromDictionary(desiredDict) : null;
+        var current = currentDict != null ? AutoReplyModel.FromDictionary(currentDict) : null;
+        var desired = desiredDict != null ? AutoReplyModel.FromDictionary(desiredDict) : null;
         return Diff(current, desired, options);
     }
 
@@ -191,8 +193,8 @@ public static class AutoReplyDiffer
         string? desiredJson,
         AutoReplyDiffOptions? options = null)
     {
-        var current = !string.IsNullOrWhiteSpace(currentJson) ? AutoReply.FromJson(currentJson) : null;
-        var desired = !string.IsNullOrWhiteSpace(desiredJson) ? AutoReply.FromJson(desiredJson) : null;
+        var current = !string.IsNullOrWhiteSpace(currentJson) ? AutoReplyModel.FromJson(currentJson) : null;
+        var desired = !string.IsNullOrWhiteSpace(desiredJson) ? AutoReplyModel.FromJson(desiredJson) : null;
         return Diff(current, desired, options);
     }
 }

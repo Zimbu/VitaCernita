@@ -1,4 +1,4 @@
-namespace VitaCernita.Core.Filters.Diff;
+namespace VitaCernita.Core.Diffing.Filters;
 
 /// <summary>
 /// Strategy used to pair filters between current and desired configurations.

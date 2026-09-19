@@ -1,4 +1,4 @@
-namespace VitaCernita.Core.Labels.Diff;
+namespace VitaCernita.Core.Diffing.Labels;
 
 /// <summary>
 /// Strategy used to match labels between current (Gmail account) and desired (Lua config) sets.

@@ -1,15 +1,27 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using VitaCernita.Core.Labels;
 
-namespace VitaCernita.Core.Labels.Diff;
+namespace VitaCernita.Core.Diffing.Labels;
 
 /// <summary>
 /// Provides diffing capabilities between existing Gmail labels (e.g. from the Gmail API)
 /// and desired Gmail label specifications (e.g. from Lua configuration).
+/// Implements pure model comparison without Gmail API transport or execution dependencies.
 /// </summary>
-public static class GmailLabelDiffer
+public class LabelDiffer : IResourceDiffer<GmailLabel, LabelDiffOptions>
 {
+    public static readonly LabelDiffer Instance = new();
+
+    ResourceDiff<GmailLabel> IResourceDiffer<GmailLabel, LabelDiffOptions>.Diff(
+        GmailLabel? current, GmailLabel? desired, LabelDiffOptions? options) =>
+        Diff(current, desired, options);
+
+    ResourceSetDiff<GmailLabel> IResourceDiffer<GmailLabel, LabelDiffOptions>.DiffSets(
+        IEnumerable<GmailLabel> current, IEnumerable<GmailLabel> desired, LabelDiffOptions? options) =>
+        DiffSets(current, desired, options);
+
     /// <summary>
     /// Computes the difference between a single current label and a desired label specification.
     /// </summary>
@@ -19,20 +31,20 @@ public static class GmailLabelDiffer
 
         if (current == null && desired == null)
         {
-            return new LabelDiff(string.Empty, null, LabelDiffType.Unchanged, null, null);
+            return new LabelDiff(string.Empty, null, DiffKind.Unchanged, null, null);
         }
 
         if (current == null)
         {
-            return new LabelDiff(desired!.Name, desired.Id, LabelDiffType.Added, null, desired);
+            return new LabelDiff(desired!.Name, desired.Id, DiffKind.Added, null, desired);
         }
 
         if (desired == null)
         {
-            return new LabelDiff(current.Name, current.Id, LabelDiffType.Removed, current, null);
+            return new LabelDiff(current.Name, current.Id, DiffKind.Removed, current, null);
         }
 
-        var fieldDiffs = new List<LabelFieldDiff>();
+        var fieldDiffs = new List<FieldDiff>();
 
         // 1. Name
         if (options.ShouldCompareField("name"))
@@ -43,7 +55,7 @@ public static class GmailLabelDiffer
 
             if (!nameMatch)
             {
-                fieldDiffs.Add(new LabelFieldDiff("name", current.Name, desired.Name));
+                fieldDiffs.Add(new FieldDiff("name", current.Name, desired.Name));
             }
         }
 
@@ -54,7 +66,7 @@ public static class GmailLabelDiffer
             {
                 if (!string.Equals(current.MessageListVisibility, desired.MessageListVisibility, StringComparison.OrdinalIgnoreCase))
                 {
-                    fieldDiffs.Add(new LabelFieldDiff("messageListVisibility", current.MessageListVisibility, desired.MessageListVisibility));
+                    fieldDiffs.Add(new FieldDiff("messageListVisibility", current.MessageListVisibility, desired.MessageListVisibility));
                 }
             }
         }
@@ -66,7 +78,7 @@ public static class GmailLabelDiffer
             {
                 if (!string.Equals(current.LabelListVisibility, desired.LabelListVisibility, StringComparison.OrdinalIgnoreCase))
                 {
-                    fieldDiffs.Add(new LabelFieldDiff("labelListVisibility", current.LabelListVisibility, desired.LabelListVisibility));
+                    fieldDiffs.Add(new FieldDiff("labelListVisibility", current.LabelListVisibility, desired.LabelListVisibility));
                 }
             }
         }
@@ -82,11 +94,11 @@ public static class GmailLabelDiffer
             {
                 if (current.Color == null && desired.Color != null)
                 {
-                    fieldDiffs.Add(new LabelFieldDiff("color", null, desired.Color));
+                    fieldDiffs.Add(new FieldDiff("color", null, desired.Color));
                 }
                 else if (current.Color != null && desired.Color == null)
                 {
-                    fieldDiffs.Add(new LabelFieldDiff("color", current.Color, null));
+                    fieldDiffs.Add(new FieldDiff("color", current.Color, null));
                 }
                 else if (current.Color != null && desired.Color != null)
                 {
@@ -94,13 +106,13 @@ public static class GmailLabelDiffer
                     bool bgDiff = compareBg && !string.Equals(current.Color.BackgroundColor, desired.Color.BackgroundColor, StringComparison.OrdinalIgnoreCase);
                     if (textDiff || bgDiff)
                     {
-                        fieldDiffs.Add(new LabelFieldDiff("color", current.Color, desired.Color));
+                        fieldDiffs.Add(new FieldDiff("color", current.Color, desired.Color));
                     }
                 }
             }
         }
 
-        var diffType = fieldDiffs.Count > 0 ? LabelDiffType.Modified : LabelDiffType.Unchanged;
+        var diffType = fieldDiffs.Count > 0 ? DiffKind.Modified : DiffKind.Unchanged;
         string name = desired.Name ?? current.Name;
         string? id = current.Id ?? desired.Id;
 
@@ -130,7 +142,7 @@ public static class GmailLabelDiffer
             {
                 matchedCurrent.Add(matched);
                 var diff = Diff(matched, desiredLabel, options);
-                if (diff.DiffType != LabelDiffType.Unchanged || options.IncludeUnchanged)
+                if (diff.DiffType != DiffKind.Unchanged || options.IncludeUnchanged)
                 {
                     results.Add(diff);
                 }
@@ -258,4 +270,31 @@ public static class GmailLabelDiffer
         var desired = !string.IsNullOrWhiteSpace(desiredJson) ? GmailLabel.FromJson(desiredJson) : null;
         return Diff(current, desired, options);
     }
+}
+
+/// <summary>
+/// Alias for backward compatibility.
+/// </summary>
+public static class GmailLabelDiffer
+{
+    public static LabelDiff Diff(GmailLabel? current, GmailLabel? desired, LabelDiffOptions? options = null) =>
+        LabelDiffer.Diff(current, desired, options);
+
+    public static LabelSetDiff DiffSets(IEnumerable<GmailLabel>? current, IEnumerable<GmailLabel>? desired, LabelDiffOptions? options = null) =>
+        LabelDiffer.DiffSets(current, desired, options);
+
+    public static LabelDiff Diff(IReadOnlyDictionary<string, object?>? currentDict, IReadOnlyDictionary<string, object?>? desiredDict, LabelDiffOptions? options = null) =>
+        LabelDiffer.Diff(currentDict, desiredDict, options);
+
+    public static LabelSetDiff DiffSets(IEnumerable<IReadOnlyDictionary<string, object?>>? currentDicts, IEnumerable<IReadOnlyDictionary<string, object?>>? desiredDicts, LabelDiffOptions? options = null) =>
+        LabelDiffer.DiffSets(currentDicts, desiredDicts, options);
+
+    public static LabelSetDiff DiffApiListResponse(string currentLabelsJson, IEnumerable<GmailLabel>? desired, LabelDiffOptions? options = null, bool onlyUserLabels = true) =>
+        LabelDiffer.DiffApiListResponse(currentLabelsJson, desired, options, onlyUserLabels);
+
+    public static LabelSetDiff DiffApiListResponse(string currentLabelsJson, IEnumerable<IReadOnlyDictionary<string, object?>>? desiredDicts, LabelDiffOptions? options = null, bool onlyUserLabels = true) =>
+        LabelDiffer.DiffApiListResponse(currentLabelsJson, desiredDicts, options, onlyUserLabels);
+
+    public static LabelDiff DiffJson(string? currentJson, string? desiredJson, LabelDiffOptions? options = null) =>
+        LabelDiffer.DiffJson(currentJson, desiredJson, options);
 }

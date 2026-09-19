@@ -7,7 +7,7 @@ using Xunit;
 using VitaCernita.Core.Api;
 using VitaCernita.Core.Api.Fakes;
 using VitaCernita.Core.AutoReply;
-using VitaCernita.Core.AutoReply.Diff;
+using VitaCernita.Core.Diffing.AutoReply;
 using VitaCernita.Core.AutoReply.Validation;
 using VitaCernita.Core.Filters;
 using VitaCernita.Core.Labels;
