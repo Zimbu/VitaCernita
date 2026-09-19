@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using VitaCernita.Core.Diffing;
 using VitaCernita.Core.Diffing.AutoReply;
 using VitaCernita.Core.Diffing.Filters;
 using VitaCernita.Core.Diffing.Labels;
@@ -116,7 +117,7 @@ public static class GmailAccountDiffer
     /// <summary>
     /// Compares desired auto-reply settings against the target Gmail account.
     /// </summary>
-    public static Task<AutoReplyDiff> DiffAutoReplyAsync(
+    public static Task<ResourceDiff<AutoReply.AutoReply>> DiffAutoReplyAsync(
         IGmailApiClient client,
         AutoReply.AutoReply desiredAutoReply,
         AutoReplyDiffOptions? options = null,
@@ -135,7 +136,7 @@ public static class GmailAccountDiffer
     /// <summary>
     /// Loads auto-reply settings from a Lua script and compares them against the target Gmail account.
     /// </summary>
-    public static Task<AutoReplyDiff> DiffAutoReplyFromScriptAsync(
+    public static Task<ResourceDiff<AutoReply.AutoReply>> DiffAutoReplyFromScriptAsync(
         IGmailApiClient client,
         string luaScript,
         AutoReplyDiffOptions? options = null,
@@ -154,7 +155,7 @@ public static class GmailAccountDiffer
     /// <summary>
     /// Loads auto-reply settings from a Lua file and compares them against the target Gmail account.
     /// </summary>
-    public static Task<AutoReplyDiff> DiffAutoReplyFromFileAsync(
+    public static Task<ResourceDiff<AutoReply.AutoReply>> DiffAutoReplyFromFileAsync(
         IGmailApiClient client,
         string filePath,
         AutoReplyDiffOptions? options = null,

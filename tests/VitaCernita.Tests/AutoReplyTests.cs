@@ -478,7 +478,7 @@ public class AutoReplyTests
 
         Assert.Equal(AutoReplyDiffType.Added, diff.DiffType);
         Assert.True(diff.HasChanges);
-        Assert.Equal(desired, diff.DesiredAutoReply);
+        Assert.Equal(desired, diff.Desired);
     }
 
     [Fact]

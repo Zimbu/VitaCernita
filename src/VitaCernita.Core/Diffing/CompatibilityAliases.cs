@@ -1,4 +1,7 @@
 // Compatibility type aliases mapping legacy redundant diff types to the unified generic diff models.
+global using LabelDiff = VitaCernita.Core.Diffing.ResourceDiff<VitaCernita.Core.Labels.GmailLabel>;
+global using FilterDiff = VitaCernita.Core.Diffing.ResourceDiff<VitaCernita.Core.Filters.GmailFilter>;
+global using AutoReplyDiff = VitaCernita.Core.Diffing.ResourceDiff<VitaCernita.Core.AutoReply.AutoReply>;
 global using LabelDiffType = VitaCernita.Core.Diffing.DiffKind;
 global using FilterDiffType = VitaCernita.Core.Diffing.DiffKind;
 global using AutoReplyDiffType = VitaCernita.Core.Diffing.DiffKind;

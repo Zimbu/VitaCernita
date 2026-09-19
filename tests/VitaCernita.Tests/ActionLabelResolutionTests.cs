@@ -258,7 +258,7 @@ public class ActionLabelResolutionTests
 
         var filterDiff = new FilterSetDiff(new[]
         {
-            new FilterDiff(null, "Client Invoices", FilterDiffType.Added, null, desiredFilter)
+            new FilterDiff(FilterDiffType.Added, null, desiredFilter, identifier: "Client Invoices")
         });
 
         var plan = GmailSyncPlanner.BuildPlan(

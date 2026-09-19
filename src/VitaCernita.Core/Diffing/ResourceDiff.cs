@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using VitaCernita.Core.Filters;
+using VitaCernita.Core.Labels;
+using AutoReplyModel = VitaCernita.Core.AutoReply.AutoReply;
 
 namespace VitaCernita.Core.Diffing;
 
@@ -51,6 +54,11 @@ public class ResourceDiff<T>
     public string? Error { get; }
 
     /// <summary>
+    /// Alias for Error when diffing account settings like AutoReply.
+    /// </summary>
+    public string? AccountError => Error;
+
+    /// <summary>
     /// True if there is a divergence between current and desired state.
     /// </summary>
     public bool HasChanges => DiffType != DiffKind.Unchanged;
@@ -75,6 +83,44 @@ public class ResourceDiff<T>
 
     public override string ToString()
     {
+        if (typeof(T) == typeof(GmailLabel))
+        {
+            string labelName = Identifier ?? (Current as GmailLabel)?.Name ?? (Desired as GmailLabel)?.Name ?? string.Empty;
+            return DiffType switch
+            {
+                DiffKind.Added => $"+ Label '{labelName}' (Create)",
+                DiffKind.Removed => $"- Label '{labelName}' (Delete, ID: {Id ?? "<none>"})",
+                DiffKind.Modified => $"~ Label '{labelName}' ({FieldDifferences.Count} change(s): {string.Join(", ", FieldDifferences)})",
+                _ => $"Label '{labelName}' (Unchanged)"
+            };
+        }
+
+        if (typeof(T) == typeof(GmailFilter))
+        {
+            string idInfo = Id != null ? $" (ID: {Id})" : "";
+            string nameInfo = !string.IsNullOrWhiteSpace(Identifier) ? $" '{Identifier}'" : "";
+            var desiredFilter = Desired as GmailFilter;
+
+            return DiffType switch
+            {
+                DiffKind.Added => $"+ Filter{nameInfo}{idInfo} (Create): query='{desiredFilter?.ToGmailQuery()}' action={desiredFilter?.Action}",
+                DiffKind.Removed => $"- Filter{nameInfo}{idInfo} (Delete)",
+                DiffKind.Modified => $"~ Filter{nameInfo}{idInfo} ({FieldDifferences.Count} change(s): {string.Join(", ", FieldDifferences)})",
+                _ => $"Filter{nameInfo}{idInfo} (Unchanged)"
+            };
+        }
+
+        if (typeof(T) == typeof(AutoReplyModel))
+        {
+            return DiffType switch
+            {
+                DiffKind.Added => "+ AutoReply (Enable)",
+                DiffKind.Disabled => "- AutoReply (Disable)",
+                DiffKind.Modified => $"~ AutoReply ({FieldDifferences.Count} change(s): {string.Join(", ", FieldDifferences)})",
+                _ => "  AutoReply (Unchanged)"
+            };
+        }
+
         string idPart = Id != null ? $" (ID: {Id})" : "";
         string namePart = !string.IsNullOrWhiteSpace(Identifier) ? $" '{Identifier}'" : "";
         string typeName = typeof(T).Name;

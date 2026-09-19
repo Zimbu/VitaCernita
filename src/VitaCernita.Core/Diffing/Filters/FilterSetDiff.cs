@@ -11,16 +11,9 @@ namespace VitaCernita.Core.Diffing.Filters;
 /// </summary>
 public sealed class FilterSetDiff : ResourceSetDiff<GmailFilter>
 {
-    public new IReadOnlyList<FilterDiff> Differences { get; }
-    public new IReadOnlyList<FilterDiff> Creations => Differences.Where(d => d.DiffType == DiffKind.Added).ToList();
-    public new IReadOnlyList<FilterDiff> Deletions => Differences.Where(d => d.DiffType == DiffKind.Removed).ToList();
-    public new IReadOnlyList<FilterDiff> Modifications => Differences.Where(d => d.DiffType == DiffKind.Modified).ToList();
-    public new IReadOnlyList<FilterDiff> Unchanged => Differences.Where(d => d.DiffType == DiffKind.Unchanged).ToList();
-
-    public FilterSetDiff(IEnumerable<FilterDiff>? differences)
-        : base((differences ?? Array.Empty<FilterDiff>()).Cast<ResourceDiff<GmailFilter>>())
+    public FilterSetDiff(IEnumerable<ResourceDiff<GmailFilter>>? differences)
+        : base(differences ?? Array.Empty<ResourceDiff<GmailFilter>>())
     {
-        Differences = (differences ?? Array.Empty<FilterDiff>()).ToList();
     }
 
     public string ToSummaryString()
@@ -47,8 +40,8 @@ public sealed class FilterSetDiff : ResourceSetDiff<GmailFilter>
             {
                 string nameStr = !string.IsNullOrWhiteSpace(item.Identifier) ? $" '{item.Identifier}'" : "";
                 string idStr = item.Id != null ? $" (ID: {item.Id})" : "";
-                string queryStr = item.DesiredFilter?.ToGmailQuery() ?? "<none>";
-                string actionStr = item.DesiredFilter?.Action?.ToString() ?? "<none>";
+                string queryStr = item.Desired?.ToGmailQuery() ?? "<none>";
+                string actionStr = item.Desired?.Action?.ToString() ?? "<none>";
                 sb.AppendLine($"  + Filter{nameStr}{idStr}:");
                 sb.AppendLine($"      Query : {queryStr}");
                 sb.AppendLine($"      Action: {actionStr}");
@@ -79,7 +72,7 @@ public sealed class FilterSetDiff : ResourceSetDiff<GmailFilter>
             {
                 string nameStr = !string.IsNullOrWhiteSpace(item.Identifier) ? $" '{item.Identifier}'" : "";
                 string idStr = item.Id != null ? $" (ID: {item.Id})" : "";
-                string queryStr = item.CurrentFilter?.ToGmailQuery() ?? "<none>";
+                string queryStr = item.Current?.ToGmailQuery() ?? "<none>";
                 sb.AppendLine($"  - Filter{nameStr}{idStr}: query '{queryStr}'");
             }
             sb.AppendLine();

@@ -14,7 +14,7 @@ public static class AutoReplyDiffer
     /// <summary>
     /// Computes the difference between an existing AutoReply setting and a desired AutoReply specification.
     /// </summary>
-    public static AutoReplyDiff Diff(
+    public static ResourceDiff<AutoReplyModel> Diff(
         AutoReplyModel? current,
         AutoReplyModel? desired,
         AutoReplyDiffOptions? options = null)
@@ -41,19 +41,19 @@ public static class AutoReplyDiffer
 
         if (current == null && desired == null)
         {
-            return new AutoReplyDiff(DiffKind.Unchanged, null, null, accountError: accountError);
+            return new ResourceDiff<AutoReplyModel>(DiffKind.Unchanged, null, null, identifier: "AutoReply", error: accountError);
         }
 
         if (current == null)
         {
             var diffType = desired!.EnableAutoReply ? DiffKind.Added : DiffKind.Unchanged;
-            return new AutoReplyDiff(diffType, null, desired, accountError: accountError);
+            return new ResourceDiff<AutoReplyModel>(diffType, null, desired, identifier: "AutoReply", error: accountError);
         }
 
         if (desired == null)
         {
             var diffType = current.EnableAutoReply ? DiffKind.Disabled : DiffKind.Unchanged;
-            return new AutoReplyDiff(diffType, current, null, accountError: accountError);
+            return new ResourceDiff<AutoReplyModel>(diffType, current, null, identifier: "AutoReply", error: accountError);
         }
 
         var fieldDiffs = new List<FieldDiff>();
@@ -169,13 +169,13 @@ public static class AutoReplyDiffer
             overallDiff = DiffKind.Unchanged;
         }
 
-        return new AutoReplyDiff(overallDiff, current, desired, fieldDiffs, accountError: accountError);
+        return new ResourceDiff<AutoReplyModel>(overallDiff, current, desired, fieldDiffs, identifier: "AutoReply", error: accountError);
     }
 
     /// <summary>
     /// Overload for comparing dictionary representations directly.
     /// </summary>
-    public static AutoReplyDiff DiffDictionaries(
+    public static ResourceDiff<AutoReplyModel> DiffDictionaries(
         IReadOnlyDictionary<string, object?>? currentDict,
         IReadOnlyDictionary<string, object?>? desiredDict,
         AutoReplyDiffOptions? options = null)
@@ -188,7 +188,7 @@ public static class AutoReplyDiffer
     /// <summary>
     /// Overload for comparing JSON string representations directly.
     /// </summary>
-    public static AutoReplyDiff DiffJson(
+    public static ResourceDiff<AutoReplyModel> DiffJson(
         string? currentJson,
         string? desiredJson,
         AutoReplyDiffOptions? options = null)

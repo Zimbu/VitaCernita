@@ -45,8 +45,8 @@ public class GmailLabelDiffTests
         Assert.Equal(LabelDiffType.Added, diff.DiffType);
         Assert.True(diff.HasChanges);
         Assert.Equal("Receipts", diff.Name);
-        Assert.Null(diff.CurrentLabel);
-        Assert.Same(desired, diff.DesiredLabel);
+        Assert.Null(diff.Current);
+        Assert.Same(desired, diff.Desired);
 
         var payload = diff.GetCreatePayload();
         Assert.NotNull(payload);
@@ -65,8 +65,8 @@ public class GmailLabelDiffTests
         Assert.True(diff.HasChanges);
         Assert.Equal("OldLabel", diff.Name);
         Assert.Equal("Label_123", diff.GetDeleteId());
-        Assert.Same(current, diff.CurrentLabel);
-        Assert.Null(diff.DesiredLabel);
+        Assert.Same(current, diff.Current);
+        Assert.Null(diff.Desired);
     }
 
     [Fact]
@@ -568,20 +568,20 @@ public class GmailLabelDiffTests
     [Fact]
     public void LabelDiff_ToString_FormatsAllTypes()
     {
-        var added = new LabelDiff("TagA", null, LabelDiffType.Added, null, MakeLabel("TagA"));
+        var added = new ResourceDiff<GmailLabel>(LabelDiffType.Added, null, MakeLabel("TagA"), identifier: "TagA");
         Assert.Contains("+ Label 'TagA' (Create)", added.ToString());
 
-        var removed = new LabelDiff("TagB", "ID_B", LabelDiffType.Removed, MakeLabel("TagB", id: "ID_B"), null);
+        var removed = new ResourceDiff<GmailLabel>(LabelDiffType.Removed, MakeLabel("TagB", id: "ID_B"), null, identifier: "TagB", id: "ID_B");
         Assert.Contains("- Label 'TagB' (Delete, ID: ID_B)", removed.ToString());
 
-        var modified = new LabelDiff("TagC", "ID_C", LabelDiffType.Modified, MakeLabel("TagC", id: "ID_C"), MakeLabel("TagC"), new[]
+        var modified = new ResourceDiff<GmailLabel>(LabelDiffType.Modified, MakeLabel("TagC", id: "ID_C"), MakeLabel("TagC"), new[]
         {
             new LabelFieldDiff("messageListVisibility", "show", "hide")
-        });
+        }, identifier: "TagC", id: "ID_C");
         Assert.Contains("~ Label 'TagC'", modified.ToString());
         Assert.Contains("messageListVisibility: show -> hide", modified.ToString());
 
-        var unchanged = new LabelDiff("TagD", "ID_D", LabelDiffType.Unchanged, MakeLabel("TagD", id: "ID_D"), MakeLabel("TagD", id: "ID_D"));
+        var unchanged = new ResourceDiff<GmailLabel>(LabelDiffType.Unchanged, MakeLabel("TagD", id: "ID_D"), MakeLabel("TagD", id: "ID_D"), identifier: "TagD", id: "ID_D");
         Assert.Contains("Label 'TagD' (Unchanged)", unchanged.ToString());
     }
 

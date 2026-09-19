@@ -19,7 +19,7 @@ public sealed class SyncPlan
     public SyncDirection Direction { get; }
     public LabelSetDiff? LabelDiff { get; }
     public FilterSetDiff? FilterDiff { get; }
-    public AutoReplyDiff? AutoReplyDiff { get; }
+    public ResourceDiff<VitaCernita.Core.AutoReply.AutoReply>? AutoReplyDiff { get; }
 
     public bool IsEmpty => Commands.Count == 0;
     public int TotalCommands => Commands.Count;
@@ -41,7 +41,7 @@ public sealed class SyncPlan
         SyncDirection direction = SyncDirection.MakeRightMatchLeft,
         LabelSetDiff? labelDiff = null,
         FilterSetDiff? filterDiff = null,
-        AutoReplyDiff? autoReplyDiff = null)
+        ResourceDiff<VitaCernita.Core.AutoReply.AutoReply>? autoReplyDiff = null)
     {
         Commands = (commands ?? Array.Empty<ISyncCommand>()).ToList();
         Direction = direction;

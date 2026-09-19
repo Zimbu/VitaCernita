@@ -25,7 +25,7 @@ public static class GmailSyncPlanner
     public static SyncPlan BuildPlan(
         LabelSetDiff? labelDiff,
         FilterSetDiff? filterDiff,
-        AutoReplyDiff? autoReplyDiff,
+        ResourceDiff<VitaCernita.Core.AutoReply.AutoReply>? autoReplyDiff,
         SyncPlanOptions? options = null)
     {
         options ??= new SyncPlanOptions();
@@ -36,9 +36,9 @@ public static class GmailSyncPlanner
         {
             foreach (var item in labelDiff.Creations)
             {
-                if (item.DesiredLabel != null)
+                if (item.Desired != null)
                 {
-                    commands.Add(new CreateLabelCommand(item.DesiredLabel));
+                    commands.Add(new CreateLabelCommand(item.Desired));
                 }
             }
         }
@@ -68,7 +68,7 @@ public static class GmailSyncPlanner
         {
             foreach (var item in filterDiff.Creations)
             {
-                if (item.DesiredFilter != null)
+                if (item.Desired != null)
                 {
                     commands.Add(CreateFilterCommand.FromDiff(item, knownLabels: effectiveLabels));
                 }

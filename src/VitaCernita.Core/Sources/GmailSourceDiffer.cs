@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using VitaCernita.Core.Diffing;
 using VitaCernita.Core.Diffing.AutoReply;
 using VitaCernita.Core.Diffing.Filters;
 using VitaCernita.Core.Diffing.Labels;
@@ -114,7 +115,7 @@ public static class GmailSourceDiffer
     /// <summary>
     /// Compares auto-reply (vacation responder) configurations across any two abstract IGmailSource instances.
     /// </summary>
-    public static async Task<AutoReplyDiff> DiffAutoReplyAsync(
+    public static async Task<ResourceDiff<AutoReply.AutoReply>> DiffAutoReplyAsync(
         IGmailSource currentSource,
         IGmailSource desiredSource,
         AutoReplyDiffOptions? options = null,
@@ -134,7 +135,7 @@ public static class GmailSourceDiffer
     /// <summary>
     /// Compares auto-reply configurations using LINQ query expressions across any two abstract IGmailSource instances.
     /// </summary>
-    public static async Task<AutoReplyDiff> DiffAutoReplyAsync(
+    public static async Task<ResourceDiff<AutoReply.AutoReply>> DiffAutoReplyAsync(
         IGmailSource currentSource,
         IGmailSource desiredSource,
         Func<IQueryable<AutoReply.AutoReply>, IQueryable<AutoReply.AutoReply>>? currentFilter,

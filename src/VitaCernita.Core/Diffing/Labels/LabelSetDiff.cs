@@ -11,16 +11,9 @@ namespace VitaCernita.Core.Diffing.Labels;
 /// </summary>
 public sealed class LabelSetDiff : ResourceSetDiff<GmailLabel>
 {
-    public new IReadOnlyList<LabelDiff> Differences { get; }
-    public new IReadOnlyList<LabelDiff> Creations => Differences.Where(d => d.DiffType == DiffKind.Added).ToList();
-    public new IReadOnlyList<LabelDiff> Deletions => Differences.Where(d => d.DiffType == DiffKind.Removed).ToList();
-    public new IReadOnlyList<LabelDiff> Modifications => Differences.Where(d => d.DiffType == DiffKind.Modified).ToList();
-    public new IReadOnlyList<LabelDiff> Unchanged => Differences.Where(d => d.DiffType == DiffKind.Unchanged).ToList();
-
-    public LabelSetDiff(IEnumerable<LabelDiff> differences)
-        : base((differences ?? Array.Empty<LabelDiff>()).Cast<ResourceDiff<GmailLabel>>())
+    public LabelSetDiff(IEnumerable<ResourceDiff<GmailLabel>>? differences)
+        : base(differences ?? Array.Empty<ResourceDiff<GmailLabel>>())
     {
-        Differences = (differences ?? Array.Empty<LabelDiff>()).ToList();
     }
 
     public string ToSummaryString()
@@ -45,7 +38,7 @@ public sealed class LabelSetDiff : ResourceSetDiff<GmailLabel>
             sb.AppendLine($"[+] Create ({TotalCreations}):");
             foreach (var item in Creations)
             {
-                var label = item.DesiredLabel;
+                var label = item.Desired;
                 var details = new List<string>();
                 if (!string.IsNullOrWhiteSpace(label?.MessageListVisibility))
                     details.Add($"MessageList: {label.MessageListVisibility}");
