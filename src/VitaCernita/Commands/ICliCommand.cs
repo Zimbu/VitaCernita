@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace VitaCernita.Cli.Commands;
@@ -10,18 +12,19 @@ public interface ICliCommand
 {
     /// <summary>
     /// The primary name used to invoke this command (e.g. "test", "initialize").
+    /// Empty if this is the default command.
     /// </summary>
-    string Name { get; }
+    string Name => GetType().GetCustomAttribute<CommandAttribute>()?.Name ?? string.Empty;
 
     /// <summary>
     /// Brief description of the command for CLI help output.
     /// </summary>
-    string Description { get; }
+    string Description => GetType().GetCustomAttribute<CommandAttribute>()?.Description ?? string.Empty;
 
     /// <summary>
     /// Alternate names or abbreviations for this command (e.g. "init" for "initialize").
     /// </summary>
-    IReadOnlyList<string> Aliases { get; }
+    IReadOnlyList<string> Aliases => GetType().GetCustomAttribute<CommandAttribute>()?.Aliases ?? Array.Empty<string>();
 
     /// <summary>
     /// Executes the command with the provided arguments.

@@ -25,6 +25,7 @@ namespace VitaCernita.Cli.Commands;
 /// CLI command that displays configured labels, auto-reply, and filters or diffs against a target Gmail account.
 /// This represents the original test execution pipeline and will be gradually phased out.
 /// </summary>
+[Command("test", Description = "Display configured labels, auto-reply, and filters or diff against target Gmail account (test mode)", Aliases = ["t"])]
 public class TestCommand : ICliCommand
 {
     private readonly IAnsiConsole _console;
@@ -33,10 +34,6 @@ public class TestCommand : ICliCommand
     {
         _console = console ?? AnsiConsole.Console;
     }
-
-    public string Name => "test";
-    public string Description => "Display configured labels, auto-reply, and filters or diff against target Gmail account (legacy test mode)";
-    public IReadOnlyList<string> Aliases => Array.Empty<string>();
 
     public async Task<int> ExecuteAsync(string[] args)
     {

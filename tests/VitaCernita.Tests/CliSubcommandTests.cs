@@ -105,7 +105,16 @@ return {
     }
 
     [Fact]
-    public async Task Dispatcher_LegacyInvocationWithoutSubcommand_DefaultsToTest()
+    public async Task Dispatcher_EmptyArgs_InvokesDefaultCommand_ReturnsZero()
+    {
+        var dispatcher = Program.CreateDefaultDispatcher();
+        int exitCode = await dispatcher.DispatchAsync(Array.Empty<string>());
+
+        Assert.Equal(0, exitCode);
+    }
+
+    [Fact]
+    public async Task Dispatcher_InvocationWithoutSubcommand_FlagsRoutedToDefaultCommand_ReturnsOne()
     {
         string tempConfig = CreateTempConfigFile();
         try
@@ -118,7 +127,7 @@ return {
                 "--diff"
             });
 
-            Assert.Equal(0, exitCode);
+            Assert.Equal(1, exitCode);
         }
         finally
         {

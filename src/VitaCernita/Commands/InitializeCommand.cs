@@ -25,6 +25,7 @@ namespace VitaCernita.Cli.Commands;
 /// serializing the result to the target configuration file using the Functional DSL.
 /// If no account is specified and the file does not exist, generates a starter default configuration.
 /// </summary>
+[Command("initialize", Description = "Initialize a VitaCernita configuration file from scratch or an existing Gmail account", Aliases = ["init"])]
 public class InitializeCommand : ICliCommand
 {
     private readonly IAnsiConsole _console;
@@ -35,10 +36,6 @@ public class InitializeCommand : ICliCommand
         _console = console ?? AnsiConsole.Console;
         _apiClientOverride = apiClientOverride;
     }
-
-    public string Name => "initialize";
-    public string Description => "Initialize a VitaCernita configuration file from scratch or an existing Gmail account";
-    public IReadOnlyList<string> Aliases => new[] { "init" };
 
     public async Task<int> ExecuteAsync(string[] args)
     {

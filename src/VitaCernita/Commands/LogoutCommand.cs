@@ -11,6 +11,7 @@ namespace VitaCernita.Cli.Commands;
 /// <summary>
 /// Clears cached OAuth 2.0 tokens and optionally client credentials from the configuration directory.
 /// </summary>
+[Command("logout", Description = "Log out and remove cached Google OAuth tokens")]
 public class LogoutCommand : ICliCommand
 {
     private readonly IAnsiConsole _console;
@@ -19,10 +20,6 @@ public class LogoutCommand : ICliCommand
     {
         _console = console ?? AnsiConsole.Console;
     }
-
-    public string Name => "logout";
-    public string Description => "Log out and remove cached Google OAuth tokens";
-    public IReadOnlyList<string> Aliases => Array.Empty<string>();
 
     public Task<int> ExecuteAsync(string[] args)
     {

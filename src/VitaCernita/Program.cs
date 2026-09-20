@@ -14,10 +14,7 @@ public static class Program
     public static CommandDispatcher CreateDefaultDispatcher()
     {
         var dispatcher = new CommandDispatcher();
-        dispatcher.Register(new TestCommand());
-        dispatcher.Register(new InitializeCommand());
-        dispatcher.Register(new LoginCommand());
-        dispatcher.Register(new LogoutCommand());
+        dispatcher.RegisterFromAssembly(typeof(Program).Assembly);
         return dispatcher;
     }
 }

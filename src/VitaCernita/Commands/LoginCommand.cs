@@ -11,6 +11,7 @@ namespace VitaCernita.Cli.Commands;
 /// <summary>
 /// Authenticates the user with Google OAuth 2.0 and securely caches tokens in the configuration directory.
 /// </summary>
+[Command("login", Description = "Authenticate with Google OAuth 2.0 to access the Gmail API")]
 public class LoginCommand : ICliCommand
 {
     private readonly IAnsiConsole _console;
@@ -21,10 +22,6 @@ public class LoginCommand : ICliCommand
         _console = console ?? AnsiConsole.Console;
         _tokenProviderOverride = tokenProviderOverride;
     }
-
-    public string Name => "login";
-    public string Description => "Authenticate with Google OAuth 2.0 to access the Gmail API";
-    public IReadOnlyList<string> Aliases => Array.Empty<string>();
 
     public async Task<int> ExecuteAsync(string[] args)
     {

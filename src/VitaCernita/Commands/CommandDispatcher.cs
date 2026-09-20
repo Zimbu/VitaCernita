@@ -1,19 +1,23 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Spectre.Console;
 
 namespace VitaCernita.Cli.Commands;
 
 /// <summary>
-/// Routes CLI invocations to registered subcommands with backward-compatible fallback.
+/// Routes CLI invocations to registered subcommands with global uniqueness validation
+/// and single default command support.
 /// </summary>
 public class CommandDispatcher
 {
     private readonly Dictionary<string, ICliCommand> _commands = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, (ICliCommand Command, bool IsAlias)> _registeredTokens = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ICliCommand> _orderedCommands = new();
     private readonly IAnsiConsole _console;
+    private ICliCommand? _defaultCommand;
 
     public CommandDispatcher(IAnsiConsole? console = null)
     {
@@ -22,19 +26,57 @@ public class CommandDispatcher
 
     public IReadOnlyList<ICliCommand> Commands => _orderedCommands;
 
+    public ICliCommand? DefaultCommand => _defaultCommand;
+
+    /// <summary>
+    /// Registers a command by interrogating its <see cref="CommandAttribute"/> or properties.
+    /// </summary>
     public CommandDispatcher Register(ICliCommand command)
     {
-        _orderedCommands.Add(command);
-        _commands[command.Name] = command;
-        foreach (var alias in command.Aliases)
+        ArgumentNullException.ThrowIfNull(command);
+        var attr = command.GetType().GetCustomAttribute<CommandAttribute>();
+        return RegisterInternal(command, attr);
+    }
+
+    /// <summary>
+    /// Registers a command with an explicit <see cref="CommandAttribute"/>.
+    /// </summary>
+    public CommandDispatcher Register(CommandAttribute attribute, ICliCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(attribute);
+        ArgumentNullException.ThrowIfNull(command);
+        return RegisterInternal(command, attribute);
+    }
+
+    /// <summary>
+    /// Scans an assembly for non-abstract classes implementing <see cref="ICliCommand"/>
+    /// decorated with <see cref="CommandAttribute"/>, instantiating and registering each.
+    /// </summary>
+    public CommandDispatcher RegisterFromAssembly(Assembly assembly, Func<Type, ICliCommand>? factory = null)
+    {
+        ArgumentNullException.ThrowIfNull(assembly);
+
+        var commandTypes = assembly.GetTypes()
+            .Where(t => !t.IsAbstract && !t.IsInterface && typeof(ICliCommand).IsAssignableFrom(t))
+            .Where(t => t.GetCustomAttribute<CommandAttribute>() != null)
+            .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var type in commandTypes)
         {
-            _commands[alias] = command;
+            var command = CreateCommandInstance(type, factory);
+            Register(command);
         }
+
         return this;
     }
 
     public ICliCommand? GetCommand(string name)
     {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return _defaultCommand;
+        }
+
         _commands.TryGetValue(name, out var command);
         return command;
     }
@@ -43,8 +85,13 @@ public class CommandDispatcher
     {
         if (args.Length == 0)
         {
-            _console.MarkupLine("[dim]Note: Defaulting to 'test' command. In the future, use 'vitacernita test'.[/]");
-            return await ExecuteCommandAsync("test", Array.Empty<string>());
+            if (_defaultCommand != null)
+            {
+                return await _defaultCommand.ExecuteAsync(args);
+            }
+
+            PrintGlobalHelp();
+            return 0;
         }
 
         string firstArg = args[0];
@@ -52,6 +99,11 @@ public class CommandDispatcher
         // Global version check
         if (firstArg is "-v" or "--version")
         {
+            if (_defaultCommand != null)
+            {
+                return await _defaultCommand.ExecuteAsync(args);
+            }
+
             _console.MarkupLine("[bold green]VitaCernita[/] version [cyan]0.1.0[/]");
             return 0;
         }
@@ -59,6 +111,11 @@ public class CommandDispatcher
         // Global help check
         if (firstArg is "-h" or "--help")
         {
+            if (_defaultCommand != null)
+            {
+                return await _defaultCommand.ExecuteAsync(args);
+            }
+
             PrintGlobalHelp();
             return 0;
         }
@@ -79,6 +136,11 @@ public class CommandDispatcher
                 return 1;
             }
 
+            if (_defaultCommand != null)
+            {
+                return await _defaultCommand.ExecuteAsync(Array.Empty<string>());
+            }
+
             PrintGlobalHelp();
             return 0;
         }
@@ -91,35 +153,37 @@ public class CommandDispatcher
             return await cmd.ExecuteAsync(subArgs);
         }
 
-        // Legacy invocation fallback: flags provided without subcommand
+        // Flags provided without subcommand: delegate to default command
         if (firstArg.StartsWith("-"))
         {
-            _console.MarkupLine("[dim]Note: Defaulting to 'test' command. In the future, use 'vitacernita test'.[/]");
-            return await ExecuteCommandAsync("test", args);
+            if (_defaultCommand != null)
+            {
+                return await _defaultCommand.ExecuteAsync(args);
+            }
+
+            _console.MarkupLine($"[bold red]Error:[/] Unknown option '[yellow]{Markup.Escape(firstArg)}[/]'. Run 'vitacernita --help' for available options.");
+            return 1;
         }
 
         _console.MarkupLine($"[bold red]Error:[/] Unknown command '[yellow]{Markup.Escape(firstArg)}[/]'. Run 'vitacernita --help' for available commands.");
         return 1;
     }
 
-    private async Task<int> ExecuteCommandAsync(string commandName, string[] args)
-    {
-        var cmd = GetCommand(commandName);
-        if (cmd == null)
-        {
-            _console.MarkupLine($"[bold red]Error:[/] Internal command '{commandName}' not found.");
-            return 1;
-        }
-        return await cmd.ExecuteAsync(args);
-    }
-
     public void PrintGlobalHelp()
     {
+        if (_defaultCommand != null)
+        {
+            _defaultCommand.PrintHelp();
+            return;
+        }
+
         _console.MarkupLine("[bold]VitaCernita CLI - Gmail Filter, Label & Auto-Reply Manager[/]");
         _console.MarkupLine("Usage: vitacernita <command> [[options]]\n");
         _console.MarkupLine("[bold]Available Commands:[/]");
 
         int maxNameLen = _orderedCommands.Count > 0 ? _orderedCommands.Max(c => c.Name.Length) : 10;
+        if (maxNameLen < 4) maxNameLen = 4;
+
         foreach (var cmd in _orderedCommands)
         {
             string aliasInfo = cmd.Aliases.Count > 0 ? $" (aliases: {string.Join(", ", cmd.Aliases)})" : "";
@@ -131,5 +195,141 @@ public class CommandDispatcher
         _console.MarkupLine("  -v, --version           Display application version");
         _console.MarkupLine("  -h, --help              Show this help message\n");
         _console.MarkupLine("Run '[cyan]vitacernita <command> --help[/]' for detailed options on a specific command.");
+    }
+
+    private CommandDispatcher RegisterInternal(ICliCommand command, CommandAttribute? attr)
+    {
+        string name = attr?.Name ?? command.Name;
+        IReadOnlyList<string> aliases = (attr != null && attr.Aliases.Length > 0) ? attr.Aliases : command.Aliases;
+        bool isDefault = (attr != null && attr.IsDefault) || string.IsNullOrWhiteSpace(name);
+
+        if (isDefault)
+        {
+            if (_defaultCommand != null)
+            {
+                throw new InvalidOperationException(
+                    $"A default command '{_defaultCommand.GetType().Name}' is already registered. Cannot register '{command.GetType().Name}' as default command.");
+            }
+
+            if (aliases.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    $"Default command '{command.GetType().Name}' cannot have aliases.");
+            }
+
+            _defaultCommand = command;
+            if (command is IDispatcherAware da)
+            {
+                da.SetDispatcher(this);
+            }
+            return this;
+        }
+
+        // Validate command name uniqueness
+        if (_registeredTokens.TryGetValue(name, out var existingNameToken))
+        {
+            if (existingNameToken.IsAlias)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot register command '{command.GetType().Name}' with name '{name}' because it conflicts with an alias registered by '{existingNameToken.Command.GetType().Name}'.");
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    $"Cannot register command '{command.GetType().Name}' with name '{name}' because a command with that name is already registered by '{existingNameToken.Command.GetType().Name}'.");
+            }
+        }
+
+        // Validate aliases uniqueness and validity
+        var seenAliases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var alias in aliases)
+        {
+            if (string.IsNullOrWhiteSpace(alias))
+            {
+                throw new InvalidOperationException(
+                    $"Command '{command.GetType().Name}' defines an empty or whitespace alias.");
+            }
+
+            if (string.Equals(alias, name, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"Command '{command.GetType().Name}' defines an alias '{alias}' that matches its primary name.");
+            }
+
+            if (!seenAliases.Add(alias))
+            {
+                throw new InvalidOperationException(
+                    $"Command '{command.GetType().Name}' defines duplicate alias '{alias}'.");
+            }
+
+            if (_registeredTokens.TryGetValue(alias, out var existingAliasToken))
+            {
+                if (existingAliasToken.IsAlias)
+                {
+                    throw new InvalidOperationException(
+                        $"Cannot register alias '{alias}' on command '{command.GetType().Name}' because it conflicts with an alias registered by '{existingAliasToken.Command.GetType().Name}'.");
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        $"Cannot register alias '{alias}' on command '{command.GetType().Name}' because it conflicts with the command name of '{existingAliasToken.Command.GetType().Name}'.");
+                }
+            }
+        }
+
+        // All validations passed; record mappings
+        _registeredTokens[name] = (command, false);
+        _commands[name] = command;
+
+        foreach (var alias in aliases)
+        {
+            _registeredTokens[alias] = (command, true);
+            _commands[alias] = command;
+        }
+
+        _orderedCommands.Add(command);
+
+        if (command is IDispatcherAware dispatcherAware)
+        {
+            dispatcherAware.SetDispatcher(this);
+        }
+
+        return this;
+    }
+
+    private ICliCommand CreateCommandInstance(Type type, Func<Type, ICliCommand>? factory)
+    {
+        if (factory != null)
+        {
+            return factory(type);
+        }
+
+        var ctors = type.GetConstructors();
+
+        // 1. Single constructor parameter of type IAnsiConsole
+        foreach (var ctor in ctors)
+        {
+            var parameters = ctor.GetParameters();
+            if (parameters.Length == 1 && parameters[0].ParameterType == typeof(IAnsiConsole))
+            {
+                return (ICliCommand)ctor.Invoke(new object?[] { _console });
+            }
+        }
+
+        // 2. Constructor where all parameters are either IAnsiConsole or optional
+        foreach (var ctor in ctors)
+        {
+            var parameters = ctor.GetParameters();
+            if (parameters.All(p => p.IsOptional || p.ParameterType == typeof(IAnsiConsole)))
+            {
+                var args = parameters
+                    .Select(p => p.ParameterType == typeof(IAnsiConsole) ? (object?)_console : Type.Missing)
+                    .ToArray();
+                return (ICliCommand)ctor.Invoke(args);
+            }
+        }
+
+        // 3. Fallback to parameterless Activator
+        return (ICliCommand)Activator.CreateInstance(type)!;
     }
 }
