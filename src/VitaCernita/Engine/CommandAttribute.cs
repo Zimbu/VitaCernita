@@ -1,6 +1,6 @@
 using System;
 
-namespace VitaCernita.Cli.Commands;
+namespace VitaCernita.Cli.Engine;
 
 /// <summary>
 /// Defines metadata for a CLI command discovered at runtime.

@@ -18,6 +18,8 @@ using VitaCernita.Core.Queries;
 using VitaCernita.Core.Reporting;
 using VitaCernita.Core.Sources;
 using VitaCernita.Core.Sync;
+using VitaCernita.Cli.Engine;
+using VitaCernita.Cli.Engine.Binding;
 
 namespace VitaCernita.Cli.Commands;
 
@@ -60,7 +62,7 @@ public class TestCommand : ICliCommand
     {
         if (args.Length > 0)
         {
-            var bindResult = Binding.CommandParameterBinder.Default.Bind(this, args);
+            var bindResult = CommandParameterBinder.Default.Bind(this, args);
             if (bindResult.HelpRequested)
             {
                 PrintHelp();
@@ -299,5 +301,5 @@ public class TestCommand : ICliCommand
         }
     }
 
-    public void PrintHelp() => Binding.CommandHelpRenderer.Render(this, _console);
+    public void PrintHelp() => CommandHelpRenderer.Render(this, _console);
 }

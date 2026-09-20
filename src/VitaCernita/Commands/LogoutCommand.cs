@@ -3,7 +3,8 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Spectre.Console;
-using VitaCernita.Cli.Commands.Binding;
+using VitaCernita.Cli.Engine;
+using VitaCernita.Cli.Engine.Binding;
 using VitaCernita.Core.Configuration;
 
 namespace VitaCernita.Cli.Commands;

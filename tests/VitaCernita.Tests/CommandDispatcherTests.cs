@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using VitaCernita.Cli.Commands;
+using VitaCernita.Cli.Engine;
 using Xunit;
 
 namespace VitaCernita.Tests;

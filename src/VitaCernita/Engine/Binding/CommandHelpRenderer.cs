@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using Spectre.Console;
 
-namespace VitaCernita.Cli.Commands.Binding;
+namespace VitaCernita.Cli.Engine.Binding;
 
 /// <summary>
 /// Renders standard CLI help and options tables dynamically for any <see cref="ICliCommand"/>

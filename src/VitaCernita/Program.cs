@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using VitaCernita.Cli.Commands;
+using VitaCernita.Cli.Engine;
 
 namespace VitaCernita.Cli;
 

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Threading.Tasks;
 
-namespace VitaCernita.Cli.Commands;
+namespace VitaCernita.Cli.Engine;
 
 /// <summary>
 /// Represents a runnable CLI subcommand.

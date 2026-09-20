@@ -6,7 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 
-namespace VitaCernita.Cli.Commands.Binding;
+namespace VitaCernita.Cli.Engine.Binding;
 
 /// <summary>
 /// Binds CLI arguments to properties decorated with <see cref="OptionAttribute"/> on an <see cref="ICliCommand"/>.

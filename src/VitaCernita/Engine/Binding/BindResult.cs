@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace VitaCernita.Cli.Commands.Binding;
+namespace VitaCernita.Cli.Engine.Binding;
 
 /// <summary>
 /// Result of binding CLI arguments to an <see cref="ICliCommand"/>'s properties.

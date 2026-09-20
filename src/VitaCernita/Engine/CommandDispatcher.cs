@@ -6,7 +6,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Spectre.Console;
 
-namespace VitaCernita.Cli.Commands;
+namespace VitaCernita.Cli.Engine;
 
 /// <summary>
 /// Routes CLI invocations to registered subcommands with global uniqueness validation

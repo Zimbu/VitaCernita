@@ -1,6 +1,6 @@
 using System;
 
-namespace VitaCernita.Cli.Commands;
+namespace VitaCernita.Cli.Engine;
 
 /// <summary>
 /// Marks a property as a CLI option, switch, or parameter on a command.

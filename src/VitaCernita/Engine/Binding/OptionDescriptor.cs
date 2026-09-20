@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 
-namespace VitaCernita.Cli.Commands.Binding;
+namespace VitaCernita.Cli.Engine.Binding;
 
 /// <summary>
 /// Cached reflection metadata for a command's option property.

@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Spectre.Console;
-using VitaCernita.Cli.Commands;
-using VitaCernita.Cli.Commands.Binding;
+using VitaCernita.Cli.Engine;
+using VitaCernita.Cli.Engine.Binding;
 using Xunit;
 
 namespace VitaCernita.Tests;

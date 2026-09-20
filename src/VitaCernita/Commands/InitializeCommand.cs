@@ -15,6 +15,8 @@ using VitaCernita.Core.Labels;
 using VitaCernita.Core.Queries;
 using VitaCernita.Core.Serialization;
 using VitaCernita.Core.Sources;
+using VitaCernita.Cli.Engine;
+using VitaCernita.Cli.Engine.Binding;
 using AutoReplyModel = VitaCernita.Core.AutoReply.AutoReply;
 
 namespace VitaCernita.Cli.Commands;
@@ -61,7 +63,7 @@ public class InitializeCommand : ICliCommand
     {
         if (args.Length > 0)
         {
-            var bindResult = Binding.CommandParameterBinder.Default.Bind(this, args);
+            var bindResult = CommandParameterBinder.Default.Bind(this, args);
             if (bindResult.HelpRequested)
             {
                 PrintHelp();
@@ -301,5 +303,5 @@ public class InitializeCommand : ICliCommand
         return 0;
     }
 
-    public void PrintHelp() => Binding.CommandHelpRenderer.Render(this, _console);
+    public void PrintHelp() => CommandHelpRenderer.Render(this, _console);
 }

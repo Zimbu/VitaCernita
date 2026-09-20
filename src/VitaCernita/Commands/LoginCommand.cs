@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using Spectre.Console;
 using VitaCernita.Core.Api.Auth;
 using VitaCernita.Core.Configuration;
+using VitaCernita.Cli.Engine;
+using VitaCernita.Cli.Engine.Binding;
 
 namespace VitaCernita.Cli.Commands;
 
@@ -51,7 +53,7 @@ public class LoginCommand : ICliCommand
     {
         if (args.Length > 0)
         {
-            var bindResult = Binding.CommandParameterBinder.Default.Bind(this, args);
+            var bindResult = CommandParameterBinder.Default.Bind(this, args);
             if (bindResult.HelpRequested)
             {
                 PrintHelp();
@@ -195,5 +197,5 @@ public class LoginCommand : ICliCommand
         }
     }
 
-    public void PrintHelp() => Binding.CommandHelpRenderer.Render(this, _console);
+    public void PrintHelp() => CommandHelpRenderer.Render(this, _console);
 }

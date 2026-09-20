@@ -1,4 +1,4 @@
-namespace VitaCernita.Cli.Commands;
+namespace VitaCernita.Cli.Engine;
 
 /// <summary>
 /// Interface implemented by commands that require a reference to the <see cref="CommandDispatcher"/>.

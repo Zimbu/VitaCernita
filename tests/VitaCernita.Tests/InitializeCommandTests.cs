@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using VitaCernita.Cli;
 using VitaCernita.Cli.Commands;
+using VitaCernita.Cli.Engine;
 using VitaCernita.Core.Actions;
 using VitaCernita.Core.Api.Fakes;
 using VitaCernita.Core.Filters;

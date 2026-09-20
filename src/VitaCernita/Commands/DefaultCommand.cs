@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Spectre.Console;
+using VitaCernita.Cli.Engine;
 
 namespace VitaCernita.Cli.Commands;
 
