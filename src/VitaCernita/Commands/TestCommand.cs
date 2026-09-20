@@ -35,49 +35,41 @@ public class TestCommand : ICliCommand
         _console = console ?? AnsiConsole.Console;
     }
 
+    [Option("config", 'c', Description = "Path to the Lua configuration file (default: ~/.config/vitacernita/gmail.lua)", ValueHelp = "<path>")]
+    public string? ConfigPath { get; set; }
+
+    [Option("config-dir", Description = "Custom configuration directory (default: ~/.config/vitacernita)", ValueHelp = "<dir>")]
+    public string? ConfigDir { get; set; }
+
+    [Option("explicit-and", Description = "Render queries using the explicit 'AND' keyword")]
+    public bool ExplicitAnd { get; set; }
+
+    [Option("diff", Aliases = ["dry-run", "sync-plan"], Description = "Diff local configuration against target Gmail account and output sync plan")]
+    public bool RunDiff { get; set; }
+
+    [Option("mock", Aliases = ["fake-account"], Description = "Use in-memory fake Gmail API client for dry-run testing")]
+    public bool UseMock { get; set; }
+
+    [Option("token", Description = "Bearer token for Gmail API (defaults to GMAIL_ACCESS_TOKEN)", ValueHelp = "<token>")]
+    public string? Token { get; set; }
+
+    [Option("user", Description = "Target Gmail user ID (default: 'me')", ValueHelp = "<userId>")]
+    public string UserId { get; set; } = "me";
+
     public async Task<int> ExecuteAsync(string[] args)
     {
-        string? explicitConfigPath = null;
-        string? explicitConfigDir = null;
-        bool explicitAnd = false;
-        bool runDiff = false;
-        bool useMock = false;
-        string? token = null;
-        string userId = "me";
-
-        for (int i = 0; i < args.Length; i++)
+        if (args.Length > 0)
         {
-            switch (args[i])
+            var bindResult = Binding.CommandParameterBinder.Default.Bind(this, args);
+            if (bindResult.HelpRequested)
             {
-                case "-c":
-                case "--config":
-                    if (i + 1 < args.Length) explicitConfigPath = args[++i];
-                    break;
-                case "--config-dir":
-                    if (i + 1 < args.Length) explicitConfigDir = args[++i];
-                    break;
-                case "--explicit-and":
-                    explicitAnd = true;
-                    break;
-                case "--diff":
-                case "--dry-run":
-                case "--sync-plan":
-                    runDiff = true;
-                    break;
-                case "--mock":
-                case "--fake-account":
-                    useMock = true;
-                    break;
-                case "--token":
-                    if (i + 1 < args.Length) token = args[++i];
-                    break;
-                case "--user":
-                    if (i + 1 < args.Length) userId = args[++i];
-                    break;
-                case "-h":
-                case "--help":
-                    PrintHelp();
-                    return 0;
+                PrintHelp();
+                return 0;
+            }
+            if (!bindResult.IsSuccess)
+            {
+                _console.MarkupLine($"[bold red]Error:[/] {bindResult.ErrorMessage}");
+                return 1;
             }
         }
 
@@ -89,8 +81,8 @@ public class TestCommand : ICliCommand
 
         _console.MarkupLine("[bold]Gmail Filter Configuration Engine (Lua DSL & C# Core)[/]\n");
 
-        string configDir = ConfigPathResolver.GetDefaultConfigDirectory(customConfigDir: explicitConfigDir);
-        string configPath = ConfigPathResolver.ResolveConfigPath(explicitConfigPath, customConfigDir: explicitConfigDir);
+        string configDir = ConfigPathResolver.GetDefaultConfigDirectory(customConfigDir: ConfigDir);
+        string configPath = ConfigPathResolver.ResolveConfigPath(ConfigPath, customConfigDir: ConfigDir);
 
         if (!File.Exists(configPath))
         {
@@ -176,10 +168,10 @@ public class TestCommand : ICliCommand
                 return 0;
             }
 
-            if (runDiff)
+            if (RunDiff)
             {
                 IGmailSource currentSource;
-                if (useMock)
+                if (UseMock)
                 {
                     _console.MarkupLine("[bold yellow]Mode:[/] In-Memory Fake Gmail Account (Mock)");
                     var fake = new FakeGmailApiClient();
@@ -187,28 +179,28 @@ public class TestCommand : ICliCommand
                     fake.AddLabel(new GmailLabel("OldUnusedTag", id: "Label_99"));
                     fake.AddFilter(new GmailFilter("sec-001", new FieldCondition("from", "secops@company.com"), new GmailAction().Star()));
                     fake.AddFilter(new GmailFilter("old-vendor-009", new FieldCondition("from", "spam@vendor.com"), new GmailAction().Delete()));
-                    currentSource = new ApiGmailSource(fake, userId, name: "Fake Account (Mock)");
+                    currentSource = new ApiGmailSource(fake, UserId, name: "Fake Account (Mock)");
                 }
                 else
                 {
                     IGmailTokenProvider tokenProvider;
 
-                    if (!string.IsNullOrWhiteSpace(token))
+                    if (!string.IsNullOrWhiteSpace(Token))
                     {
-                        if (token.Contains(".apps.googleusercontent.com", StringComparison.OrdinalIgnoreCase))
+                        if (Token.Contains(".apps.googleusercontent.com", StringComparison.OrdinalIgnoreCase))
                         {
                             _console.MarkupLine("[bold red]Error:[/] The provided --token appears to be an OAuth Client ID, not an OAuth 2.0 access token.");
                             _console.MarkupLine("OAuth 2.0 access tokens typically begin with 'ya29.' or are retrieved via [bold cyan]vitacernita login[/].");
                             return 1;
                         }
-                        tokenProvider = new BearerTokenProvider(token);
+                        tokenProvider = new BearerTokenProvider(Token);
                     }
                     else
                     {
-                        var oauthProvider = new GoogleOAuthTokenProvider(configDir: configDir, user: userId);
+                        var oauthProvider = new GoogleOAuthTokenProvider(configDir: configDir, user: UserId);
                         if (oauthProvider.HasCachedToken())
                         {
-                            _console.MarkupLine($"Using cached Google OAuth token for [cyan]{Markup.Escape(userId)}[/]...");
+                            _console.MarkupLine($"Using cached Google OAuth token for [cyan]{Markup.Escape(UserId)}[/]...");
                             string? envToken = Environment.GetEnvironmentVariable("GMAIL_ACCESS_TOKEN");
                             if (!string.IsNullOrWhiteSpace(envToken) && envToken.Contains(".apps.googleusercontent.com", StringComparison.OrdinalIgnoreCase))
                             {
@@ -232,7 +224,7 @@ public class TestCommand : ICliCommand
                             }
                             else
                             {
-                                _console.MarkupLine($"[bold red]Error:[/] No active Google login session or access token found for account '[yellow]{Markup.Escape(userId)}[/]'.");
+                                _console.MarkupLine($"[bold red]Error:[/] No active Google login session or access token found for account '[yellow]{Markup.Escape(UserId)}[/]'.");
                                 _console.MarkupLine("Run [bold cyan]vitacernita login[/] to authenticate, or provide [bold]--token <token>[/].");
                                 return 1;
                             }
@@ -240,7 +232,7 @@ public class TestCommand : ICliCommand
                     }
 
                     var client = new HttpGmailApiClient(new HttpClient(), tokenProvider);
-                    currentSource = new ApiGmailSource(client, userId: "me", name: $"Gmail Account ({userId})");
+                    currentSource = new ApiGmailSource(client, userId: "me", name: $"Gmail Account ({UserId})");
                 }
 
                 var desiredSource = new LuaGmailSource(configPath);
@@ -251,7 +243,7 @@ public class TestCommand : ICliCommand
                 var autoReplyDiff = await GmailSourceDiffer.DiffAutoReplyAsync(
                     currentSource,
                     desiredSource,
-                    new AutoReplyDiffOptions { TargetAccount = userId });
+                    new AutoReplyDiffOptions { TargetAccount = UserId });
 
                 var syncPlan = GmailSyncPlanner.BuildPlan(labelDiff, filterDiff, autoReplyDiff);
                 var report = DryRunReportGenerator.CreateReport(labelDiff, filterDiff, autoReplyDiff, syncPlan);
@@ -281,7 +273,7 @@ public class TestCommand : ICliCommand
                 var panel = new Panel(
                     new Markup(
                         idInfo +
-                        $"[bold white]Search Query:[/] [bold green]{Markup.Escape(explicitAnd ? explicitAndQuery : canonicalQuery)}[/]\n\n" +
+                        $"[bold white]Search Query:[/] [bold green]{Markup.Escape(ExplicitAnd ? explicitAndQuery : canonicalQuery)}[/]\n\n" +
                         $"[dim]Canonical (Space-AND):[/] [yellow]{Markup.Escape(canonicalQuery)}[/]\n" +
                         $"[dim]Explicit AND Keyword :[/] [yellow]{Markup.Escape(explicitAndQuery)}[/]" +
                         actionInfo
@@ -307,22 +299,5 @@ public class TestCommand : ICliCommand
         }
     }
 
-    public void PrintHelp()
-    {
-        _console.MarkupLine("[bold]VitaCernita CLI - Test Command[/]");
-        _console.MarkupLine("Usage: vitacernita test [[OPTIONS]]\n");
-        _console.MarkupLine("[bold]Description:[/]");
-        _console.MarkupLine("  Display configured labels, auto-reply, and filters or diff against target Gmail account (legacy mode).\n");
-        _console.MarkupLine("[bold]Options:[/]");
-        _console.MarkupLine("  -c, --config <path>     Path to the Lua configuration file (default: ~/.config/vitacernita/gmail.lua)");
-        _console.MarkupLine("      --config-dir <dir>  Custom configuration directory (default: ~/.config/vitacernita)");
-        _console.MarkupLine("      --diff              Diff local configuration (labels, filters, auto-reply) against target Gmail account");
-        _console.MarkupLine("      --dry-run           Alias for --diff; computes diffs and outputs the dry-run synchronization plan");
-        _console.MarkupLine("      --sync-plan         Generate and display the ordered sync commands to make target match configuration");
-        _console.MarkupLine("      --mock              Use in-memory fake Gmail API client for dry-run testing");
-        _console.MarkupLine("      --token <token>     Bearer token for Gmail API (defaults to GMAIL_ACCESS_TOKEN)");
-        _console.MarkupLine("      --user <userId>     Target Gmail user ID (default: 'me')");
-        _console.MarkupLine("      --explicit-and      Render queries using the explicit 'AND' keyword");
-        _console.MarkupLine("  -h, --help              Show this help message");
-    }
+    public void PrintHelp() => Binding.CommandHelpRenderer.Render(this, _console);
 }

@@ -1,9 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Spectre.Console;
+using VitaCernita.Cli.Commands.Binding;
 using VitaCernita.Core.Configuration;
 
 namespace VitaCernita.Cli.Commands;
@@ -21,108 +21,90 @@ public class LogoutCommand : ICliCommand
         _console = console ?? AnsiConsole.Console;
     }
 
+    [Option("account", 'a', Description = "Specific account email to log out", ValueHelp = "<email>")]
+    public string? Account { get; set; }
+
+    [Option("user", 'u', Description = "Specific user ID to log out", ValueHelp = "<userId>")]
+    public string? UserId { get; set; }
+
+    [Option("config-dir", Description = "Custom configuration directory (default: ~/.config/vitacernita)", ValueHelp = "<dir>")]
+    public string? ConfigDir { get; set; }
+
+    [Option("all", Description = "Also remove cached client credentials (credentials.json)")]
+    public bool All { get; set; }
+
     public Task<int> ExecuteAsync(string[] args)
     {
-        string? account = null;
-        string? userId = null;
-        string? explicitConfigDir = null;
-        bool all = false;
-
-        for (int i = 0; i < args.Length; i++)
+        if (args.Length > 0)
         {
-            switch (args[i])
+            var bindResult = CommandParameterBinder.Default.Bind(this, args);
+            if (bindResult.HelpRequested)
             {
-                case "-a":
-                case "--account":
-                    if (i + 1 < args.Length) account = args[++i];
-                    break;
-                case "-u":
-                case "--user":
-                    if (i + 1 < args.Length) userId = args[++i];
-                    break;
-                case "--config-dir":
-                    if (i + 1 < args.Length) explicitConfigDir = args[++i];
-                    break;
-                case "--all":
-                    all = true;
-                    break;
-                case "-h":
-                case "--help":
-                    PrintHelp();
-                    return Task.FromResult(0);
+                PrintHelp();
+                return Task.FromResult(0);
+            }
+            if (!bindResult.IsSuccess)
+            {
+                _console.MarkupLine($"[bold red]Error:[/] {bindResult.ErrorMessage}");
+                return Task.FromResult(1);
             }
         }
 
-        string configDir = ConfigPathResolver.GetDefaultConfigDirectory(customConfigDir: explicitConfigDir);
+        string configDir = ConfigPathResolver.GetDefaultConfigDirectory(customConfigDir: ConfigDir);
         string tokenDir = ConfigPathResolver.GetTokenStorageDirectory(configDir);
-        string targetUser = !string.IsNullOrWhiteSpace(userId)
-            ? userId
-            : (!string.IsNullOrWhiteSpace(account) ? account : string.Empty);
+        string targetUser = !string.IsNullOrWhiteSpace(UserId)
+            ? UserId
+            : (!string.IsNullOrWhiteSpace(Account) ? Account : string.Empty);
 
-        int deletedCount = 0;
-
-        if (Directory.Exists(tokenDir))
+        if (!Directory.Exists(tokenDir))
         {
-            var files = Directory.EnumerateFiles(tokenDir).ToList();
-            foreach (var file in files)
-            {
-                string fileName = Path.GetFileName(file);
-                if (string.IsNullOrEmpty(targetUser) || fileName.Contains(targetUser, StringComparison.OrdinalIgnoreCase))
-                {
-                    try
-                    {
-                        File.Delete(file);
-                        deletedCount++;
-                    }
-                    catch
-                    {
-                        // Best effort deletion
-                    }
-                }
-            }
-        }
-
-        if (all)
-        {
-            string credPath = ConfigPathResolver.GetCredentialsPath(configDir);
-            if (File.Exists(credPath))
-            {
-                try
-                {
-                    File.Delete(credPath);
-                    _console.MarkupLine($"Removed client credentials at: [yellow]{Markup.Escape(credPath)}[/]");
-                }
-                catch
-                {
-                    // Best effort
-                }
-            }
-        }
-
-        if (deletedCount > 0)
-        {
-            string targetDesc = !string.IsNullOrEmpty(targetUser) ? $"for user '[cyan]{Markup.Escape(targetUser)}[/]'" : "for all accounts";
-            _console.MarkupLine($"[bold green]Successfully logged out[/] {targetDesc}. Removed {deletedCount} token file(s).");
+            _console.MarkupLine($"[yellow]Warning:[/] Token directory not found: [dim]{tokenDir}[/]. No tokens to remove.");
         }
         else
         {
-            _console.MarkupLine("[bold yellow]No cached tokens found to remove.[/]");
+            var tokenFiles = Directory.GetFiles(tokenDir);
+            if (tokenFiles.Length == 0)
+            {
+                _console.MarkupLine($"[yellow]Note:[/] No cached tokens found in [dim]{tokenDir}[/].");
+            }
+            else
+            {
+                var filesToDelete = string.IsNullOrWhiteSpace(targetUser)
+                    ? tokenFiles
+                    : tokenFiles.Where(f => Path.GetFileName(f).Contains(targetUser, StringComparison.OrdinalIgnoreCase)).ToArray();
+
+                if (filesToDelete.Length == 0)
+                {
+                    _console.MarkupLine($"[yellow]Note:[/] No tokens found matching user '[cyan]{targetUser}[/]'.");
+                }
+                else
+                {
+                    foreach (var file in filesToDelete)
+                    {
+                        File.Delete(file);
+                        _console.MarkupLine($"[green]Deleted token:[/] [dim]{Path.GetFileName(file)}[/]");
+                    }
+                    _console.MarkupLine($"[bold green]Success:[/] Removed {filesToDelete.Length} token file(s).");
+                }
+            }
+        }
+
+        if (All)
+        {
+            string credsFile = ConfigPathResolver.GetCredentialsPath(configDir);
+            if (File.Exists(credsFile))
+            {
+                File.Delete(credsFile);
+                _console.MarkupLine($"[green]Deleted credentials file:[/] [dim]{credsFile}[/]");
+            }
+            else
+            {
+                _console.MarkupLine($"[dim]Credentials file not found: {credsFile}[/]");
+            }
         }
 
         return Task.FromResult(0);
     }
 
-    public void PrintHelp()
-    {
-        _console.MarkupLine("[bold]VitaCernita CLI - Logout Command[/]");
-        _console.MarkupLine("Usage: vitacernita logout [[OPTIONS]]\n");
-        _console.MarkupLine("[bold]Description:[/]");
-        _console.MarkupLine("  Remove cached Google OAuth 2.0 tokens from the configuration directory.\n");
-        _console.MarkupLine("[bold]Options:[/]");
-        _console.MarkupLine("  -a, --account <email>    Specific account email to log out");
-        _console.MarkupLine("  -u, --user <userId>      Specific user ID to log out (defaults to all)");
-        _console.MarkupLine("      --config-dir <dir>   Custom configuration directory (default: ~/.config/vitacernita)");
-        _console.MarkupLine("      --all                Also remove cached client credentials (credentials.json)");
-        _console.MarkupLine("  -h, --help               Show this help message");
-    }
+    public void PrintHelp() => CommandHelpRenderer.Render(this, _console);
 }

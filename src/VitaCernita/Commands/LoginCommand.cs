@@ -23,70 +23,60 @@ public class LoginCommand : ICliCommand
         _tokenProviderOverride = tokenProviderOverride;
     }
 
+    [Option("credentials", 'c', Description = "Path to Google Cloud client_secret_xxx.json", ValueHelp = "<file>")]
+    public string? CredentialsFile { get; set; }
+
+    [Option("client-id", Description = "Google OAuth Client ID", ValueHelp = "<id>")]
+    public string? ClientId { get; set; }
+
+    [Option("client-secret", Description = "Google OAuth Client Secret", ValueHelp = "<sec>")]
+    public string? ClientSecret { get; set; }
+
+    [Option("account", 'a', Description = "Target Gmail account email address", ValueHelp = "<email>")]
+    public string? Account { get; set; }
+
+    [Option("user", 'u', Description = "Target user ID for token storage (default: 'user')", ValueHelp = "<userId>")]
+    public string? UserId { get; set; }
+
+    [Option("config-dir", Description = "Custom configuration directory (default: ~/.config/vitacernita)", ValueHelp = "<dir>")]
+    public string? ConfigDir { get; set; }
+
+    [Option("save-only", Aliases = ["credentials-only"], Description = "Only import/save client credentials without initiating OAuth login")]
+    public bool SaveCredentialsOnly { get; set; }
+
+    [Option("force", 'f', Description = "Force re-authentication even if valid cached token exists")]
+    public bool Force { get; set; }
+
     public async Task<int> ExecuteAsync(string[] args)
     {
-        string? explicitCredentialsFile = null;
-        string? clientId = null;
-        string? clientSecret = null;
-        string? account = null;
-        string? userId = null;
-        string? explicitConfigDir = null;
-        bool saveCredentialsOnly = false;
-        bool force = false;
-
-        for (int i = 0; i < args.Length; i++)
+        if (args.Length > 0)
         {
-            switch (args[i])
+            var bindResult = Binding.CommandParameterBinder.Default.Bind(this, args);
+            if (bindResult.HelpRequested)
             {
-                case "-c":
-                case "--credentials":
-                    if (i + 1 < args.Length) explicitCredentialsFile = args[++i];
-                    break;
-                case "--client-id":
-                    if (i + 1 < args.Length) clientId = args[++i];
-                    break;
-                case "--client-secret":
-                    if (i + 1 < args.Length) clientSecret = args[++i];
-                    break;
-                case "-a":
-                case "--account":
-                    if (i + 1 < args.Length) account = args[++i];
-                    break;
-                case "-u":
-                case "--user":
-                    if (i + 1 < args.Length) userId = args[++i];
-                    break;
-                case "--config-dir":
-                    if (i + 1 < args.Length) explicitConfigDir = args[++i];
-                    break;
-                case "--save-only":
-                case "--credentials-only":
-                    saveCredentialsOnly = true;
-                    break;
-                case "-f":
-                case "--force":
-                    force = true;
-                    break;
-                case "-h":
-                case "--help":
-                    PrintHelp();
-                    return 0;
+                PrintHelp();
+                return 0;
+            }
+            if (!bindResult.IsSuccess)
+            {
+                _console.MarkupLine($"[bold red]Error:[/] {bindResult.ErrorMessage}");
+                return 1;
             }
         }
 
-        string configDir = ConfigPathResolver.GetDefaultConfigDirectory(customConfigDir: explicitConfigDir);
-        string effectiveUser = !string.IsNullOrWhiteSpace(userId)
-            ? userId
-            : (!string.IsNullOrWhiteSpace(account) ? account : "user");
+        string configDir = ConfigPathResolver.GetDefaultConfigDirectory(customConfigDir: ConfigDir);
+        string effectiveUser = !string.IsNullOrWhiteSpace(UserId)
+            ? UserId
+            : (!string.IsNullOrWhiteSpace(Account) ? Account : "user");
 
         // 1. Resolve client credentials
         ClientCredentials? credentials = null;
 
-        if (!string.IsNullOrWhiteSpace(explicitCredentialsFile))
+        if (!string.IsNullOrWhiteSpace(CredentialsFile))
         {
             try
             {
-                credentials = await ClientCredentialsManager.LoadCredentialsAsync(explicitCredentialsFile, configDir);
+                credentials = await ClientCredentialsManager.LoadCredentialsAsync(CredentialsFile, configDir);
             }
             catch (Exception ex)
             {
@@ -96,15 +86,15 @@ public class LoginCommand : ICliCommand
 
             if (credentials == null || !credentials.IsValid)
             {
-                _console.MarkupLine($"[bold red]Error:[/] Could not parse valid client credentials from '[yellow]{Markup.Escape(explicitCredentialsFile)}[/]'.");
+                _console.MarkupLine($"[bold red]Error:[/] Could not parse valid client credentials from '[yellow]{Markup.Escape(CredentialsFile)}[/]'.");
                 return 1;
             }
             await ClientCredentialsManager.SaveCredentialsAsync(credentials, configDir: configDir);
-            _console.MarkupLine($"[bold green]Imported credentials from:[/] [cyan]{Markup.Escape(explicitCredentialsFile)}[/]");
+            _console.MarkupLine($"[bold green]Imported credentials from:[/] [cyan]{Markup.Escape(CredentialsFile)}[/]");
         }
-        else if (!string.IsNullOrWhiteSpace(clientId) && !string.IsNullOrWhiteSpace(clientSecret))
+        else if (!string.IsNullOrWhiteSpace(ClientId) && !string.IsNullOrWhiteSpace(ClientSecret))
         {
-            credentials = new ClientCredentials(clientId.Trim(), clientSecret.Trim());
+            credentials = new ClientCredentials(ClientId.Trim(), ClientSecret.Trim());
             await ClientCredentialsManager.SaveCredentialsAsync(credentials, configDir: configDir);
             _console.MarkupLine("[bold green]Client credentials saved successfully.[/]");
         }
@@ -141,7 +131,7 @@ public class LoginCommand : ICliCommand
             _console.MarkupLine($"[bold green]Client credentials saved to:[/] [yellow]{Markup.Escape(ConfigPathResolver.GetCredentialsPath(configDir))}[/]\n");
         }
 
-        if (saveCredentialsOnly)
+        if (SaveCredentialsOnly)
         {
             _console.MarkupLine("[bold green]Client credentials saved successfully. Skipping interactive login as requested.[/]");
             return 0;
@@ -153,7 +143,7 @@ public class LoginCommand : ICliCommand
             configDir: configDir,
             user: effectiveUser);
 
-        if (!force && provider.HasCachedToken())
+        if (!Force && provider.HasCachedToken())
         {
             try
             {
@@ -205,21 +195,5 @@ public class LoginCommand : ICliCommand
         }
     }
 
-    public void PrintHelp()
-    {
-        _console.MarkupLine("[bold]VitaCernita CLI - Login Command[/]");
-        _console.MarkupLine("Usage: vitacernita login [[OPTIONS]]\n");
-        _console.MarkupLine("[bold]Description:[/]");
-        _console.MarkupLine("  Authenticate with Google OAuth 2.0 using the loopback browser flow.");
-        _console.MarkupLine("  Saves client credentials and securely caches access/refresh tokens for future commands.\n");
-        _console.MarkupLine("[bold]Options:[/]");
-        _console.MarkupLine("  -c, --credentials <file> Path to Google Cloud client_secret_xxx.json");
-        _console.MarkupLine("      --client-id <id>     Google OAuth Client ID");
-        _console.MarkupLine("      --client-secret <sec> Google OAuth Client Secret");
-        _console.MarkupLine("  -a, --account <email>    Target Gmail account email address");
-        _console.MarkupLine("  -u, --user <userId>      Target user ID for token storage (default: 'user')");
-        _console.MarkupLine("      --config-dir <dir>   Custom configuration directory (default: ~/.config/vitacernita)");
-        _console.MarkupLine("  -f, --force              Force re-authentication even if valid cached token exists");
-        _console.MarkupLine("  -h, --help               Show this help message");
-    }
+    public void PrintHelp() => Binding.CommandHelpRenderer.Render(this, _console);
 }

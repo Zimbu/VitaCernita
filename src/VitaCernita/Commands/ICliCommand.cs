@@ -36,5 +36,5 @@ public interface ICliCommand
     /// <summary>
     /// Displays help details and usage flags for this specific command.
     /// </summary>
-    void PrintHelp();
+    void PrintHelp() => Binding.CommandHelpRenderer.Render(this, Spectre.Console.AnsiConsole.Console);
 }

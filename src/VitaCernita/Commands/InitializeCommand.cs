@@ -36,74 +36,61 @@ public class InitializeCommand : ICliCommand
         _console = console ?? AnsiConsole.Console;
         _apiClientOverride = apiClientOverride;
     }
+    [Option("output", 'o', Aliases = ["config"], Description = "Destination path for configuration (default: ~/.config/vitacernita/gmail.lua)", ValueHelp = "<path>")]
+    public string? OutputPath { get; set; }
+
+    [Option("account", 'a', Description = "Target Gmail account email address", ValueHelp = "<email>")]
+    public string? Account { get; set; }
+
+    [Option("user", 'u', Description = "Target Gmail user ID (defaults to --account or 'me')", ValueHelp = "<userId>")]
+    public string? UserId { get; set; }
+
+    [Option("token", 't', Description = "Bearer token for Gmail API (defaults to GMAIL_ACCESS_TOKEN)", ValueHelp = "<token>")]
+    public string? Token { get; set; }
+
+    [Option("config-dir", Description = "Custom configuration directory (default: ~/.config/vitacernita)", ValueHelp = "<dir>")]
+    public string? ConfigDir { get; set; }
+
+    [Option("mock", Aliases = ["fake-account"], Description = "Connect to an in-memory mock account (for testing/dry-run)")]
+    public bool UseMock { get; set; }
+
+    [Option("force", 'f', Description = "Overwrite destination file if it already exists")]
+    public bool Force { get; set; }
 
     public async Task<int> ExecuteAsync(string[] args)
     {
-        string? explicitOutputPath = null;
-        string? account = null;
-        string? userId = null;
-        string? token = null;
-        string? explicitConfigDir = null;
-        bool useMock = false;
-        bool force = false;
-
-        for (int i = 0; i < args.Length; i++)
+        if (args.Length > 0)
         {
-            switch (args[i])
+            var bindResult = Binding.CommandParameterBinder.Default.Bind(this, args);
+            if (bindResult.HelpRequested)
             {
-                case "-o":
-                case "--output":
-                case "-c":
-                case "--config":
-                    if (i + 1 < args.Length) explicitOutputPath = args[++i];
-                    break;
-                case "-a":
-                case "--account":
-                    if (i + 1 < args.Length) account = args[++i];
-                    break;
-                case "-u":
-                case "--user":
-                    if (i + 1 < args.Length) userId = args[++i];
-                    break;
-                case "-t":
-                case "--token":
-                    if (i + 1 < args.Length) token = args[++i];
-                    break;
-                case "--config-dir":
-                    if (i + 1 < args.Length) explicitConfigDir = args[++i];
-                    break;
-                case "--mock":
-                case "--fake-account":
-                    useMock = true;
-                    break;
-                case "-f":
-                case "--force":
-                    force = true;
-                    break;
-                case "-h":
-                case "--help":
-                    PrintHelp();
-                    return 0;
+                PrintHelp();
+                return 0;
+            }
+            if (!bindResult.IsSuccess)
+            {
+                _console.MarkupLine($"[bold red]Error:[/] {bindResult.ErrorMessage}");
+                return 1;
             }
         }
 
-        string configDir = ConfigPathResolver.GetDefaultConfigDirectory(customConfigDir: explicitConfigDir);
+        string configDir = ConfigPathResolver.GetDefaultConfigDirectory(customConfigDir: ConfigDir);
 
-        string targetPath = !string.IsNullOrWhiteSpace(explicitOutputPath)
-            ? ConfigPathResolver.ResolveConfigPath(explicitOutputPath, customConfigDir: explicitConfigDir)
-            : ConfigPathResolver.GetDefaultConfigPath(customConfigDir: explicitConfigDir);
+        string targetPath = !string.IsNullOrWhiteSpace(OutputPath)
+            ? ConfigPathResolver.ResolveConfigPath(OutputPath, customConfigDir: ConfigDir)
+            : ConfigPathResolver.GetDefaultConfigPath(customConfigDir: ConfigDir);
 
-        if (File.Exists(targetPath) && !force)
+        if (File.Exists(targetPath) && !Force)
         {
             _console.MarkupLine($"[bold red]Error:[/] Configuration file already exists at '[yellow]{Markup.Escape(targetPath)}[/]'. Use [bold]--force[/] to overwrite.");
             return 1;
         }
 
-        bool connectToAccount = useMock || !string.IsNullOrWhiteSpace(account) || !string.IsNullOrWhiteSpace(token) || _apiClientOverride != null;
+        bool connectToAccount = UseMock || !string.IsNullOrWhiteSpace(Account) || !string.IsNullOrWhiteSpace(Token) || _apiClientOverride != null;
 
         if (connectToAccount)
         {
-            return await InitializeFromAccountAsync(targetPath, account, userId, token, useMock, configDir);
+            return await InitializeFromAccountAsync(targetPath, Account, UserId, Token, UseMock, configDir);
         }
 
         return await InitializeDefaultConfigAsync(targetPath);
@@ -314,23 +301,5 @@ public class InitializeCommand : ICliCommand
         return 0;
     }
 
-    public void PrintHelp()
-    {
-        _console.MarkupLine("[bold]VitaCernita CLI - Initialize Command[/]");
-        _console.MarkupLine("Usage: vitacernita initialize [[OPTIONS]]\n");
-        _console.MarkupLine("[bold]Description:[/]");
-        _console.MarkupLine("  Initialize a VitaCernita Lua configuration file. If the configuration file");
-        _console.MarkupLine("  does not exist, generates a starter configuration. If connecting to an existing");
-        _console.MarkupLine("  Gmail account, reads vacation responder, labels, and filters and serializes them.\n");
-        _console.MarkupLine("[bold]Options:[/]");
-        _console.MarkupLine("  -o, --output <path>     Destination path for configuration (default: ~/.config/vitacernita/gmail.lua)");
-        _console.MarkupLine("  -c, --config <path>     Alias for --output");
-        _console.MarkupLine("  -a, --account <email>   Target Gmail account email address");
-        _console.MarkupLine("  -u, --user <userId>     Target Gmail user ID (defaults to --account or 'me')");
-        _console.MarkupLine("  -t, --token <token>     Bearer token for Gmail API (defaults to GMAIL_ACCESS_TOKEN)");
-        _console.MarkupLine("      --config-dir <dir>  Custom configuration directory (default: ~/.config/vitacernita)");
-        _console.MarkupLine("      --mock              Connect to an in-memory mock account (for testing/dry-run)");
-        _console.MarkupLine("  -f, --force             Overwrite destination file if it already exists");
-        _console.MarkupLine("  -h, --help              Show this help message");
-    }
+    public void PrintHelp() => Binding.CommandHelpRenderer.Render(this, _console);
 }

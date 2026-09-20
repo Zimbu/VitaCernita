@@ -17,11 +17,13 @@ public class CommandDispatcher
     private readonly Dictionary<string, (ICliCommand Command, bool IsAlias)> _registeredTokens = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ICliCommand> _orderedCommands = new();
     private readonly IAnsiConsole _console;
+    private readonly Binding.CommandParameterBinder _binder;
     private ICliCommand? _defaultCommand;
 
-    public CommandDispatcher(IAnsiConsole? console = null)
+    public CommandDispatcher(IAnsiConsole? console = null, Binding.CommandParameterBinder? binder = null)
     {
         _console = console ?? AnsiConsole.Console;
+        _binder = binder ?? Binding.CommandParameterBinder.Default;
     }
 
     public IReadOnlyList<ICliCommand> Commands => _orderedCommands;
@@ -150,6 +152,20 @@ public class CommandDispatcher
         if (cmd != null)
         {
             string[] subArgs = args.Length > 1 ? args[1..] : Array.Empty<string>();
+
+            var bindResult = _binder.Bind(cmd, subArgs);
+            if (bindResult.HelpRequested)
+            {
+                cmd.PrintHelp();
+                return 0;
+            }
+
+            if (!bindResult.IsSuccess)
+            {
+                _console.MarkupLine($"[bold red]Error:[/] {bindResult.ErrorMessage}");
+                return 1;
+            }
+
             return await cmd.ExecuteAsync(subArgs);
         }
 
@@ -199,6 +215,9 @@ public class CommandDispatcher
 
     private CommandDispatcher RegisterInternal(ICliCommand command, CommandAttribute? attr)
     {
+        // Validate option declarations on the command type
+        Binding.CommandParameterBinder.GetDescriptors(command.GetType());
+
         string name = attr?.Name ?? command.Name;
         IReadOnlyList<string> aliases = (attr != null && attr.Aliases.Length > 0) ? attr.Aliases : command.Aliases;
         bool isDefault = (attr != null && attr.IsDefault) || string.IsNullOrWhiteSpace(name);
