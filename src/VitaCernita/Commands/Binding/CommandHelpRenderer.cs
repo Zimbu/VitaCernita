@@ -12,18 +12,19 @@ namespace VitaCernita.Cli.Commands.Binding;
 /// </summary>
 public static class CommandHelpRenderer
 {
-    public static void Render(ICliCommand command, IAnsiConsole console)
+    public static void Render(ICliCommand command, IAnsiConsole console, string? applicationName = null)
     {
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(console);
 
+        string appName = applicationName ?? CommandDispatcher.ResolveApplicationName(command.GetType().Assembly);
         string commandName = command.Name;
         string title = !string.IsNullOrWhiteSpace(commandName)
             ? $"{CultureInfo.InvariantCulture.TextInfo.ToTitleCase(commandName)} Command"
             : "Command";
 
-        console.MarkupLine($"[bold]VitaCernita CLI - {title}[/]");
-        console.MarkupLine($"Usage: vitacernita {commandName} [[options]]\n");
+        console.MarkupLine($"[bold]{appName} - {title}[/]");
+        console.MarkupLine($"Usage: {appName} {commandName} [[options]]\n");
 
         if (!string.IsNullOrWhiteSpace(command.Description))
         {

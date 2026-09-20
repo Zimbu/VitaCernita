@@ -236,4 +236,34 @@ public class CommandDispatcherTests
         Assert.NotNull(dispatcher.GetCommand("a"));
         Assert.Equal(0, await dispatcher.DispatchAsync(new[] { "a" }));
     }
+
+    [Fact]
+    public async Task Dispatcher_CustomApplicationName_UsedInErrorMessagesAndHelp()
+    {
+        var writer = new System.IO.StringWriter();
+        var console = Spectre.Console.AnsiConsole.Create(new Spectre.Console.AnsiConsoleSettings
+        {
+            Out = new Spectre.Console.AnsiConsoleOutput(writer)
+        });
+
+        var dispatcher = new CommandDispatcher(console, applicationName: "mycli");
+        Assert.Equal("mycli", dispatcher.ApplicationName);
+
+        int exitCode = await dispatcher.DispatchAsync(new[] { "unknown-cmd" });
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Run 'mycli --help'", writer.ToString());
+
+        writer.GetStringBuilder().Clear();
+        dispatcher.PrintGlobalHelp();
+        Assert.Contains("Usage: mycli <command>", writer.ToString());
+    }
+
+    [Fact]
+    public void Dispatcher_RegisterFromAssembly_InfersApplicationName()
+    {
+        var dispatcher = new CommandDispatcher();
+        dispatcher.RegisterFromAssembly(typeof(VitaCernita.Cli.Program).Assembly);
+
+        Assert.Equal("vitacernita", dispatcher.ApplicationName);
+    }
 }

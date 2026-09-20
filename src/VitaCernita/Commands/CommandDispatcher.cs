@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -9,7 +10,7 @@ namespace VitaCernita.Cli.Commands;
 
 /// <summary>
 /// Routes CLI invocations to registered subcommands with global uniqueness validation
-/// and single default command support.
+/// and single default command support. Fully generic and decoupled from any specific application.
 /// </summary>
 public class CommandDispatcher
 {
@@ -20,10 +21,16 @@ public class CommandDispatcher
     private readonly Binding.CommandParameterBinder _binder;
     private ICliCommand? _defaultCommand;
 
-    public CommandDispatcher(IAnsiConsole? console = null, Binding.CommandParameterBinder? binder = null)
+    public string ApplicationName { get; private set; }
+
+    public CommandDispatcher(
+        IAnsiConsole? console = null,
+        Binding.CommandParameterBinder? binder = null,
+        string? applicationName = null)
     {
         _console = console ?? AnsiConsole.Console;
         _binder = binder ?? Binding.CommandParameterBinder.Default;
+        ApplicationName = applicationName ?? ResolveApplicationName();
     }
 
     public IReadOnlyList<ICliCommand> Commands => _orderedCommands;
@@ -57,6 +64,11 @@ public class CommandDispatcher
     public CommandDispatcher RegisterFromAssembly(Assembly assembly, Func<Type, ICliCommand>? factory = null)
     {
         ArgumentNullException.ThrowIfNull(assembly);
+
+        if (string.Equals(ApplicationName, "app", StringComparison.OrdinalIgnoreCase))
+        {
+            ApplicationName = ResolveApplicationName(assembly);
+        }
 
         var commandTypes = assembly.GetTypes()
             .Where(t => !t.IsAbstract && !t.IsInterface && typeof(ICliCommand).IsAssignableFrom(t))
@@ -106,7 +118,8 @@ public class CommandDispatcher
                 return await _defaultCommand.ExecuteAsync(args);
             }
 
-            _console.MarkupLine("[bold green]VitaCernita[/] version [cyan]0.1.0[/]");
+            string version = GetType().Assembly.GetName().Version?.ToString(3) ?? "1.0.0";
+            _console.MarkupLine($"[bold green]{Markup.Escape(ApplicationName)}[/] version [cyan]{Markup.Escape(version)}[/]");
             return 0;
         }
 
@@ -134,7 +147,7 @@ public class CommandDispatcher
                     return 0;
                 }
 
-                _console.MarkupLine($"[bold red]Error:[/] Unknown command '[yellow]{Markup.Escape(args[1])}[/]'. Run 'vitacernita --help' for available commands.");
+                _console.MarkupLine($"[bold red]Error:[/] Unknown command '[yellow]{Markup.Escape(args[1])}[/]'. Run '{Markup.Escape(ApplicationName)} --help' for available commands.");
                 return 1;
             }
 
@@ -177,11 +190,11 @@ public class CommandDispatcher
                 return await _defaultCommand.ExecuteAsync(args);
             }
 
-            _console.MarkupLine($"[bold red]Error:[/] Unknown option '[yellow]{Markup.Escape(firstArg)}[/]'. Run 'vitacernita --help' for available options.");
+            _console.MarkupLine($"[bold red]Error:[/] Unknown option '[yellow]{Markup.Escape(firstArg)}[/]'. Run '{Markup.Escape(ApplicationName)} --help' for available options.");
             return 1;
         }
 
-        _console.MarkupLine($"[bold red]Error:[/] Unknown command '[yellow]{Markup.Escape(firstArg)}[/]'. Run 'vitacernita --help' for available commands.");
+        _console.MarkupLine($"[bold red]Error:[/] Unknown command '[yellow]{Markup.Escape(firstArg)}[/]'. Run '{Markup.Escape(ApplicationName)} --help' for available commands.");
         return 1;
     }
 
@@ -193,8 +206,8 @@ public class CommandDispatcher
             return;
         }
 
-        _console.MarkupLine("[bold]VitaCernita CLI - Gmail Filter, Label & Auto-Reply Manager[/]");
-        _console.MarkupLine("Usage: vitacernita <command> [[options]]\n");
+        _console.MarkupLine($"[bold]{Markup.Escape(ApplicationName)} CLI[/]");
+        _console.MarkupLine($"Usage: {Markup.Escape(ApplicationName)} <command> [[options]]\n");
         _console.MarkupLine("[bold]Available Commands:[/]");
 
         int maxNameLen = _orderedCommands.Count > 0 ? _orderedCommands.Max(c => c.Name.Length) : 10;
@@ -205,12 +218,12 @@ public class CommandDispatcher
             string aliasInfo = cmd.Aliases.Count > 0 ? $" (aliases: {string.Join(", ", cmd.Aliases)})" : "";
             _console.MarkupLine($"  [cyan]{cmd.Name.PadRight(maxNameLen + 2)}[/] {cmd.Description}{aliasInfo}");
         }
-        _console.MarkupLine($"  [cyan]{"help".PadRight(maxNameLen + 2)}[/] Show help details for a command (e.g. 'vitacernita help <command>')\n");
+        _console.MarkupLine($"  [cyan]{"help".PadRight(maxNameLen + 2)}[/] Show help details for a command (e.g. '{Markup.Escape(ApplicationName)} help <command>')\n");
 
         _console.MarkupLine("[bold]Global Options:[/]");
         _console.MarkupLine("  -v, --version           Display application version");
         _console.MarkupLine("  -h, --help              Show this help message\n");
-        _console.MarkupLine("Run '[cyan]vitacernita <command> --help[/]' for detailed options on a specific command.");
+        _console.MarkupLine($"Run '[cyan]{Markup.Escape(ApplicationName)} <command> --help[/]' for detailed options on a specific command.");
     }
 
     private CommandDispatcher RegisterInternal(ICliCommand command, CommandAttribute? attr)
@@ -350,5 +363,53 @@ public class CommandDispatcher
 
         // 3. Fallback to parameterless Activator
         return (ICliCommand)Activator.CreateInstance(type)!;
+    }
+
+    public static string ResolveApplicationName(Assembly? targetAssembly = null)
+    {
+        try
+        {
+            string[] cmdArgs = Environment.GetCommandLineArgs();
+            if (cmdArgs.Length > 0 && !string.IsNullOrWhiteSpace(cmdArgs[0]))
+            {
+                string name = Path.GetFileNameWithoutExtension(cmdArgs[0]);
+                if (!name.Equals("dotnet", StringComparison.OrdinalIgnoreCase) &&
+                    !name.Contains("testhost", StringComparison.OrdinalIgnoreCase) &&
+                    !name.Contains("vstest", StringComparison.OrdinalIgnoreCase))
+                {
+                    return name.ToLowerInvariant();
+                }
+            }
+        }
+        catch
+        {
+            // Ignore security or argument exceptions in restricted environments
+        }
+
+        var entry = targetAssembly ?? Assembly.GetEntryAssembly();
+        if (entry != null)
+        {
+            string? name = entry.GetName().Name;
+            if (!string.IsNullOrWhiteSpace(name) &&
+                !name.Contains("testhost", StringComparison.OrdinalIgnoreCase) &&
+                !name.Contains("vstest", StringComparison.OrdinalIgnoreCase) &&
+                !name.EndsWith(".Tests", StringComparison.OrdinalIgnoreCase))
+            {
+                return name.ToLowerInvariant();
+            }
+        }
+
+        if (targetAssembly != null)
+        {
+            string? name = targetAssembly.GetName().Name;
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                int dotIndex = name.IndexOf('.');
+                string baseName = dotIndex > 0 ? name[..dotIndex] : name;
+                return baseName.ToLowerInvariant();
+            }
+        }
+
+        return "app";
     }
 }

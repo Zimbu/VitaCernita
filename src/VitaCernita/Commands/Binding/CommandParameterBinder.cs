@@ -78,9 +78,10 @@ public class CommandParameterBinder
                 if (!metadata.LongOptions.TryGetValue(name, out var descriptor))
                 {
                     string cmdName = command.Name;
+                    string appName = CommandDispatcher.ResolveApplicationName(command.GetType().Assembly);
                     string helpHint = !string.IsNullOrWhiteSpace(cmdName)
-                        ? $"Run 'vitacernita {cmdName} --help' for available options."
-                        : "Run 'vitacernita --help' for available options.";
+                        ? $"Run '{appName} {cmdName} --help' for available options."
+                        : $"Run '{appName} --help' for available options.";
                     return BindResult.Failure($"Unknown option '{arg}'. {helpHint}");
                 }
 
